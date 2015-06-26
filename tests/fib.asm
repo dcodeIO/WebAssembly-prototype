@@ -8,7 +8,7 @@ function fib(stdlib, foreign, heap) {
     if (n >>> 0 < 3) {
       return 1|0;
     }
-    f1=fib(n-1)|0;
+    f1=fib(|n-1)0;
     f2=fib(n-2)|0;
     return f1 + f2;
   }
