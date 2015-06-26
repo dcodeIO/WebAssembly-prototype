@@ -82,7 +82,7 @@ var Parser = function(options) {
      * @type {number}
      * @see Parser.STATE
      */
-	this.state = Parser.STATE.HEAD;
+	this.state = Parser.STATE.HEADER;
 
 	/**
 	 * Parsing buffer.
@@ -116,22 +116,34 @@ var Parser = function(options) {
 
 	/**
 	 * Function signatures.
-	 * @type {{rtype: number, args: !Array.<number>}}
+	 * @type {Array<!{rtype: number, args: !Array.<number>}>}
 	 */
 	this.signatures = null;
 
 	/**
 	 * Function imports.
-	 // TODO
+	 * @type {Array<!{name: string, fname: string, sigs: Array}>}
 	 */
 	this.functionImports = null;
 
 	/**
 	 * Global variables.
-	 // TODO
+	 * @type {Array<!{type: number, fname: ?string}>}
 	 */
 	this.globalVars = null;
-}
+
+    /**
+     * Function declarations.
+     * @type {Array.<number>}
+     */
+    this.functionDeclarations = null;
+
+    /**
+     * Function pointers.
+     * @type {Array.<!{sig: number, elems: Array.<number>}>}
+     */
+    this.functionPointers = null;
+};
 
 // Extends stream.Transform
 Parser.prototype = Object.create(stream.Transform.prototype);
@@ -142,7 +154,7 @@ Parser.prototype = Object.create(stream.Transform.prototype);
  * @const
  */
 Parser.STATE = {
-	HEAD: 0,
+	HEADER: 0,
 	CONSTANTS_COUNT: 1,
 	CONSTANTS_I32: 2,
 	CONSTANTS_F32: 3,
@@ -152,7 +164,17 @@ Parser.STATE = {
 	FUNCTION_IMPORTS_COUNT: 7,
 	FUNCTION_IMPORTS: 8,
 	GLOBAL_VARS_COUNT: 9,
-	GLOBAL_VARS: 10
+	GLOBAL_VARS: 10,
+    FUNCTION_DECLARATIONS_COUNT: 11,
+    FUNCTION_DECLARATIONS: 12,
+    FUNCTION_POINTERS_COUNT: 13,
+    FUNCTION_POINTERS: 14
+};
+
+Parser.TYPES = {
+    I32: 0,
+    F32: 1,
+    F64: 2
 };
 
 Parser.prototype._transform = function(chunk, encoding, callback) {
@@ -163,8 +185,8 @@ Parser.prototype._transform = function(chunk, encoding, callback) {
 		var initialState = this.state;
 		try {
 			switch (this.state) {
-				case Parser.STATE.HEAD:
-					this._readHead();
+				case Parser.STATE.HEADER:
+					this._readHeader();
 					break;
 				case Parser.STATE.CONSTANTS_COUNT:
 					this._readConstantsCount();
@@ -193,6 +215,21 @@ Parser.prototype._transform = function(chunk, encoding, callback) {
 				case Parser.STATE.GLOBAL_VARS_COUNT:
 					this._readGlobalVarsCount();
 					break;
+				case Parser.STATE.GLOBAL_VARS:
+					this._readGlobalVars();
+					break;
+                case Parser.STATE.FUNCTION_DECLARATIONS_COUNT:
+                    this._readFunctionDeclarationsCount();
+                    break;
+                case Parser.STATE.FUNCTION_DECLARATIONS:
+                    this._readFunctionDeclarations();
+                    break;
+                case Parser.STATE.FUNCTION_POINTERS_COUNT:
+                    this._readFunctionPointersCount();
+                    break;
+                case Parser.STATE.FUNCTION_POINTERS:
+                    this._readFunctionPointers();
+                    break;
 				default:
 					throw Error("illegal state: "+this.state);
 			}
@@ -203,10 +240,14 @@ Parser.prototype._transform = function(chunk, encoding, callback) {
 			}
 			throw err;
 		}
-		if (this.state !== initialState) {
-			console.log("switch state "+initialState+"->"+this.state+" at offset "+this.offset.toString(16));
-		}
+		if (this.state !== initialState)
+            this.emit("switchState", initialState, this.state, this.offset);
 	} while (true);
+};
+
+Parser.prototype._advance = function(nBytes) {
+    this.buffer = this.buffer.slice(nBytes);
+    this.offset += nBytes;
 };
 
 Parser.prototype._readVarint = function(offset) {
@@ -239,36 +280,35 @@ Parser.prototype._readCString = function(offset) {
 	throw E_MORE;
 };
 
-Parser.prototype._readHead = function() {
+Parser.prototype._readHeader = function() {
 	if (this.buffer.length < 8)
 		throw E_MORE;
 	var off = 0;
 	var magic = this.buffer.readUInt32LE(off); off += 4;
 	if (magic !== 0x6d736177)
 		throw Error("wrong magic number");
-	var len = this.buffer.readUInt32LE(off); off += 4;
-	this.buffer = this.buffer.slice(off);
-	this.offset = off;
+	var size = this.buffer.readUInt32LE(off); off += 4;
+    this._advance(off);
+	this.emit("header", size);
 	this.state = Parser.STATE.CONSTANTS_COUNT;
 };
 
 Parser.prototype._readConstantsCount = function() {
 	var off = 0, vi;
 	vi = this._readVarint(off); off += vi[1];
-	var I32s = vi[0];
+	var nI32 = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F32s = vi[0];
+	var nF32 = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F64s = vi[0];
-	this.buffer = this.buffer.slice(off);
-	this.offset += off;
-	this.constantsI32 = new Array(I32s);
+	var nF64 = vi[0];
+    this._advance(off);
+	this.constantsI32 = new Array(nI32);
 	this.constantsI32.offset = 0;
-	this.constantsF32 = new Array(F32s);
+	this.constantsF32 = new Array(nF32);
 	this.constantsF32.offset = 0;
-	this.constantsF64 = new Array(F64s);
+	this.constantsF64 = new Array(nF64);
 	this.constantsF64.offset = 0;
-	this.emit("constantsCount", I32s, F32s, F64s);
+	this.emit("constantsCount", nI32, nF32, nF64);
 	this.state = Parser.STATE.CONSTANTS_I32;
 };
 
@@ -276,9 +316,9 @@ Parser.prototype._readConstantsI32 = function() {
 	while (this.constantsI32.offset < this.constantsI32.length) {
 		var vi = this._readVarint(0);
 		this.constantsI32[this.constantsI32.offset++] = vi[0];
-		this.buffer = this.buffer.slice(vi[1]);
-		this.offset += vi[1];
+        this._advance(vi[1]);
 	}
+    delete this.constantsI32.offset;
 	this.state = Parser.STATE.CONSTANTS_F32;
 };
 
@@ -287,9 +327,9 @@ Parser.prototype._readConstantsF32 = function() {
 		if (this.buffer.length < 4)
 			throw E_MORE;
 		this.constantsF32[this.constantsF32.offset++] = this.buffer.readFloatLE(0)
-		this.buffer = this.buffer.slice(4);
-		this.offset += 4;
+        this._advance(4);
 	}
+    delete this.constantsF32.offset;
 	this.state = Parser.STATE.CONSTANTS_F64;
 };
 
@@ -297,10 +337,10 @@ Parser.prototype._readConstantsF64 = function() {
 	while (this.constantsF64.offset < this.constantsF64.length) {
 		if (this.buffer.length < 8)
 			throw E_MORE;
-		this.constantsF64[this.constantsF64.offset++] = this.buffer.readDoubleLE(0)
-		this.buffer = this.buffer.slice(8);
-		this.offset += 8;
+		this.constantsF64[this.constantsF64.offset++] = this.buffer.readDoubleLE(0);
+        this._advance(8);
 	}
+    delete this.constantsF64.offset;
 	this.emit("constants", this.constantsI32, this.constantsF32, this.constantsF64);
 	this.state = Parser.STATE.SIGNATURES_COUNT;
 };
@@ -308,12 +348,11 @@ Parser.prototype._readConstantsF64 = function() {
 Parser.prototype._readSignaturesCount = function() {
 	var off = 0;
 	var vi = this._readVarint(off); off += vi[1];
-	var SIGs = vi[0];
-	this.buffer = this.buffer.slice(off);
-	this.offset += off;
-	this.signatures = new Array(SIGs);
+	var nSigs = vi[0];
+    this._advance(off);
+	this.signatures = new Array(nSigs);
 	this.signatures.offset = 0;
-	this.emit("signaturesCount", SIGs);
+	this.emit("signaturesCount", nSigs);
 	this.state = Parser.STATE.SIGNATURES;
 };
 
@@ -334,9 +373,9 @@ Parser.prototype._readSignatures = function() {
 			rtype: rtype,
 			args: args
 		};
-		this.buffer = this.buffer.slice(off);
-		this.offset += off;
+        this._advance(off);
 	}
+    delete this.signatures.offset;
 	this.emit("signatures", this.signatures);
 	this.state = Parser.STATE.FUNCTION_IMPORTS_COUNT;
 };
@@ -344,15 +383,14 @@ Parser.prototype._readSignatures = function() {
 Parser.prototype._readFunctionImportsCount = function() {
 	var off = 0, vi;
 	vi = this._readVarint(off); off += vi[1];
-	var FIs = vi[0];
+	var nFunctionImports = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var SIGs = vi[0];
-	this.buffer = this.buffer.slice(off);
-	this.offset += off;
-	this.functionImports = new Array(FIs);
-	this.functionImports.sigs = SIGs;
+	var nSigs = vi[0];
+    this._advance(off);
+	this.functionImports = new Array(nFunctionImports);
+	this.functionImports.sigs = nSigs;
 	this.functionImports.offset = 0;
-	this.emit("functionImportsCount", FIs, SIGs);
+	this.emit("functionImportsCount", nFunctionImports, nSigs);
 	this.state = Parser.STATE.FUNCTION_IMPORTS;
 };
 
@@ -366,15 +404,18 @@ Parser.prototype._readFunctionImports = function() {
 		var sigs = new Array(nSigs);
 		for (var i=0; i<nSigs; ++i) {
 			vi = this._readVarint(off); off += vi[1];
+			if (vi[0] >= this.signatures.length)
+				throw Error("illegal signature reference: "+vi[0]);
 			sigs[i] = vi[0];
 		}
-		this.buffer = this.buffer.slice(off);
-		this.offset += off;
+        this._advance(off);
 		this.functionImports[this.functionImports.offset++] = {
+			name: "TODO",
 			fname: fname,
 			sigs: sigs
 		};
 	}
+    delete this.functionImports.offset;
 	this.emit("functionImports", this.functionImports);
 	this.state = Parser.STATE.GLOBAL_VARS_COUNT;
 };
@@ -382,24 +423,137 @@ Parser.prototype._readFunctionImports = function() {
 Parser.prototype._readGlobalVarsCount = function() {
 	var off = 0, vi;
 	vi = this._readVarint(off); off += vi[1];
-	var I32_ZEROs = vi[0];
+	var nI32Zero = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F32_ZEROs = vi[0];
+	var nF32Zero = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F64_ZEROs = vi[0];
+	var nF64Zero = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var I32_IMPORTs = vi[0];
+	var nI32Import = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F32_IMPORTs = vi[0];
+	var nF32Import = vi[0];
 	vi = this._readVarint(off); off += vi[1];
-	var F64_IMPORTs = vi[0];
-	// var total = I32_ZEROs + F32_ZEROs + F64_ZEROs + I32_IMPORTs + F32_IMPORTs + F64_IMPORTs;
-	throw "not implemented";
+	var nF64Import = vi[0];
+	var total = nI32Zero + nF32Zero + nF64Zero + nI32Import + nF32Import + nF64Import;
+    this._advance(off);
+	this.globalVars = new Array(total);
+	this.globalVars.offset = 0;
+    this.globalVars.rangeI32 = nI32Zero + nF32Zero + nF64Zero + nI32Import;
+    this.globalVars.rangeF32 = this.globalVars.rangeI32 + nF32Import;
+    for (var i=0; i<nI32Zero; ++i) {
+        this.globalVars[this.globalVars.offset++] = {
+            type: "I32",
+            fname: null
+        };
+    }
+    for (i=0; i<nF32Zero; ++i) {
+        this.globalVars[this.globalVars.offset++] = {
+            type: "F32",
+            fname: null
+        };
+    }
+    for (i=0; i<nF64Zero; ++i) {
+        this.globalVars[this.globalVars.offset++] = {
+            type: "F64",
+            fname: null
+        };
+    }
+	this.emit("globalVarsCount", nI32Zero, nF32Zero, nF64Zero, nI32Import, nF32Import, nF64Import);
+	this.state = Parser.STATE.GLOBAL_VARS;
 };
 
+Parser.prototype._readGlobalVars = function() {
+	while (this.globalVars.offset < this.globalVars.length) {
+        var off = 0;
+        var cs = this._readCString(off);
+        var fname = cs[0];
+        this._advance(cs[1]);
+        var type = this.globalVars.offset < this.globalVars.rangeI32 ? Parser.TYPES.I32
+                 : this.globalVars.offset < this.globalVars.rangeF32 ? Parser.TYPES.F32
+                 : Parser.TYPES.F64;
+        this.globalVars[this.globalVars.offset++] = {
+            type: type,
+            fname: fname
+        };
+    }
+    delete this.globalVars.offset;
+    delete this.globalVars.rangeI32;
+    delete this.globalVars.rangeF32;
+    this.emit("globalVars", this.globalVars);
+    this.state = Parser.STATE.FUNCTION_DECLARATIONS_COUNT;
+};
+
+Parser.prototype._readFunctionDeclarationsCount = function() {
+    var off = 0;
+    var vi = this._readVarint(off); off += vi[1];
+    var nFunctionDeclarations = vi[0];
+    this._advance(off);
+    this.functionDeclarations = new Array(nFunctionDeclarations);
+    this.functionDeclarations.offset = 0;
+    this.emit("functionDeclarationsCount", nFunctionDeclarations);
+    this.state = Parser.STATE.FUNCTION_DECLARATIONS;
+};
+
+Parser.prototype._readFunctionDeclarations = function() {
+    while (this.functionDeclarations.offset < this.functionDeclarations.length) {
+        var off = 0;
+        var vi = this._readVarint(off); off += vi[1];
+        this._advance(off);
+        this.functionDeclarations[this.functionDeclarations.offset++] = vi[0];
+    }
+    delete this.functionDeclarations.offset;
+    this.emit("functionDeclarations", this.functionDeclarations);
+    this.state = Parser.STATE.FUNCTION_POINTERS_COUNT;
+};
+
+Parser.prototype._readFunctionPointersCount = function() {
+    var off = 0;
+    var vi = this._readVarint(off); off += vi[1];
+    var nFunctionPointers = vi[0];
+    this._advance(off);
+    this.functionPointers = new Array(nFunctionPointers);
+    this.functionPointers.offset = 0;
+    this.emit("functionPointersCount", nFunctionPointers);
+    this.state = Parser.STATE.FUNCTION_POINTERS;
+};
+
+Parser.prototype._readFunctionPointers = function() {
+    while (this.functionPointers.offset < this.functionPointers.length) {
+        var off = 0;
+        var vi = this._readVarint(off); off += vi[1];
+        var sig = vi[0];
+        if (sig > this.signatures.length)
+            throw Error("illegal signature reference: "+sig);
+        vi = this._readVarint(off); off += vi[1];
+        var nElems = vi[0];
+        var elems = new Array(nElems);
+        for (var i=0; i<nElems; ++i) {
+            vi = this._readVarint(off); off += vi[1];
+            elems[i] = vi[0];
+        }
+        this._advance(off);
+        this.functionPointers[this.functionPointers.offset++] = {
+            sig: sig,
+            elems: elems
+        };
+    }
+    delete this.functionPointers.offset;
+    this.emit("functionPointers", this.functionPointers);
+    this.state++;
+};
+
+// #################################################################
 // Just firing up a parser from a proper WebAssembly binary for now:
 
 var parser = new Parser();
+
+parser.on("switchState", function(prevState, newState, offset) {
+    console.log("switch state "+prevState+"->"+newState+" @ "+offset.toString(16));
+});
+
+parser.on("header", function(size) {
+	console.log("Unpacked size: "+size);
+});
 
 parser.on("constants", function(I32, F32, F64) {
 	console.log("Constants: "+I32.length+"xI32, "+F32.length+"xF32, "+F64.length+"xF64");
@@ -413,4 +567,16 @@ parser.on("functionImports", function(functionImports) {
 	console.log("Function imports: "+functionImports.length);
 });
 
-require("fs").createReadStream("../tests/AngryBots-asm.packed.js").pipe(parser);
+parser.on("globalVars", function(globalVars) {
+    console.log("Global vars: "+globalVars.length);
+});
+
+parser.on("functionDeclarations", function(functionDeclarations) {
+    console.log("Function declarations: "+functionDeclarations.length);
+});
+
+parser.on("functionPointers", function(functionPointers) {
+    console.log("Function pointers: "+functionPointers.length);
+});
+
+require("fs").createReadStream("../tests/AngryBots.wasm").pipe(parser);
