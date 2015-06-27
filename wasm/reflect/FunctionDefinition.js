@@ -6,12 +6,13 @@ var types = require("../types"),
  * A function definition.
  * @constructor
  * @param {!Assembly} assembly
+ * @param {number} index
  * @param {number|!FunctionSignature} signatureOrIndex
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
  */
-var FunctionDefinition = module.exports = function(assembly, signatureOrIndex, nI32vars, nF32vars, nF64vars) {
+var FunctionDefinition = module.exports = function(assembly, index, signatureOrIndex, nI32vars, nF32vars, nF64vars) {
 
     /**
      * Assembly reference.
@@ -20,14 +21,20 @@ var FunctionDefinition = module.exports = function(assembly, signatureOrIndex, n
     this.assembly = assembly;
 
     /**
+     * Function index.
+     * @type {number}
+     */
+    this.index = index;
+
+    /**
      * Function signature.
      * @type {!FunctionSignature}
      */
     this.signature;
     if (signatureOrIndex instanceof FunctionSignature)
-        this.signature = assembly.getSignature(signatureOrIndex.index);
+        this.signature = assembly.getFunctionSignature(signatureOrIndex.index);
     else
-        this.signature = assembly.getSignature(signatureOrIndex);
+        this.signature = assembly.getFunctionSignature(signatureOrIndex);
 
     /**
      * Local variables.

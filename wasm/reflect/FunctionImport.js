@@ -26,5 +26,5 @@ var FunctionImport = module.exports = function(assembly, name, signatureIndexes)
     this.signatures = [];
 
     for (var i=0; i<signatureIndexes.length; ++i)
-        this.signatures.push(assembly.getSignature(signatureIndexes[i]));
+        this.signatures.push(assembly.getFunctionSignature(signatureIndexes[i]));
 };
