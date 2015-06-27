@@ -1,4 +1,11 @@
-var util = require("./util");
+// Swaps an object's keys and values, returning an array that may contain undefined elements
+function swap(obj) {
+    var swp = [];
+    Object.keys(obj).forEach(function(key) {
+        swp[obj[key]] = key;
+    });
+    return swp;
+}
 
 exports.MagicNumber = 0x6d736177;
 
@@ -32,7 +39,7 @@ exports.Stmt = {
     Switch: 26
 };
 
-exports.StmtNames = util.invert(exports.Stmt);
+exports.StmtNames = swap(exports.Stmt);
 
 exports.StmtWithImm = {
     SetLoc: 0,
@@ -41,7 +48,7 @@ exports.StmtWithImm = {
     Reserved2: 3
 };
 
-exports.StmtWithImmNames = util.invert(exports.StmtWithImm);
+exports.StmtWithImmNames = swap(exports.StmtWithImm);
 
 exports.SwitchCase = {
     Case0: 0,
@@ -52,7 +59,7 @@ exports.SwitchCase = {
     DefaultN: 5
 };
 
-exports.SwitchCaseNames = util.invert(exports.SwitchCase);
+exports.SwitchCaseNames = swap(exports.SwitchCase);
 
 exports.I32 = {
     LitPool: 0,
@@ -130,7 +137,7 @@ exports.I32 = {
     Abs: 72
 };
 
-exports.I32Names = util.invert(exports.I32);
+exports.I32Names = swap(exports.I32);
 
 exports.I32WithImm = {
     LitPool: 0,
@@ -139,7 +146,7 @@ exports.I32WithImm = {
     Reserved: 3
 };
 
-exports.I32WithImmNames = util.invert(exports.I32WithImm);
+exports.I32WithImmNames = swap(exports.I32WithImm);
 
 exports.F32 = {
     LitPool: 0,
@@ -170,7 +177,7 @@ exports.F32 = {
     Sqrt: 25
 };
 
-exports.F32Names = util.invert(exports.F32);
+exports.F32Names = swap(exports.F32);
 
 exports.F32WithImm = {
     LitPool: 0,
@@ -179,7 +186,7 @@ exports.F32WithImm = {
     Reserved1: 3
 };
 
-exports.F32WithImmNames = util.invert(exports.F32WithImm);
+exports.F32WithImmNames = swap(exports.F32WithImm);
 
 exports.F64 = {
     LitPool: 0,
@@ -224,7 +231,7 @@ exports.F64 = {
     Pow: 39
 };
 
-exports.F64Names = util.invert(exports.F64);
+exports.F64Names = swap(exports.F64);
 
 exports.F64WithImm = {
     LitPool: 0,
@@ -233,7 +240,7 @@ exports.F64WithImm = {
     Reserved1: 3
 };
 
-exports.F64WithImmNames = util.invert(exports.F64WithImm);
+exports.F64WithImmNames = swap(exports.F64WithImm);
 
 exports.Void = {
     CallInt: 0,
@@ -241,7 +248,7 @@ exports.Void = {
     CallImp: 2
 };
 
-exports.VoidNames = util.invert(exports.Void);
+exports.VoidNames = swap(exports.Void);
 
 exports.Type = {
     I32: 0,
@@ -249,7 +256,11 @@ exports.Type = {
     F64: 2
 };
 
-exports.TypeNames = util.invert(exports.Type);
+exports.TypeNames = swap(exports.Type);
+
+exports.isValidType = function(type) {
+    return type === 0 || type === 1 || type === 2;
+};
 
 exports.VarType = {
     I32: 0x1,
@@ -257,7 +268,7 @@ exports.VarType = {
     F64: 0x4
 };
 
-exports.VarTypeNames = util.invert(exports.VarType);
+exports.VarTypeNames = swap(exports.VarType);
 
 exports.VarTypeWithImm = {
     OnlyI32: 0,
@@ -266,7 +277,7 @@ exports.VarTypeWithImm = {
     Reserved2: 3
 };
 
-exports.VarTypeWithImmNames = util.invert(exports.VarTypeWithImm);
+exports.VarTypeWithImmNames = swap(exports.VarTypeWithImm);
 
 exports.RType = {
     I32: exports.Type.I32,
@@ -275,12 +286,18 @@ exports.RType = {
     Void: 3
 };
 
+exports.RTypeNames = swap(exports.RType);
+
+exports.isValidRType = function(type) {
+    return type === 0 || type === 1 || type === 2 || type === 3;
+};
+
 exports.ExportFormat = {
     Default: 0,
     Record: 1
 };
 
-exports.ExportFormatNames = util.invert(exports.ExportFormat);
+exports.ExportFormatNames = swap(exports.ExportFormat);
 
 exports.HotStdLib = {
     HeapS8: 0,
@@ -295,7 +312,7 @@ exports.HotStdLib = {
     FRound: 9
 };
 
-exports.HotStdLibNames = util.invert(exports.HotStdLib);
+exports.HotStdLibNames = swap(exports.HotStdLib);
 
 exports.StdLib = {
     stdlib: 0,
@@ -322,7 +339,7 @@ exports.StdLib = {
     Infinity: 21
 };
 
-exports.StdLibNames = util.invert(exports.StdLib);
+exports.StdLibNames = swap(exports.StdLib);
 
 exports.Prec = {
     Lowest: 0,
@@ -343,7 +360,7 @@ exports.Prec = {
     Highest: 30
 };
 
-exports.PrecNames = util.invert(exports.Prec);
+exports.PrecNames = swap(exports.Prec);
 
 exports.Ctx = {
     Default: 0,
@@ -353,4 +370,4 @@ exports.Ctx = {
     ToNumber: 4
 };
 
-exports.CtxNames = util.invert(exports.Ctx);
+exports.CtxNames = swap(exports.Ctx);

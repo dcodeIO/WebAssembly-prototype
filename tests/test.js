@@ -1,42 +1,94 @@
-var Reader = require("../wasm/Reader.js");
+var Reader = require("../wasm/Reader"),
+    types = require("../wasm/types");
 
-var parser = new Reader();
+var reader = new Reader();
 
-parser.on("switchState", function (prevState, newState, offset) {
+reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
 });
 
-parser.on("header", function (size) {
-    console.log("Unpacked size: " + size);
+reader.on("header", function (size) {
+    console.log("Precomputed size: " + size);
 });
 
-parser.on("constants", function (I32, F32, F64) {
-    console.log("Constants: " + I32.length + "xI32, " + F32.length + "xF32, " + F64.length + "xF64");
+reader.on("constants", function (nI32, nF32, nF64) {
+    console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
 });
 
-parser.on("signatures", function (signatures) {
-    console.log("Signatures: " + signatures.length);
+reader.on("constant", function(type, value, index) {
+    console.log(index+" "+types.TypeNames[type]+" "+value);
 });
 
-parser.on("functionImports", function (functionImports) {
-    console.log("Function imports: " + functionImports.length);
+reader.on("constantsEnd", function() {
+    console.log("End of constants");
 });
 
-parser.on("globalVars", function (globalVars) {
-    console.log("Global vars: " + globalVars.length);
+reader.on("functionSignatures", function (nSigs) {
+    console.log("Signatures: " + nSigs);
 });
 
-parser.on("functionDeclarations", function (functionDeclarations) {
-    console.log("Function declarations: " + functionDeclarations.length);
+reader.on("functionSignature", function(signature, index) {
+    console.log(signature.toString());
 });
 
-parser.on("functionPointers", function (functionPointers) {
-    console.log("Function pointers: " + functionPointers.length);
+reader.on("functionImports", function (nFunctionImports, nSignatures) {
+    console.log("Function imports: " + nFunctionImports+" ("+nSignatures+" signatures)");
 });
 
-parser.on("functionDefinitions", function (functionDefinitions) {
-    console.log("Function definitions: " + functionDefinitions.length + " == " + this.functionDeclarations.length);
-    console.log(functionDefinitions);
+reader.on("functionImport", function(fimport, index) {
+    console.log(fimport.toString());
 });
 
-require("fs").createReadStream(__dirname+"/fib.wasm").pipe(parser);
+reader.on("functionImportsEnd", function() {
+    console.log("End of function imports");
+});
+
+reader.on("globalVariables", function (nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import) {
+    console.log("Global vars: " + [nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import]);
+});
+
+reader.on("globalVariable", function(variable, index) {
+    console.log(variable.toString());
+});
+
+reader.on("globalVariablesEnd", function() {
+    console.log("End of global variables");
+});
+
+reader.on("functionDeclarations", function (nDeclarations) {
+    console.log("Function declarations: " + nDeclarations);
+});
+
+reader.on("functionDeclaration", function(declaration, index) {
+    console.log(declaration.toString());
+});
+
+reader.on("functionDeclarationsEnd", function() {
+    console.log("End of function declarations");
+});
+
+reader.on("functionPointerTables", function (nTables) {
+    console.log("Function pointer tables: " + nTables);
+});
+
+reader.on("functionPointerTable", function(table, index) {
+    console.log(table.toString());
+});
+
+reader.on("functionPointerTablesEnd", function() {
+    console.log("End of function pointer tables");
+});
+
+reader.on("functionDefinitions", function (nDefinitions) {
+    console.log("Function definitions: " + nDefinitions);
+});
+
+reader.on("functionDefinition", function(definition, index) {
+    console.log(definition.toString());
+});
+
+reader.on("functionDefinitionsEnd", function() {
+    console.log("End of function definitions");
+});
+
+require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(reader);

@@ -5,47 +5,43 @@ var types = require("../types"),
 /**
  * A function definition.
  * @constructor
- * @param {!Assembly} assembly
- * @param {number} index
- * @param {number|!FunctionSignature} signatureOrIndex
+ * @param {!FunctionDeclaration} declaration
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
  */
-var FunctionDefinition = module.exports = function(assembly, index, signatureOrIndex, nI32vars, nF32vars, nF64vars) {
+var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32vars, nF64vars) {
 
     /**
-     * Assembly reference.
-     * @type {!Assembly}
+     * Function declaration reference.
+     * @type {!FunctionDeclaration}
      */
-    this.assembly = assembly;
-
-    /**
-     * Function index.
-     * @type {number}
-     */
-    this.index = index;
-
-    /**
-     * Function signature.
-     * @type {!FunctionSignature}
-     */
-    this.signature;
-    if (signatureOrIndex instanceof FunctionSignature)
-        this.signature = assembly.getFunctionSignature(signatureOrIndex.index);
-    else
-        this.signature = assembly.getFunctionSignature(signatureOrIndex);
+    this.declaration = declaration;
 
     /**
      * Local variables.
      * @type {!Array.<!LocalVariable>}
      */
-    this.variables = [];
+    this.variables = new Array(nI32vars + nF32vars + nF64vars);
     var index = 0;
     for (var i=0; i<nI32vars; ++i, ++index)
         this.variables.push(new LocalVariable(this, index, types.Type.I32));
-    for (var i=0; i<nF32vars; ++i, ++index)
+    for (i=0; i<nF32vars; ++i, ++index)
         this.variables.push(new LocalVariable(this, index, types.Type.F32));
-    for (var i=0; i<nF64vars; ++i, ++index)
+    for (i=0; i<nF64vars; ++i, ++index)
         this.variables.push(new LocalVariable(this, index, types.Type.F64));
+
+    /**
+     * Abstract syntax tree.
+     * @type {StmtList}
+     */
+    this.ast = null;
+};
+
+/**
+ * Returns a string representation of this function definition.
+ * @returns {string}
+ */
+FunctionDefinition.prototype.toString = function() {
+    return "FunctionDefinition " + this.declaration.index.toString() + this.variables.length.toString();
 };

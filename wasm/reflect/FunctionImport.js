@@ -5,7 +5,7 @@
  * @param {string} name
  * @param {!Array.<number>} signatureIndexes
  */
-var FunctionImport = module.exports = function(assembly, name, signatureIndexes) {
+var FunctionImport = module.exports = function(assembly, index, importName, signatureIndexes) {
 
     /**
      * Assembly reference.
@@ -14,10 +14,16 @@ var FunctionImport = module.exports = function(assembly, name, signatureIndexes)
     this.assembly = assembly;
 
     /**
+     * Function import index.
+     * @type {number}
+     */
+    this.index = index;
+
+    /**
      * Function import name.
      * @type {string}
      */
-    this.name = name;
+    this.importName = importName;
 
     /**
      * Function signatures.
@@ -27,4 +33,14 @@ var FunctionImport = module.exports = function(assembly, name, signatureIndexes)
 
     for (var i=0; i<signatureIndexes.length; ++i)
         this.signatures.push(assembly.getFunctionSignature(signatureIndexes[i]));
+};
+
+/**
+ * Returns a string representation of this import.
+ * @returns {string}
+ */
+FunctionImport.prototype.toString = function() {
+    return "FunctionImport " + this.index.toString()
+         + " foreign." + this.importName
+         + " [" + this.signatures.length.toString() + " sig]";
 };

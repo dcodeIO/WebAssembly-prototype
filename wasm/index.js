@@ -4,4 +4,4 @@ exports.Stmt = require("./Stmt");
 exports.StmtList = require("./StmtList");
 exports.types = require("./types");
 exports.util = require("./util");
-exoirts.reflect = require("./reflect");
+exports.reflect = require("./reflect/");
