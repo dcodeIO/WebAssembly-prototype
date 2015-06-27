@@ -1,0 +1,10 @@
+exports.Assembly = require("./Assembly");
+exports.ConstantPool = require("./ConstantPool");
+exports.FunctionDeclaration = require("./FunctionDeclaration");
+exports.FunctionDefinition = require("./FunctionDefinition");
+exports.FunctionImport = require("./FunctionImport");
+exports.FunctionPointerElement = require("./FunctionPointerElement");
+exports.FunctionPointerTable = require("./FunctionPointerTable");
+exports.FunctionSignature = require("./FunctionSignature");
+exports.GlobalVariable = require("./GlobalVariable");
+exports.LocalVariable = require("./LocalVariable");

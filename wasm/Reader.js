@@ -17,7 +17,7 @@ var stream = require("stream"),
     util   = require("./util"),
     types  = require("./types"),
     AstReader = require("./AstReader"),
-    StmtList = require("./StmtList");
+    StmtList = require("./stmt/StmtList");
 
 /**
  * A WebAssembly Reader implemented as a writable stream.

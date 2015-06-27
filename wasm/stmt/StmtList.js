@@ -1,6 +1,6 @@
 /**
  * A list of statements.
- * @function
+ * @constructor
  * @param {number} size
  * @extends Array
  */

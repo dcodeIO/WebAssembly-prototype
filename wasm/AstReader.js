@@ -1,9 +1,16 @@
 var stream = require("stream"),
     util   = require("./util"),
     types  = require("./types"),
-    Stmt   = require("./Stmt"),
-    StmtList = require("./StmtList");
+    stmt   = require("./stmt/"),
+    StmtList = stmt.StmtList;
 
+/**
+ * An abstract syntax tree reader.
+ * @constructor
+ * @param {!Reader} reader
+ * @param {!FunctionDefinition} functionDefinition
+ * @param {!Object.<string,*>=} options
+ */
 var AstReader = module.exports = function(reader, functionDefinition, options) {
     stream.Writable.call(this, options);
 
@@ -162,34 +169,34 @@ function S(ar) {
                 ar.state.unshift(args[i]);
         },
         stmt: function(operands) {
-            var stmt = new Stmt.Stmt(code.op, operands);
-            ar.stack.push(stmt);
-            parent.add(stmt);
-            return stmt;
+            var st = new stmt.Stmt(code.op, operands);
+            ar.stack.push(st);
+            parent.add(st);
+            return st;
         },
         stmtName: function(op) {
             return types.StmtNames[op];
         },
         stmtI32: function(operands) {
-            var stmt = new Stmt.I32Stmt(code.op, operands);
-            ar.stack.push(stmt);
-            return stmt;
+            var st = new stmt.I32Stmt(code.op, operands);
+            ar.stack.push(st);
+            return st;
         },
         stmtI32Name: function(op) {
             return types.I32Names[op];
         },
         stmtF32: function(operands) {
-            var stmt = new Stmt.F32Stmt(code.op, operands);
-            ar.stack.push(stmt);
-            return stmt;
+            var st = new stmt.F32Stmt(code.op, operands);
+            ar.stack.push(st);
+            return st;
         },
         stmtF32Name: function(op) {
             return types.F32Names[op];
         },
         stmtF64: function(operands) {
-            var stmt = new Stmt.F64Stmt(code.op, operands);
-            ar.stack.push(stmt);
-            return stmt;
+            var st = new stmt.F64Stmt(code.op, operands);
+            ar.stack.push(st);
+            return st;
         },
         stmtF64Name: function(op) {
             return types.F64Names[op];
@@ -536,7 +543,7 @@ AstReader.prototype._readStmtI32 = function() {
             case types.I32WithImm.LitImm:
             case types.I32WithImm.LitPool:
             case types.I32WithImm.GetLoc:
-                expr = new Stmt.I32WithImm(code.op, code.imm);
+                expr = new stmt.I32WithImm(code.op, code.imm);
                 break;
             default:
                 throw Error("unreachable");
