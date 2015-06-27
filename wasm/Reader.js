@@ -15,7 +15,9 @@
  */
 var stream = require("stream"),
     util   = require("./util"),
-    types  = require("./types");
+    types  = require("./types"),
+    AstReader = require("./AstReader"),
+    StmtList = require("./StmtList");
 
 /**
  * A WebAssembly Reader implemented as a writable stream.
@@ -69,7 +71,7 @@ var Reader = module.exports = function (options) {
 
     /**
      * Function imports.
-     * @type {Array<!{name: string, fname: string, sigs: Array}>}
+     * @type {Array<!{name: string, fname: string, sig: number}>}
      */
     this.functionImports = null;
 
@@ -102,6 +104,12 @@ var Reader = module.exports = function (options) {
      * @type {{format: number, func: number}|{format: number, funcs: !Object.<string,number>}}
      */
     this.export = null;
+
+    /**
+     * AstReader instance, if currently reading an AST.
+     * @type {AstReader}
+     */
+    this.astReader = null;
 };
 
 // Extends stream.Writable
@@ -137,6 +145,10 @@ Reader.prototype._write = function (chunk, encoding, callback) {
     if (encoding)
         chunk = new Buffer(chunk, encoding);
     this.buffer = this.buffer === null ? chunk : Buffer.concat([this.buffer, chunk]);
+    if (this.astReader !== null) {
+        this.astReader.write(chunk, undefined, callback);
+        return;
+    }
     do {
         var initialState = this.state;
         try {
@@ -188,7 +200,8 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                     break;
                 case Reader.STATE.FUNCTION_DEFINITIONS:
                     this._readFunctionDefinitions();
-                    break;
+                    callback();
+                    return; // returns control to AstReader
                 case Reader.STATE.EXPORT:
                     this._readExport();
                     break;
@@ -352,7 +365,7 @@ Reader.prototype._readFunctionImports = function () {
         this.functionImports[this.functionImports.offset++] = {
             name: "TODO",
             fname: fname,
-            sigs: sigs
+            sig: sigs[sigs.length-1] // FIXME: Is this correct?
         };
     }
     delete this.functionImports.offset;
@@ -487,7 +500,7 @@ Reader.prototype._readFunctionPointers = function () {
 };
 
 Reader.prototype._readFunctionDefinitions = function() {
-    while (this.functionDefinitions.offset < this.functionDefinitions.length) {
+    if (this.functionDefinitions.offset < this.functionDefinitions.length) {
         var off = 0;
         var nI32Vars = 0,
             nF32Vars = 0,
@@ -510,23 +523,46 @@ Reader.prototype._readFunctionDefinitions = function() {
         } else {
             nI32Vars = code.imm;
         }
-        vi = util.readVarint(this.buffer, off); off += vi.length;
-        var nStmt = vi.value;
-
-        throw "nStmt="+nStmt;
-        // TODO
-
         this._advance(off);
-        this.functionDefinitions[this.functionDefinitions.offset] = {
-            sig: this.functionDeclarations[this.functionDefinitions.offset++],
-            varsI32: nI32Vars,
-            varsF32: nF32Vars,
-            varsF64: nF64Vars
+        var totalVars = nI32Vars + nF32Vars + nF64Vars;
+        var vars = new Array(totalVars);
+        var localIndex = 0;
+        for (var i=0; i<nI32Vars; ++i)
+            vars[localIndex++] = types.Type.I32;
+        for (i=0; i<nF32Vars; ++i)
+            vars[localIndex++] = types.Type.F32;
+        for (i=0; i<nF64Vars; ++i)
+            vars[localIndex++] = types.Type.F64;
+
+        // Prepare function definition
+        var functionDefinition = {
+            sig: this.functionDeclarations[this.functionDefinitions.offset],
+            signature: this.signatures[this.functionDeclarations[this.functionDefinitions.offset]],
+            vars: vars,
+            ast: null
         };
+        this.functionDefinitions[this.functionDefinitions.offset++] = functionDefinition;
+
+        console.log("creating AstReader at "+this.offset.toString(16)+" for", functionDefinition);
+        this.astReader = new AstReader(this, functionDefinition);
+        this.astReader.on("end", function() {
+            var remainingBuffer = this.astReader.buffer;
+            this.astReader.removeAllListeners();
+            this.astReader = null;
+            this.state = Reader.STATE.FUNCTION_DEFINITIONS;
+            this.write(remainingBuffer);
+        }.bind(this));
+        this.astReader.on("error", function(err) {
+            this.emit("error", err);
+        }.bind(this));
+        this.astReader.write(this.buffer);
+        this.buffer = null;
+
+    } else {
+        delete this.functionDefinitions.offset;
+        this.emit("functionDefinitions", this.functionDefinitions);
+        this.state = Reader.STATE.EXPORT;
     }
-    delete this.functionDefinitions.offset;
-    this.emit("functionDefinitions", this.functionDefinitions);
-    this.state = Reader.STATE.EXPORT;
 };
 
 Reader.prototype._readExport = function() {

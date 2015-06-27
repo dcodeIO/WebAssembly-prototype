@@ -323,3 +323,34 @@ exports.StdLib = {
 };
 
 exports.StdLibNames = util.invert(exports.StdLib);
+
+exports.Prec = {
+    Lowest: 0,
+    Comma: 2,
+    Assign: 4,
+    Cond: 6,
+    BitOr: 8,
+    BitXor: 10,
+    BitAnd: 12,
+    Eq: 14,
+    Comp: 16,
+    Shifts: 18,
+    AddSub: 20,
+    MulDivMod: 22,
+    Unary: 24,
+    Call: 26,
+    Index: 28,
+    Highest: 30
+};
+
+exports.PrecNames = util.invert(exports.Prec);
+
+exports.Ctx = {
+    Default: 0,
+    AddSub: 1,
+    ToI32: 2,
+    FRound: 3,
+    ToNumber: 4
+};
+
+exports.CtxNames = util.invert(exports.Ctx);

@@ -39,4 +39,4 @@ parser.on("functionDefinitions", function (functionDefinitions) {
     console.log(functionDefinitions);
 });
 
-require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(parser);
+require("fs").createReadStream(__dirname+"/fib.wasm").pipe(parser);
