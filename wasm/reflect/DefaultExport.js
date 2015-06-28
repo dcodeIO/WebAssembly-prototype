@@ -18,3 +18,11 @@ var DefaultExport = module.exports = function(assembly, functionIndex) {
 };
 
 DefaultExport.prototype = Object.create(BaseExport.prototype);
+
+/**
+ * Returns a string representation of this export.
+ * @returns {string}
+ */
+DefaultExport.prototype.toString = function() {
+    return "DefaultExport " + this.functionIndex.toString();
+};

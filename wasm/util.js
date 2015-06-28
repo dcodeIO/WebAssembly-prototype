@@ -64,21 +64,9 @@ var OpWithImmLimit = 1 << OpWithImmBits; // 4
 var ImmBits = 5;
 var ImmLimit = 1 << ImmBits; // 32
 
-/**
- * Reads an OpCode.
- * @param {!Buffer} buffer
- * @param {number} offset
- * @returns {!{code: number, imm: ?number}}
- */
-util.readCode = function(buffer, offset) {
-    if (offset >= buffer.length)
-        throw E_MORE;
-    var b = buffer[offset];
-    if ((b & HasImmFlag) === 0) // no imm flag
-        return {
-            op: b,
-            imm: null
-        };
+util.unpackWithImm = function(b) {
+    if ((b & HasImmFlag) === 0)
+        return false;
     var op = (b >> ImmBits) & (OpWithImmLimit - 1);
     var imm = b & (ImmLimit - 1);
     return {
@@ -86,6 +74,67 @@ util.readCode = function(buffer, offset) {
         imm: imm
     };
 };
+
+/**
+ * Reads an OpCode. Always one byte.
+ * @param {!Buffer} buffer
+ * @param {number} offset
+ * @returns {!{op: number, imm: ?number}}
+ */
+util.readCode = function(buffer, offset) {
+    if (offset >= buffer.length)
+        throw E_MORE;
+    var b = buffer[offset],
+        res;
+    if (res = util.unpackWithImm(b))
+        return res;
+    return {
+        op: b,
+        imm: null
+    };
+};
+
+/* util.readIfI32Lit = function(buffer, offset) {
+    if (offset >= buffer.length)
+        throw E_MORE;
+    var b = buffer[offset],
+        res;
+    if (res = util.unpackWithImm(b)) {
+        if (res.op === types.I32WithImm.LitImm) {
+            return {
+                op: res.op,
+                value: res.imm,
+                length: 1
+            };
+        }
+        if (res.op === types.I32WithImm.LitPool) {
+            return {
+                op: res.op,
+                value: res.imm,
+                length: 1
+            };
+        }
+        return false;
+    }
+    var vi;
+    if (b === types.I32.LitImm) {
+        vi = this.readVarint(buffer, offset);
+        return {
+            op: b,
+            value: vi.value,
+            length: 1 + vi.length
+        };
+    }
+    if (b === types.I32.LitPool) {
+        vi = this.readVarint(buffer, offset);
+        return {
+            op: b,
+            value: vi.value,
+            length: 1 + vi.length
+        }
+    }
+    return false;
+}; */
 
 // Identifier characters
 var IdenChars = [

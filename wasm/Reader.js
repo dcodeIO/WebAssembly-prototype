@@ -99,6 +99,8 @@ Reader.prototype._write = function (chunk, encoding, callback) {
     if (encoding)
         chunk = new Buffer(chunk, encoding);
     this.buffer = this.buffer === null ? chunk : Buffer.concat([this.buffer, chunk]);
+    if (this.buffer.length === 0)
+        return;
     if (this.astReader !== null) {
         this.astReader.write(chunk, undefined, callback);
         return;
@@ -153,18 +155,19 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                     this._readFunctionPointers();
                     break;
                 case Reader.STATE.FUNCTION_DEFINITIONS:
-                    this._readFunctionDefinitions();
-                    callback();
-                    return; // returns control to AstReader
+                    if (this._readFunctionDefinitions()) {
+                        callback();
+                        return; // controlled by AstReader
+                    }
+                    break;
                 case Reader.STATE.EXPORT:
                     this._readExport();
                     break;
                 case Reader.STATE.END:
-                    if (this.buffer.length === 0) {
-                        callback();
-                        return;
-                    }
-                    throw Error("illegal trailing data: " + this.buffer.length);
+                    if (this.buffer.length > 0)
+                        throw Error("illegal trailing data: " + this.buffer.length);
+                    this.emit("end");
+                    return;
                 default:
                     throw Error("illegal state: " + this.state);
             }
@@ -454,18 +457,21 @@ Reader.prototype._readFunctionDefinitions = function() {
             nI32Vars = code.imm;
         }
         this._advance(off);
-        var index = this.sequence++;
+        var index = this.sequence;
         var def = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars);
-        this.emit("functionDefinition", def, index);
+        this.emit("functionDefinitionPre", def, index);
 
         // Read the AST
         console.log("creating AstReader at "+this.offset.toString(16)+" for "+def.toString());
         this.astReader = new AstReader(def);
         this.astReader.on("end", function() {
+            console.log("AstReader complete");
+            def.ast = this.astReader.stack[0];
             var remainingBuffer = this.astReader.buffer;
             this.astReader.removeAllListeners();
             this.astReader = null;
             this.state = Reader.STATE.FUNCTION_DEFINITIONS;
+            ++this.sequence;
             this.write(remainingBuffer);
         }.bind(this));
         this.astReader.on("error", function(err) {
@@ -473,11 +479,12 @@ Reader.prototype._readFunctionDefinitions = function() {
         }.bind(this));
         this.astReader.write(this.buffer);
         this.buffer = null;
+        return true;
 
-    } else {
-        this.emit("functionDefinitionsEnd");
-        this.state = Reader.STATE.EXPORT;
     }
+    this.emit("functionDefinitionsEnd");
+    this.state = Reader.STATE.EXPORT;
+    return false;
 };
 
 Reader.prototype._readExport = function() {
@@ -490,7 +497,7 @@ Reader.prototype._readExport = function() {
     switch (format) {
         case types.ExportFormat.Default:
             vi = util.readVarint(this.buffer, off); off += vi.length;
-            this._advance(vi.value);
+            this._advance(off);
             exprt = this.assembly.setDefaultExport(vi.value);
             break;
         case types.ExportFormat.Record:

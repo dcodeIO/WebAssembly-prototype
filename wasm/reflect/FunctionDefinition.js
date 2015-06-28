@@ -25,11 +25,11 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
     this.variables = new Array(nI32vars + nF32vars + nF64vars);
     var index = 0;
     for (var i=0; i<nI32vars; ++i, ++index)
-        this.variables.push(new LocalVariable(this, index, types.Type.I32));
+        this.variables[index] = new LocalVariable(this, index, types.Type.I32);
     for (i=0; i<nF32vars; ++i, ++index)
-        this.variables.push(new LocalVariable(this, index, types.Type.F32));
+        this.variables[index] = new LocalVariable(this, index, types.Type.F32);
     for (i=0; i<nF64vars; ++i, ++index)
-        this.variables.push(new LocalVariable(this, index, types.Type.F64));
+        this.variables[index] = new LocalVariable(this, index, types.Type.F64);
 
     /**
      * Abstract syntax tree.
@@ -43,5 +43,5 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
  * @returns {string}
  */
 FunctionDefinition.prototype.toString = function() {
-    return "FunctionDefinition " + this.declaration.index.toString() + this.variables.length.toString();
+    return "FunctionDefinition " + this.declaration.index.toString(10) + " " + this.variables.length.toString();
 };

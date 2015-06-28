@@ -18,3 +18,16 @@ var RecordExport = module.exports = function(assembly, functionIndexes) {
 };
 
 RecordExport.prototype = Object.create(BaseExport.prototype);
+
+/**
+ * Returns a string representation of this export.
+ * @returns {string}
+ */
+RecordExport.prototype.toString = function() {
+    var sb = [];
+    sb.push("RecordExport");
+    var names = Object.keys(this.functionIndexes);
+    for (var i=0; i<names.length; ++i)
+        sb.push(" ", names[i], ":", this.functionIndexes[names[i]]);
+    return sb.join("");
+};
