@@ -26,3 +26,11 @@ StmtList.prototype.add = function(stmt) {
         throw Error("operand overflow");
     this[this.offset++] = stmt;
 };
+
+/**
+ * Returns a string representation of this statement list.
+ * @returns {string}
+ */
+StmtList.prototype.toString = function() {
+    return "StmtList["+this.length+"]";
+};

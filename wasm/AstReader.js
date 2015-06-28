@@ -2,7 +2,10 @@ var stream = require("stream"),
     util   = require("./util"),
     types  = require("./types"),
     stmt   = require("./stmt/"),
+    BaseStmt = stmt.BaseStmt,
     StmtList = stmt.StmtList;
+
+var verbose = true; // For debugging
 
 /**
  * An abstract syntax tree reader.
@@ -11,26 +14,32 @@ var stream = require("stream"),
  * @param {!FunctionDefinition} functionDefinition
  * @param {!Object.<string,*>=} options
  */
-var AstReader = module.exports = function(reader, functionDefinition, options) {
+var AstReader = module.exports = function(functionDefinition, options) {
     stream.Writable.call(this, options);
 
     /**
-     * Parent reader instance.
-     * @type {!Reader}
-     */
-    this.reader = reader;
-
-    /**
      * Function definition.
-     * @type {!{sig: number, signature: !{rtype: number, args: !Array.<number>}, vars: !Array.<number>, ast: StmtList }}
+     * @type {!FunctionDefinition}
      */
     this.definition = functionDefinition;
 
     /**
-     * Function signature.
-     * @type {!{rtype: number, args: !Array.<number>}|*}
+     * Function declaration.
+     * @type {!FunctionDeclaration}
      */
-    this.signature = this.reader.signatures[functionDefinition.sig];
+    this.declaration = functionDefinition.declaration;
+
+    /**
+     * Function signature.
+     * @type {!FunctionSignature}
+     */
+    this.signature = this.declaration.signature;
+
+    /**
+     * Assembly.
+     * @type {!Assembly}
+     */
+    this.assembly = this.declaration.assembly;
 
     /**
      * Read buffer.
@@ -39,16 +48,16 @@ var AstReader = module.exports = function(reader, functionDefinition, options) {
     this.buffer = null;
 
     /**
-     * State queue.
+     * State stack.
      * @type {!Array.<number>}
      */
     this.state = [AstReader.STATE.STMT_LIST];
 
     /**
      * Processing stack.
-     * @type {Array.<*>}
+     * @type {Array.<!StmtList|!BaseStmt>}
      */
-    this.stack = [];
+    this.stack = []; // Expected to contain the root StmtList only when finished
 };
 
 // Extends stream.Writable
@@ -79,7 +88,12 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
         return;
     }
     do {
-        var state = this.state.shift();
+        var state = this.state.pop();
+        if (verbose) {
+            console.log("---");
+            console.log("switch state to " + state);
+            console.log("state stack:", this.state);
+        }
         try {
             switch (state) {
                 case AstReader.STATE.STMT_LIST:
@@ -98,15 +112,16 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
                     this._readStmtF64();
                     break;
                 case AstReader.STATE.POP:
-                    this.stack.pop();
+                    var last = this.stack.pop();
+                    if (verbose)
+                        console.log("pop from stack: "+last.toString());
                     break;
                 default:
                     throw Error("illegal state: " + this.state);
             }
         } catch (err) {
             if (err === util.E_MORE) {
-                console.log("E_MORE");
-                this.state.unshift(state);
+                this.state.push(state);
                 callback();
                 return;
             }
@@ -136,6 +151,7 @@ function S(ar) {
     var off = 0;
     var code;
     var parent = ar.stack[ar.stack.length-1];
+    var st = null;
     return {
         code: function() {
             return code = util.readCode(ar.buffer, off++);
@@ -154,54 +170,62 @@ function S(ar) {
             off = 0;
         },
         localType: function(index) {
-            if (index >= ar.definition.vars.length)
+            if (index >= ar.definition.variables.length)
                 throw Error("illegal local variable index: "+index);
-            return ar.definition.vars[index];
+            return ar.definition.variables[index].type;
         },
         globalType: function(index) {
-            if (index >= ar.reader.globalVars.length)
+            if (index >= ar.assembly.globalVariables.length)
                 throw Error("illegal global variable index: "+index);
-            return ar.reader.globalVars[index].type;
+            return ar.assembly.globalVariables[index].type;
+        },
+        internalSig: function(index) {
+            if (index >= ar.assembly.functionDeclarations.length)
+                throw Error("illegal internal function index: "+index);
+            return ar.assembly.functionDeclarations[index].signature;
+        },
+        indirectSig: function(index) {
+            if (index >= ar.assembly.functionPointerTables.length)
+                throw Error("illegal indirect function index: "+index);
+            return ar.assembly.functionPointerTables[index].signature;
+        },
+        importSig: function(index) {
+            if (index >= ar.assembly.functionImports.length)
+                throw Error("illegal import function index: "+index);
+            if (ar.assembly.functionImports[index].signatures.length === 0)
+                throw Error("import function "+index+" has no signatures");
+            return ar.assembly.functionImports[index].signatures[0]; // FIXME: I have no idea how this is determined
         },
         expect: function(state) {
+            ar.stack.push(st);
             var args = Array.prototype.slice.call(arguments);
+            args.push(AstReader.STATE.POP);
+            if (verbose)
+                console.log("expecting state:", args);
             for (var i=args.length-1; i>=0; --i)
-                ar.state.unshift(args[i]);
+                ar.state.push(args[i]);
         },
         stmt: function(operands) {
-            var st = new stmt.Stmt(code.op, operands);
-            ar.stack.push(st);
+            st = new stmt.Stmt(code.op, operands);
             parent.add(st);
             return st;
         },
-        stmtName: function(op) {
-            return types.StmtNames[op];
-        },
         stmtI32: function(operands) {
-            var st = new stmt.I32Stmt(code.op, operands);
-            ar.stack.push(st);
+            st = new stmt.I32Stmt(code.op, operands);
+            parent.add(st);
             return st;
         },
-        stmtI32Name: function(op) {
-            return types.I32Names[op];
-        },
-        stmtF32: function(operands) {
-            var st = new stmt.F32Stmt(code.op, operands);
-            ar.stack.push(st);
+        stmtF32: function(operands, hasMoreOperands) {
+            st = new stmt.F32Stmt(code.op, operands);
+            parent.add(st);
             return st;
         },
-        stmtF32Name: function(op) {
-            return types.F32Names[op];
-        },
-        stmtF64: function(operands) {
-            var st = new stmt.F64Stmt(code.op, operands);
-            ar.stack.push(st);
+        stmtF64: function(operands, hasMoreOperands) {
+            st = new stmt.F64Stmt(code.op, operands);
+            parent.add(st);
             return st;
         },
-        stmtF64Name: function(op) {
-            return types.F64Names[op];
-        },
-        rtype: ar.signature.rtype
+        rtype: ar.signature.returnType
     };
 }
 
@@ -224,230 +248,227 @@ function typeToState(type) {
 AstReader.prototype._readStmt = function() {
     var s = S(this);
     var STATE = AstReader.STATE;
-
     var code = s.code();
 
-    console.log(s.stmtName(code.op)+":void", code);
+    if (verbose)
+        console.log("processing Void:" + types.StmtNames[code.op]);
 
+    var temp, temp2, i, j;
     if (code.imm === null) {
+        var Op = types.Stmt;
         switch (code.op) {
-
             // opcode + local variable index + Stmt<variable type>
-            case types.Stmt.SetLoc:
-                var index = s.varint();
+            case Op.SetLoc:
+                temp = s.varint();
                 s.advance();
-                s.stmt(index);
-                s.expect(typeToState(s.localType(index)));
+                s.stmt(temp);
+                s.expect(typeToState(s.localType(temp)));
                 break;
 
             // opcode + global variable index + Stmt<variable type>
-            case types.Stmt.SetGlo:
-                var index = s.varint();
+            case Op.SetGlo:
+                temp = s.varint();
                 s.advance();
-                s.stmt(index);
-                s.expect(typeToState(s.globalType(index)));
+                s.stmt(temp);
+                s.expect(typeToState(s.globalType(temp)));
                 break;
 
             // opcode + heap index + Stmt<I32>
-            case types.Stmt.I32Store8:
-            case types.Stmt.I32StoreOff8:
-            case types.Stmt.I32Store16:
-            case types.Stmt.I32StoreOff16:
-            case types.Stmt.I32Store32:
-            case types.Stmt.I32StoreOff32:
-                var index = s.varint();
+            case Op.I32Store8:
+            case Op.I32StoreOff8:
+            case Op.I32Store16:
+            case Op.I32StoreOff16:
+            case Op.I32Store32:
+            case Op.I32StoreOff32:
+                temp = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmt(temp);
                 s.expect(STATE.STMT_I32);
                 break;
 
             // opcode + heap index + Stmt<F32>
-            case types.Stmt.F32Store:
-            case types.Stmt.F32StoreOff:
-                var index = s.varint();
+            case Op.F32Store:
+            case Op.F32StoreOff:
+                temp = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmt(temp);
                 s.expect(STATE.STMT_F32);
                 break;
 
             // opcode + heap index + Stmt<F64>
-            case types.Stmt.F64Store:
-            case types.Stmt.F64StoreOff:
-                var index = s.varint();
+            case Op.F64Store:
+            case Op.F64StoreOff:
+                temp = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmt(temp);
                 s.expect(STATE.STMT_F64);
                 break;
 
             // opcode + internal function index + args as Stmt<arg type>
-            case types.Stmt.CallInt:
+            case Op.CallInt:
+                temp2 = s.internalSig;
 
             // opcode + function pointer index + args oas Stmt<arg type>
-            case types.Stmt.CallInd:
+            case Op.CallInd:
+                temp2 = temp2 || s.indirectSig;
 
             // opcode + imported function index + args as Stmt<arg type>
-            case types.Stmt.CallImp:
-                throw "todo";
-                /* var index = varint();
-                 var sigIndex = this.reader.functionDeclarations[index];
-                 var sig = this.reader.signatures[sigIndex];
-                 stmt(index);
-                 switch (sig.rtype) {
-                 case types.RType.I32:
-                 break;
-                 case types.RType.F32:
-                 break;
-                 case types.RType.F64:
-                 break;
-                 default:
-                 throw Error("illegal return type: "+sig.rtype);
-                 }
-                 advance(); */
+            case Op.CallImp:
+                temp = s.varint();
+                s.advance();
+                var expectFromArgs = [];
+                s.stmt(temp);
+                (temp2 || s.importSig)(temp).argumentTypes.forEach(function(type) {
+                    expectFromArgs.push(typeToState(type));
+                });
+                s.expect.apply(s, expectFromArgs);
+                break;
 
             // opcode + Stmt<this function's return type>
-            case types.Stmt.Ret:
+            case Op.Ret:
                 s.advance();
                 s.stmt();
                 s.expect(typeToState(s.rtype));
                 break;
 
             // opcode + StmtList
-            case types.Stmt.Block:
-                var total = s.varint();
+            case Op.Block:
+                temp = s.varint(); // total
                 s.advance();
-                s.stmt(total);
-                for (var i=0; i<total; ++i)
+                s.stmt(temp);
+                for (i=0; i<temp; ++i)
                     s.expect(STATE.STMT);
                 break;
 
             // opcode + Stmt<I32> + Stmt<void>
-            case types.Stmt.IfThen:
+            case Op.IfThen:
                 s.advance();
                 s.stmt();
                 s.expect(STATE.STMT_I32, STATE.STMT);
                 break;
 
             // opcode + Stmt<I32> + Stmt<void>
-            case types.Stmt.IfElse:
+            case Op.IfElse:
                 s.advance();
                 s.stmt();
                 s.expect(STATE.STMT_I32, STATE.STMT, STATE.STMT);
                 break;
 
             // opcode + Stmt<I32> + Stmt<void>
-            case types.Stmt.While:
+            case Op.While:
                 s.advance();
                 s.stmt();
                 s.expect(STATE.STMT_I32, STATE.STMT);
                 break;
 
             // opcode + Stmt<void> + Stmt<I32>
-            case types.Stmt.Do:
+            case Op.Do:
                 s.advance();
                 s.stmt();
                 s.expect(STATE.STMT, STATE.STMT_I32);
                 break;
 
             // opcode + Stmt<void>
-            case types.Stmt.Label:
+            case Op.Label:
                 s.advance();
                 s.stmt();
                 s.expect(STATE.STMT);
                 break;
 
             // opcode + break depth + Stmt<void>
-            case types.Stmt.Break:
-                var depth = s.varint();
+            case Op.Break:
+                temp = s.varint(); // depth
                 s.advance();
-                s.stmt(depth);
+                s.stmt(temp);
                 s.expect(STATE.STMT);
                 break;
 
             // opcode + break depth + Stmt<void>
-            case types.Stmt.Continue:
-                var depth = s.varint();
+            case Op.Continue:
+                temp = s.varint(); // depth
                 s.advance();
-                s.stmt(depth);
+                s.stmt(temp);
                 s.expect(STATE.STMT);
                 break;
 
-            // opcode + break depth + Stmt<void>
-            case types.Stmt.BreakLabel:
-                var label = s.varint();
+            // opcode + break label + Stmt<void>
+            case Op.BreakLabel:
+                temp = s.varint();
                 s.advance();
-                s.stmt(label);
+                s.stmt(temp);
                 s.expect(STATE.STMT);
                 break;
 
-            // opcode + continue depth + Stmt<void>
-            case types.Stmt.ContinueLabel:
-                var label = s.varint();
+            // opcode + continue label + Stmt<void>
+            case Op.ContinueLabel:
+                temp = s.varint();
                 s.advance();
-                s.stmt(label);
+                s.stmt(temp);
                 s.expect(STATE.STMT);
                 break;
 
             // opcode + number of cases + number of cases times SwitchCase type + respective (list of) Stmt<void>
-            case types.Stmt.Switch:
-                var nCases = s.varint();
-                var _operands = [nCases];
-                var _expect = [];
-                for (var i=0; i<nCases; ++i) {
+            case Op.Switch:
+                temp = s.varint();
+                var switchOperands = [temp];
+                var expectFromSwitch = [];
+                for (i=0; i<temp; ++i) {
                     var cas = s.u8();
-                    _operands.push(cas);
+                    switchOperands.push(cas);
                     switch (cas) {
                         case types.SwitchCase.Case0:
-                            _operands.push(s.varint());
+                            switchOperands.push(s.varint());
                             break;
                         case types.SwitchCase.Case1:
-                            _operands.push(s.varint());
-                            _expect.push(STATE.STMT);
+                            switchOperands.push(s.varint());
+                            expectFromSwitch.push(STATE.STMT);
                             break;
                         case types.SwitchCase.CaseN:
-                            _operands.push(s.varint());
+                            switchOperands.push(s.varint());
                             var nStmts = s.varint();
-                            for (var j=0; j<nStmts; ++j)
-                                _expect.push(STATE.STMT);
+                            for (j=0; j<nStmts; ++j)
+                                expectFromSwitch.push(STATE.STMT);
                             break;
                         case types.SwitchCase.Default0:
                             break;
                         case types.SwitchCase.Default1:
-                            _expect.push(STATE.STMT);
+                            expectFromSwitch.push(STATE.STMT);
                             break;
                         case types.SwitchCase.DefaultN:
-                            var nStmts = s.varint();
-                            for (var j=0; j<nStmts; ++j)
-                                _expect.push(STATE.STMT);
+                            temp2 = s.varint();
+                            for (j=0; j<temp2; ++j)
+                                expectFromSwitch.push(STATE.STMT);
                             break;
                         default:
                             throw Error("illegal switch case: " + cas);
                     }
                 }
                 s.advance();
-                s.stmt(_operands);
-                s.expect.apply(s, _expect);
+                s.stmt(switchOperands);
+                s.expect.apply(s, expectFromSwitch);
                 break;
 
             default:
-                throw Error("illegal opcode: " + code.op);
+                throw Error("illegal Void OpCode: " + code.op);
         }
     } else {
+        var Op = types.StmtWithImm;
         switch (code.op) {
 
             // opcodeWithImm (imm=local variable index) + Stmt<variable type>
-            case types.StmtWithImm.SetLoc:
-                var index = code.imm;
+            case Op.SetLoc:
+                temp = code.imm;
                 s.advance();
-                s.stmt(index);
-                s.expect(typeToState(s.localType(index)));
+                s.stmt(temp);
+                s.expect(typeToState(s.localType(temp)));
                 break;
 
             // opcodeWithImm (imm=global variable index) + Stmt<variable type>
-            case types.StmtWithImm.SetGlo:
-                var index = code.imm;
+            case Op.SetGlo:
+                temp = code.imm;
                 s.advance();
-                s.stmt(index);
-                s.expect(typeToState(s.localType(index)));
+                s.stmt(temp);
+                s.expect(typeToState(s.localType(temp)));
                 break;
 
             default:
@@ -457,96 +478,185 @@ AstReader.prototype._readStmt = function() {
 };
 
 AstReader.prototype._readStmtI32 = function() {
-
+    var STATE = AstReader.STATE;
     var s = S(this);
     var code = s.code();
 
-    console.log(s.stmtI32Name(code.op)+":I32", code);
+    if (verbose)
+        console.log("processing I32:" + types.I32Names[code.op]);
 
     if (code.imm === null) {
+        var Op = types.I32;
         switch (code.op) {
 
             // imm
-            case types.I32.LitImm:
+            case Op.LitImm:
                 var imm = s.varint();
                 s.advance();
-                s.stmt(imm);
+                s.stmtI32(imm);
                 break;
 
-            case types.I32.LitPool:
+            case Op.LitPool:
                 var index = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmtI32(index);
                 break;
 
-            case types.I32.GetLoc:
+            case Op.GetLoc:
                 var index = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmtI32(index);
                 break;
 
-            case types.I32.GetGlo:
+            case Op.GetGlo:
                 var index = s.varint();
                 s.advance();
-                s.stmt(index);
+                s.stmtI32(index);
                 break;
 
-            case types.I32.SetLoc:
-            case types.I32.SetGlo:
+            case Op.SetLoc:
+            case Op.SetGlo:
                 throw "todo";
                 break;
 
-            case types.I32.SLoad8:
-            case types.I32.SLoadOff8:
-            case types.I32.ULoad8:
-            case types.I32.ULoadOff8:
-            case types.I32.SLoad16:
-            case types.I32.SLoadOff16:
-            case types.I32.ULoad16:
-            case types.I32.ULoadOff16:
-            case types.I32.Load32:
-            case types.I32.LoadOff32:
+            case Op.SLoad8:
+            case Op.SLoadOff8:
+            case Op.ULoad8:
+            case Op.ULoadOff8:
+            case Op.SLoad16:
+            case Op.SLoadOff16:
+            case Op.ULoad16:
+            case Op.ULoadOff16:
+            case Op.Load32:
+            case Op.LoadOff32:
                 throw "todo";
                 break;
 
-            case types.I32.Store8:
-            case types.I32.StoreOff8:
-            case types.I32.Store16:
-            case types.I32.StoreOff16:
-            case types.I32.Store32:
-            case types.I32.StoreOff32:
+            case Op.Store8:
+            case Op.StoreOff8:
+            case Op.Store16:
+            case Op.StoreOff16:
+            case Op.Store32:
+            case Op.StoreOff32:
                 throw "todo";
                 break;
 
-            case types.I32.CallInt:
-            case types.I32.CallInd:
-            case types.I32.CallImp:
+            case Op.CallInt:
+            case Op.CallInd:
+            case Op.CallImp:
                 throw "todo";
                 break;
 
-            case types.I32.Cond:
-            case types.I32.Comma:
-            case types.I32.FromF32:
-            case types.I32.FromF64:
-            case types.I32.Neg:
-            case types.I32.Add:
-            case types.I32.Sub:
-            case types.I32.Mul:
+            case Op.Cond:
+            case Op.Comma:
+            case Op.FromF32:
+            case Op.FromF64:
+            case Op.Neg:
+            case Op.Add:
+            case Op.Sub:
+            case Op.Mul:
+            case Op.SDiv:
+            case Op.UDiv:
+            case Op.SMod:
+            case Op.UMod:
+            case Op.BitNot:
+            case Op.BitOr:
+            case Op.BitAnd:
+            case Op.BitXor:
+            case Op.Lsh:
+            case Op.ArithRsh:
+            case Op.LogicRsh:
+            case Op.Clz:
+            case Op.LogicNot:
+            case Op.EqI32:
+            case Op.EqF32:
+            case Op.EqF64:
+            case Op.NEqI32:
+            case Op.NEqF32:
+            case Op.NEqF64:
+            case Op.SLeThI32:
+            case Op.ULeThI32:
+            case Op.LeThF32:
+            case Op.LeThF64:
+            case Op.SLeEqI32:
+            case Op.ULeEqI32:
+            case Op.LeEqF32:
+            case Op.LeEqF64:
+            case Op.SGrThI32:
+            case Op.UGrThI32:
+            case Op.GrThF32:
+            case Op.GrThF64:
+            case Op.SGrEqI32:
+            case Op.UGrEqI32:
+            case Op.GrEqF32:
+            case Op.GrEqF64:
+            case Op.SMin:
+            case Op.UMin:
+            case Op.SMax:
+            case Op.UMax:
+            case Op.Abs:
                 throw "todo";
                 break;
 
             default:
-                throw Error("illegal i32 opcode: "+code.op);
+                throw Error("illegal I32 OpCode: "+code.op);
         }
     } else {
+        var Op = types.I32WithImm;
         switch (code.op) {
-            case types.I32WithImm.LitImm:
-            case types.I32WithImm.LitPool:
-            case types.I32WithImm.GetLoc:
-                expr = new stmt.I32WithImm(code.op, code.imm);
+            case Op.LitImm:
+            case Op.LitPool:
+            case Op.GetLoc:
+                throw "todo";
                 break;
             default:
                 throw Error("unreachable");
+        }
+    }
+};
+
+AstReader.prototype._readStmtF32 = function() {
+    var STATE = AstReader.STATE;
+    var s = S(this);
+    var code = s.code();
+
+    if (verbose)
+        console.log("processing F32:" + types.F32Names[code.op]);
+
+    if (code.imm === null) {
+        var Op = types.F32;
+        switch (code.op) {
+            default:
+                throw "todo";
+        }
+    } else {
+        var Op = types.F32WithImm;
+        switch (code.op) {
+            default:
+                throw "todo";
+        }
+    }
+};
+
+AstReader.prototype._readStmtF64 = function() {
+    var STATE = AstReader.STATE;
+    var s = S(this);
+    var code = s.code();
+
+    if (verbose)
+        console.log("processing F64:" + types.F64Names[code.op]);
+
+    if (code.imm === null) {
+        var Op = types.F64;
+        switch (code.op) {
+            default:
+                throw "todo";
+        }
+    } else {
+        var Op = types.F64WithImm;
+        switch (code.op) {
+            default:
+                throw "todo";
         }
     }
 };

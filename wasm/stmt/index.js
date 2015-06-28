@@ -1,7 +1,8 @@
 exports.BaseStmt = require("./BaseStmt");
-exports.BaseTypedStmt = require("./BaseTypedStmt");
+
+exports.Stmt = require("./Stmt"); // Void
+exports.I32Stmt = require("./I32Stmt");
 exports.F32Stmt = require("./F32Stmt");
 exports.F64Stmt = require("./F64Stmt");
-exports.I32Stmt = require("./I32Stmt");
-exports.Stmt = require("./Stmt");
+
 exports.StmtList = require("./StmtList");

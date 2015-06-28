@@ -1,5 +1,5 @@
 var types = require("../types"),
-    BaseTypedStmt = require("./BaseTypedStmt");
+    BaseStmt = require("./BaseStmt");
 
 /**
  * A typed I32 statement.
@@ -7,10 +7,10 @@ var types = require("../types"),
  * @param {number} code
  * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
  * @constructor
- * @extends BaseTypedStmt
+ * @extends BaseStmt
  */
 var I32Stmt = module.exports = function(code, operands) {
-    BaseTypedStmt.call(this, types.Type.I32, code, operands);
+    BaseStmt.call(this, types.RType.I32, code, operands);
 };
 
-I32Stmt.prototype = Object.create(BaseTypedStmt.prototype);
+I32Stmt.prototype = Object.create(BaseStmt.prototype);

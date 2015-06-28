@@ -1,5 +1,5 @@
 {
-  "importName": "webassembly",
+  "name": "webassembly",
   "description": "WebAssembly type and opcode definitions.",
   "author": "Daniel Wirtz <dcode@dcode.io>",
   "version": "0.1.0",

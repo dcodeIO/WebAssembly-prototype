@@ -1,5 +1,5 @@
 var types = require("../types"),
-    BaseTypedStmt = require("./BaseTypedStmt");
+    BaseStmt = require("./BaseStmt");
 
 /**
  * A typed F32 statement.
@@ -7,10 +7,10 @@ var types = require("../types"),
  * @param {number} code
  * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
  * @constructor
- * @extends BaseTypedStmt
+ * @extends BaseStmt
  */
 var F32Stmt = module.exports = function(code, operands) {
-    BaseTypedStmt.call(this, types.Type.F32, code, operands);
+    BaseStmt.call(this, types.RType.F32, code, operands);
 };
 
-F32Stmt.prototype = Object.create(BaseTypedStmt.prototype);
+F32Stmt.prototype = Object.create(BaseStmt.prototype);

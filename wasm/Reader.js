@@ -458,8 +458,6 @@ Reader.prototype._readFunctionDefinitions = function() {
         var def = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars);
         this.emit("functionDefinition", def, index);
 
-        throw "todo";
-
         // Read the AST
         console.log("creating AstReader at "+this.offset.toString(16)+" for "+def.toString());
         this.astReader = new AstReader(def);

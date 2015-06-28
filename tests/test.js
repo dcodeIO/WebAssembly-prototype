@@ -11,7 +11,7 @@ reader.on("header", function (size) {
     console.log("Precomputed size: " + size);
 });
 
-reader.on("constants", function (nI32, nF32, nF64) {
+/* reader.on("constants", function (nI32, nF32, nF64) {
     console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
 });
 
@@ -89,6 +89,6 @@ reader.on("functionDefinition", function(definition, index) {
 
 reader.on("functionDefinitionsEnd", function() {
     console.log("End of function definitions");
-});
+}); */
 
 require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(reader);
