@@ -1,9 +1,25 @@
 {
-  "name": "webassembly",
-  "description": "WebAssembly type and opcode definitions.",
-  "author": "Daniel Wirtz <dcode@dcode.io>",
-  "version": "0.1.0",
-  "main": "index.js",
-  "dependencies": {
-  }
+    "name": "webassembly",
+    "description": "JavaScript tools for working with WebAssembly (WASM) binaries.",
+    "author": "Daniel Wirtz <dcode@dcode.io>",
+    "version": "0.2.0",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dcodeIO/WebAssembly.git"
+    },
+    "bugs": {
+        "url": "https://github.com/dcodeIO/WebAssembly/issues"
+    },
+    "keywords": [
+        "WebAssembly",
+        "WASM",
+        "AST",
+        "parser"
+    ],
+    "dependencies": {},
+    "engines": {
+        "node": ">=0.10"
+    },
+    "license": "Apache License, Version 2.0"
 }
