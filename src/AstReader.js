@@ -15,23 +15,22 @@ var verbose = 0; // For debugging
  * An abstract syntax tree reader.
  * @constructor
  * @param {!FunctionDefinition} functionDefinition
- * @param {number=} globalOffset
  * @param {!Object.<string,*>=} options
  */
-var AstReader = module.exports = function(functionDefinition, globalOffset, options) {
+var AstReader = module.exports = function(functionDefinition, options) {
     stream.Writable.call(this, options);
-
-    /**
-     * Global function body offset.
-     * @type {number}
-     */
-    this.globalOffset = globalOffset || 0;
 
     /**
      * Function definition.
      * @type {!FunctionDefinition}
      */
     this.definition = functionDefinition;
+
+    /**
+     * Global byte index of the function body.
+     * @type {number}
+     */
+    this.globalOffset = functionDefinition.globalOffset;
 
     /**
      * Function declaration.
@@ -58,6 +57,12 @@ var AstReader = module.exports = function(functionDefinition, globalOffset, opti
     this.buffer = null;
 
     /**
+     * Read buffer queue.
+     * @type {!Array.<!Buffer>}
+     */
+    this.bufferQueue = []; // Used to minimize calls to Buffer.concat
+
+    /**
      * Read offset.
      * @type {number}
      */
@@ -79,7 +84,13 @@ var AstReader = module.exports = function(functionDefinition, globalOffset, opti
      * AstReaderState closure.
      * @type {!AstReaderState}
      */
-    this.s = new AstReaderState(this);
+    this.s = new AstReaderState(this, AstReader.STATE.POP);
+
+    /**
+     * Whether to skip ahead, not parsing the AST in detail.
+     * @type {boolean}
+     */
+    this.skipAhead = !!(options && options.skipAhead);
 };
 
 // Extends stream.Writable
@@ -127,28 +138,38 @@ function stateForType(type, exprVoid) {
 }
 
 AstReader.prototype._write = function (chunk, encoding, callback) {
-    if (encoding)
-        chunk = new Buffer(chunk, encoding);
-    this.buffer = this.buffer === null ? chunk : Buffer.concat([this.buffer, chunk]);
     if (this.state.length === 0) { // Already done
-        callback();
+        callback(Error("already done"));
         return;
     }
+    if (encoding)
+        chunk = new Buffer(chunk, encoding);
+    if (this.buffer === null || this.buffer.length === 0)
+        this.buffer = chunk;
+    else
+        this.bufferQueue.push(chunk);
+    this._process();
+    callback();
+};
+
+AstReader.prototype._process = function() {
     do {
-        if (this.state.length == 0) { // Done
-            if (this.stack.length !== 1)
-                throw Error("illegal state: stack not cleared: "+this.stack.length);
-            var stmtList = this.stack[0];
-            if (!(stmtList instanceof StmtList))
-                throw Error("illegal state: last stack item is not a StmtList: "+stmtList);
-            if (stmtList.length > 0) {
-                stmtList.forEach(function (stmt) {
-                    if (!(stmt instanceof BaseStmt))
-                        throw Error("illegal state: StmtList contains non-Stmt: " + stmt);
-                });
+        if (this.state.length === 0) { // Done
+            this.s.finish();
+            if (!this.skipAhead) {
+                if (this.stack.length !== 1)
+                    throw Error("illegal state: stack not cleared: "+this.stack.length);
+                var stmtList = this.stack[0];
+                if (!(stmtList instanceof StmtList))
+                    throw Error("illegal state: last stack item is not a StmtList: " + stmtList);
+                if (stmtList.length > 0) {
+                    stmtList.forEach(function (stmt) {
+                        if (!(stmt instanceof BaseStmt))
+                            throw Error("illegal state: StmtList contains non-Stmt: " + stmt);
+                    });
+                }
+                this.emit("ast", stmtList);
             }
-            callback();
-            this.emit("ast", stmtList);
             this.emit("end");
             return;
         }
@@ -184,8 +205,13 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
             }
         } catch (err) {
             if (err === util.E_MORE) {
-                this.state.push(state);
-                callback();
+                this.state.push(state); // Wait for more
+                if (this.bufferQueue.length > 0) {
+                    this.bufferQueue.unshift(this.buffer);
+                    this.buffer = Buffer.concat(this.bufferQueue);
+                    this.bufferQueue = [];
+                    continue; // Try again
+                }
                 return;
             }
             console.log(this.inspect());
@@ -202,7 +228,8 @@ AstReader.prototype._readStmtList = function() {
     var size = s.varint();
     s.advance();
 
-    this.stack.push(new StmtList(size));
+    if (!this.skipAhead)
+        this.stack.push(new StmtList(size));
     for (var i=0; i<size; ++i)
         this.state.push(AstReader.STATE.STMT);
 };
@@ -394,7 +421,7 @@ AstReader.prototype._readStmt = function() {
 
 AstReader.prototype._readSwitch = function() {
     var sw = this.stack[this.stack.length-1];
-    if (sw.code !== types.Stmt.Switch)
+    if (!this.skipAhead && sw.code !== types.Stmt.Switch)
         throw Error("illegal state: not a switch statement: "+sw);
     var STATE = AstReader.STATE;
 
@@ -437,7 +464,8 @@ AstReader.prototype._readSwitch = function() {
         default:
             throw Error("illegal switch case type: " + cas);
     }
-    sw.operands = sw.operands.concat(switchOperands);
+    if (!this.skipAhead)
+        Array.prototype.push.apply(sw.operands, switchOperands);
     if (expectWithinSwitch.length > 0)
         s.expect(expectWithinSwitch);
 };
@@ -1074,6 +1102,7 @@ AstReader.prototype.inspect = function() {
     sb.push("State size: "+this.state.length.toString(10), "\n\n");
     sb.push(this.assembly.toString(), "\n\n");
     sb.push(this.definition.header(), "\n");
-    sb.push(inspect(this.stack[0]));
+    if (!this.skipAhead)
+        sb.push(inspect(this.stack[0]));
     return sb.join("");
 };

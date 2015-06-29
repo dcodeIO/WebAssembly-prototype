@@ -1,1 +1,1 @@
-exports.wasm = require("./wasm");
+exports = require("./src");

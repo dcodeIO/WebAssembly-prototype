@@ -12,10 +12,13 @@ var Stmt = require("./stmt/Stmt"),
  * @function
  * @param {!AstReader} reader
  */
-var AstReaderState = module.exports = function(reader) {
+var AstReaderState = module.exports = function(reader, popState) {
 
-    // Current offset
-    var offset = 0;
+    // Previous offset
+    var previousOffset = 0;
+
+    // Current working offset
+    var offset = previousOffset;
 
     // Current type
     var type;
@@ -71,13 +74,14 @@ var AstReaderState = module.exports = function(reader) {
     };
 
     s.advance = function() {
-        reader.buffer = reader.buffer.slice(offset);
+        // reader.buffer = reader.buffer.slice(offset);
         reader.offset += offset;
-        offset = 0;
+        previousOffset = offset;
+        // offset = 0;
     };
 
     s.reset = function() {
-        offset = 0;
+        offset = previousOffset;
         type = code = stmt = undefined;
     };
 
@@ -152,15 +156,19 @@ var AstReaderState = module.exports = function(reader) {
             : Array.prototype.slice.call(arguments);
         if (args.length === 0)
             return;
-        if (stmt) {
+        if (stmt && !reader.skipAhead) {
             reader.stack.push(stmt);
-            args.push(/* AstReader.STATE.POP */ 7);
+            args.push(/* AstReader.STATE.POP */ popState);
         }
         for (var i=args.length-1; i>=0; --i)
             reader.state.push(args[i]);
     };
 
     s.push = function(operands, withImm) {
+        if (reader.skipAhead) {
+            s.advance();
+            return;
+        }
         var ctor;
         switch (type) {
             case undefined:
@@ -187,6 +195,11 @@ var AstReaderState = module.exports = function(reader) {
         reader.stack[reader.stack.length-1].add(stmt);
         s.advance();
         return stmt;
+    };
+
+    s.finish = function() {
+        reader.buffer = reader.buffer.slice(offset);
+        offset = previousOffset = 0;
     };
 
     return s;

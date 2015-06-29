@@ -1,7 +1,10 @@
-var Reader = require("../wasm/Reader"),
-    types = require("../wasm/types");
+var WebAssembly = require("../"),
+    types = WebAssembly.types,
+    Reader = WebAssembly.Reader;
 
-var reader = new Reader();
+var reader = new Reader({
+    skipAhead: true
+});
 
 /* reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
@@ -96,7 +99,7 @@ reader.on("export", function(exprt) {
 }); */
 
 reader.on("end", function() {
-    console.log("Complete.");
+    console.log("Complete: "+reader.assembly.toString());
 });
 
 require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(reader);

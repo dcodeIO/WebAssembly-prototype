@@ -24,6 +24,7 @@ var Assembly = require("./reflect/Assembly");
 /**
  * A WebAssembly Reader implemented as a writable stream.
  * @extends stream.Writable
+ * @param {!Object.<string,*>=} options 'skipAhead' skips parsing ASTs in detail
  */
 var Reader = module.exports = function (options) {
     stream.Writable.call(this, options);
@@ -40,6 +41,12 @@ var Reader = module.exports = function (options) {
      * @type {Buffer}
      */
     this.buffer = null;
+
+    /**
+     * Read buffer queue.
+     * @type {!Array.<!Buffer>}
+     */
+    this.queue = []; // Used to minimize calls to Buffer.concat
 
     /**
      * Read offset since start.
@@ -64,6 +71,12 @@ var Reader = module.exports = function (options) {
      * @type {AstReader}
      */
     this.astReader = null;
+
+    /**
+     * Whether to skip ahead, not parsing the AST in detail.
+     * @type {boolean}
+     */
+    this.skipAhead = !!(options && options.skipAhead);
 };
 
 // Extends stream.Writable
@@ -102,9 +115,10 @@ Reader.prototype._write = function (chunk, encoding, callback) {
     }
     if (encoding)
         chunk = new Buffer(chunk, encoding);
-    this.buffer = this.buffer === null ? chunk : Buffer.concat([this.buffer, chunk]);
-    if (this.buffer.length === 0)
-        return;
+    if (this.buffer === null || this.buffer.length === 0)
+        this.buffer = chunk;
+    else
+        this.queue.push(chunk);
     do {
         var initialState = this.state;
         try {
@@ -173,8 +187,14 @@ Reader.prototype._write = function (chunk, encoding, callback) {
             }
         } catch (err) {
             if (err === util.E_MORE) {
+                if (this.queue.length > 0) {
+                    this.queue.unshift(this.buffer);
+                    this.buffer = Buffer.concat(this.queue);
+                    this.queue = [];
+                    continue; // Try again
+                }
                 callback();
-                return;
+                return; // Wait for more
             }
             throw err;
         }
@@ -458,16 +478,17 @@ Reader.prototype._readFunctionDefinitions = function() {
         }
         this._advance(off);
         var index = this.sequence;
-        var def = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars);
+        var def = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.offset);
         this.emit("functionDefinitionPre", def, index);
 
         // Read the AST
-        // console.log("creating AstReader at "+this.offset.toString(16)+" for "+def.toString());
-        this.astReader = new AstReader(def, this.offset);
+        this.astReader = new AstReader(def, {
+            skipAhead: this.skipAhead
+        });
         this.astReader.on("end", function() {
             this.offset += this.astReader.offset;
-            // console.log("AstReader complete at "+this.offset.toString(16));
-            def.ast = this.astReader.stack[0];
+            if (!this.skipAhead)
+                def.ast = this.astReader.stack[0];
             this.emit("functionDefinition", def, index);
             var remainingBuffer = this.astReader.buffer;
             this.astReader.removeAllListeners();
@@ -479,6 +500,11 @@ Reader.prototype._readFunctionDefinitions = function() {
         this.astReader.on("error", function(err) {
             this.emit("error", err);
         }.bind(this));
+        if (this.queue.length > 0) {
+            this.queue.unshift(this.buffer);
+            this.buffer = Buffer.concat(this.queue);
+            this.queue = [];
+        }
         this.astReader.write(this.buffer);
         this.buffer = null;
         return true;
