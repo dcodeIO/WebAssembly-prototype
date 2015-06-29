@@ -40,7 +40,7 @@ var FunctionImport = module.exports = function(assembly, index, importName, sign
  * @returns {string}
  */
 FunctionImport.prototype.toString = function() {
-    return "FunctionImport " + this.index.toString()
-         + " foreign." + this.importName
-         + " [" + this.signatures.length.toString() + " sig]";
+    return "FunctionImport " + "foreign." + this.importName
+         + " index:" + this.index
+         + " sigs:" + this.signatures.length;
 };

@@ -1,4 +1,5 @@
-var types = require("./types");
+var types = require("./types"),
+    assert = require("assert");
 
 var util = module.exports = {};
 
@@ -97,40 +98,45 @@ util.readCode = function(buffer, offset) {
 /* util.readIfI32Lit = function(buffer, offset) {
     if (offset >= buffer.length)
         throw E_MORE;
-    var b = buffer[offset],
-        res;
-    if (res = util.unpackWithImm(b)) {
+    var off = offset;
+    var b = buffer[off];
+    if (b & HasImmFlag) {
+        var res = util.unpackWithImm(b);
         if (res.op === types.I32WithImm.LitImm) {
+            off++;
             return {
                 op: res.op,
-                value: res.imm,
-                length: 1
+                imm: res.imm,
+                length: off - offset // 1
             };
         }
         if (res.op === types.I32WithImm.LitPool) {
+            off++;
             return {
                 op: res.op,
-                value: res.imm,
-                length: 1
+                imm: res.imm,
+                length: off - offset // 1
             };
         }
         return false;
     }
     var vi;
     if (b === types.I32.LitImm) {
-        vi = this.readVarint(buffer, offset);
+        off++;
+        vi = this.readVarint(buffer, off); off += vi.length;
         return {
             op: b,
-            value: vi.value,
-            length: 1 + vi.length
+            imm: vi.value,
+            length: off - offset
         };
     }
     if (b === types.I32.LitPool) {
-        vi = this.readVarint(buffer, offset);
+        off++;
+        vi = this.readVarint(buffer, off); off += vi.length;
         return {
             op: b,
-            value: vi.value,
-            length: 1 + vi.length
+            imm: vi.value,
+            length: off - offset
         }
     }
     return false;
@@ -143,12 +149,57 @@ var IdenChars = [
     '_', '$',
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
 ];
-var FirstCharRange = 26 * 2 + 2;
-var FirstCharRangeMinusDollar = 26 * 2 + 1;
-var NextCharRange = IdenChars.length;
+util.FirstCharRange = 26 * 2 + 2;
+util.FirstCharRangeMinusDollar = 26 * 2 + 1;
+util.NextCharRange = IdenChars.length;
 
-util.funcName = function(i) {
-    throw Error("not implemented");
+util.indexedName = function(range, i) {
+    assert(IdenChars.length === 64, "assumed below");
+    if (i < range)
+        return IdenChars[i];
+    i -= range;
+    var name = [];
+    if (i < range * 64) {
+        name.push(IdenChars[i >> 6]);
+        name.push(IdenChars[i & 0x3f]);
+
+        // Instead of trying to catch every >2 letter keyword, just inject a _.
+        assert(IdenChars[0x205>>6] === 'i' && IdenChars[0x205&0x3f] === 'f');
+        assert(IdenChars[0x20d>>6] === 'i' && IdenChars[0x20d&0x3f] === 'n');
+        assert(IdenChars[0x0ce>>6] === 'd' && IdenChars[0x0ce&0x3f] === 'o');
+        // Append _ if we would otherwise generate one of the two-letter keywords.
+        if (range < util.NextCharRange && (i == 0x205 || i == 0x20d || i == 0x0ce))
+            name.push("_");
+        return name.join("");
+    }
+    i -= range * 64;
+
+    // Instead of trying to catch every >2 letter keyword, just inject a _.
+    if (range < util.NextCharRange)
+        name.push("_");
+
+    var len = 0;
+    do {
+        name.push(IdenChars[i & 0x3f]);
+        len++;
+        i = i >> 6;
+    } while (i >= range * 64);
+    name.push(IdenChars[i & 0x3f]);
+    name.push(IdenChars[i >> 6]);
+    len += 2;
+    var a = name.slice(0, name.length - len);
+    var b = name.slice(name.length - len);
+    b.reverse();
+    name = a.concat(b);
+    return name.join("");
+};
+
+util.localName = function(i) {
+    return util.indexedName(util.FirstCharRangeMinusDollar, i + types.HotStdLib.length);
+};
+
+util.globalName = function(i) {
+    return util.indexedName(util.NextCharRange, i + types.StdLib.length);
 };
 
 util.combine = function(target, var_args) {

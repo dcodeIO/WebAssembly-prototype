@@ -1,4 +1,5 @@
-var types = require("../types");
+var types = require("../types"),
+    util = require("../util");
 
 /**
  * A global variable.
@@ -36,11 +37,21 @@ var GlobalVariable = module.exports = function(assembly, index, type, importName
 };
 
 /**
+ * Indexed name.
+ * @name GlobalVariable#name
+ * @type {string}
+ */
+Object.defineProperty(GlobalVariable.prototype, "name", {
+    get: function() {
+        return util.globalName(this.index);
+    }
+});
+
+/**
  * Returns a string representation of this global variable.
  * @returns {string}
  */
 GlobalVariable.prototype.toString = function() {
-    return "GlobalVariable " + this.index.toString() + " "
-         + types.TypeNames[this.type] + " "
-         + (this.importName === null ? "0" : "foreign."+this.importName);
+    return "GlobalVariable " + this.name + " index:" + this.index + " type:" + types.TypeNames[this.type]
+         + " value:" + (this.importName === null ? "0" : "foreign."+this.importName);
 };

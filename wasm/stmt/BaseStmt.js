@@ -8,12 +8,12 @@ var types = require("../types");
  * @abstract
  */
 var BaseStmt = module.exports = function(type, code, operands) {
-    if (!types.isValidRType(type))
+    if (type !== undefined && !types.isValidRType(type))
         throw TypeError("illegal statement type: "+type);
 
     /**
      * Statement type.
-     * @type {number}
+     * @type {number|undefined}
      */
     this.type = type;
 
@@ -41,6 +41,8 @@ var BaseStmt = module.exports = function(type, code, operands) {
  */
 Object.defineProperty(BaseStmt.prototype, "name", {
     get: function() {
+        if (this.type === undefined)
+            return "Stmt:"+types.StmtNames[this.code];
         switch (this.type) {
             case types.RType.I32:
                 return "I32:"+types.I32Names[this.code];
@@ -49,7 +51,7 @@ Object.defineProperty(BaseStmt.prototype, "name", {
             case types.RType.F64:
                 return "F64:"+types.F64Names[this.code];
             case types.RType.Void:
-                return "Void:"+types.StmtNames[this.code];
+                return "Void:"+types.VoidNames[this.code];
             default:
                 throw Error("illegal statement type: "+this.type);
         }

@@ -39,9 +39,30 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
 };
 
 /**
+ * Indexed internal function name.
+ * @name FunctionDefinition#name
+ * @type {string}
+ */
+Object.defineProperty(FunctionDefinition.prototype, "name", {
+    get: function() {
+        return this.declaration.name;
+    }
+});
+
+/**
  * Returns a string representation of this function definition.
  * @returns {string}
  */
 FunctionDefinition.prototype.toString = function() {
-    return "FunctionDefinition " + this.declaration.index.toString(10) + " " + this.variables.length.toString();
+    return "FunctionDefinition vars:" + this.variables.length + " for " + this.declaration;
+};
+
+FunctionDefinition.prototype.header = function() {
+    var sb = [];
+    sb.push("function ", this,name, "(");
+    var args = this.declaration.signature.argumentTypes;
+    args.forEach(function(type) {
+
+    });
+    return sb.join("");
 };

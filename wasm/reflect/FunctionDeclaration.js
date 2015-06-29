@@ -1,3 +1,6 @@
+var types = require("../types"),
+    util = require("../util");
+
 var FunctionSignature = require("./FunctionSignature");
 
 /**
@@ -38,6 +41,18 @@ var FunctionDeclaration = module.exports = function(assembly, index, signatureOr
     this.definition; // Assigned later on
 };
 
+/**
+ * Indexed internal function name.
+ * @name FunctionDefinition#name
+ * @type {string}
+ */
+Object.defineProperty(FunctionDeclaration.prototype, "name", {
+    get: function() {
+        var func_name_base = this.assembly.functionImports.length + this.assembly.globalVariables.length;
+        return util.globalName(func_name_base + this.index);
+    }
+});
+
 FunctionDeclaration.prototype.toString = function() {
-    return "FunctionDeclaration " + this.index.toString() + " " + this.signature.index.toString();
+    return "FunctionDeclaration " + this.name + " index:" + this.index + " sig:" + this.signature.index.toString();
 };

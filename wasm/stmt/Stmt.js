@@ -10,7 +10,7 @@ var types = require("../types"),
  * @extends BaseStmt
  */
 var Stmt = module.exports = function(code, operands) {
-    BaseStmt.call(this, types.RType.Void, code, operands);
+    BaseStmt.call(this, undefined, code, operands);
 };
 
 Stmt.prototype = Object.create(BaseStmt.prototype);

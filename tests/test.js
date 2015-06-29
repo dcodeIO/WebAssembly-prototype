@@ -99,4 +99,4 @@ reader.on("end", function() {
     console.log("Complete.");
 });
 
-require("fs").createReadStream(__dirname+"/fib.wasm").pipe(reader);
+require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(reader);

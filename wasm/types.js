@@ -299,49 +299,47 @@ exports.ExportFormat = {
 
 exports.ExportFormatNames = swap(exports.ExportFormat);
 
-exports.HotStdLib = {
-    HeapS8: 0,
-    HeapU8: 1,
-    HeapS16: 2,
-    HeapU16: 3,
-    HeapS32: 4,
-    HeapU32: 5,
-    HeapF32: 6,
-    HeapF64: 7,
-    IMul: 8,
-    FRound: 9
-};
+exports.HotStdLib = [
+    "HeapS8",
+    "HeapU8",
+    "HeapS16",
+    "HeapU16",
+    "HeapS32",
+    "HeapU32",
+    "HeapF32",
+    "HeapF64",
+    "IMul",
+    "FRound",
+    "Count"
+];
 
-exports.HotStdLibNames = swap(exports.HotStdLib);
+exports.StdLib = [
+    "stdlib",
+    "foreign",
+    "buffer",
+    "acos",
+    "asin",
+    "atan",
+    "cos",
+    "sin",
+    "tan",
+    "exp",
+    "log",
+    "ceil",
+    "floor",
+    "sqrt",
+    "abs",
+    "min",
+    "max",
+    "atan2",
+    "pow",
+    "clz32",
+    "NaN",
+    "Infinity",
+    "Count"
+];
 
-exports.StdLib = {
-    stdlib: 0,
-    foreign: 1,
-    buffer: 2,
-    acos: 3,
-    asin: 4,
-    atan: 5,
-    cos: 6,
-    sin: 7,
-    tan: 8,
-    exp: 9,
-    log: 10,
-    ceil: 11,
-    floor: 12,
-    sqrt: 13,
-    abs: 14,
-    min: 15,
-    max: 16,
-    atan2: 17,
-    pow: 18,
-    clz32: 19,
-    NaN: 20,
-    Infinity: 21
-};
-
-exports.StdLibNames = swap(exports.StdLib);
-
-exports.Prec = {
+/*exports.Prec = {
     Lowest: 0,
     Comma: 2,
     Assign: 4,
@@ -370,4 +368,4 @@ exports.Ctx = {
     ToNumber: 4
 };
 
-exports.CtxNames = swap(exports.Ctx);
+exports.CtxNames = swap(exports.Ctx); */

@@ -96,15 +96,15 @@ Reader.STATE = {
 };
 
 Reader.prototype._write = function (chunk, encoding, callback) {
+    if (this.astReader !== null) {
+        this.astReader.write(chunk, encoding, callback);
+        return;
+    }
     if (encoding)
         chunk = new Buffer(chunk, encoding);
     this.buffer = this.buffer === null ? chunk : Buffer.concat([this.buffer, chunk]);
     if (this.buffer.length === 0)
         return;
-    if (this.astReader !== null) {
-        this.astReader.write(chunk, undefined, callback);
-        return;
-    }
     do {
         var initialState = this.state;
         try {
@@ -462,10 +462,11 @@ Reader.prototype._readFunctionDefinitions = function() {
         this.emit("functionDefinitionPre", def, index);
 
         // Read the AST
-        console.log("creating AstReader at "+this.offset.toString(16)+" for "+def.toString());
-        this.astReader = new AstReader(def);
+        // console.log("creating AstReader at "+this.offset.toString(16)+" for "+def.toString());
+        this.astReader = new AstReader(def, this.offset);
         this.astReader.on("end", function() {
-            console.log("AstReader complete");
+            this.offset += this.astReader.offset;
+            // console.log("AstReader complete at "+this.offset.toString(16));
             def.ast = this.astReader.stack[0];
             var remainingBuffer = this.astReader.buffer;
             this.astReader.removeAllListeners();

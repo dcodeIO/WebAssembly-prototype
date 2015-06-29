@@ -1,3 +1,6 @@
+var types = require("../types"),
+    util = require("../util");
+
 var FunctionDefinition = require("./FunctionDefinition");
 
 /**
@@ -26,4 +29,23 @@ var LocalVariable = module.exports = function(functionDefinition, index, type) {
      * @type {number}
      */
     this.type = type;
+};
+
+/**
+ * Indexed name.
+ * @name LocalVariable#name
+ * @type {string}
+ */
+Object.defineProperty(LocalVariable.prototype, "name", {
+    get: function() {
+        return util.localName(this.index);
+    }
+});
+
+/**
+ * Returns a string representation of this local variable.
+ * @returns {string}
+ */
+LocalVariable.prototype.toString = function() {
+    return "LocalVariable " + this.name + " index:" +this.index + " type:" + types.TypeNames[this.type];
 };
