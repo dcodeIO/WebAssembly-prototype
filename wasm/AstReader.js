@@ -241,16 +241,6 @@ function S(ar, type) {
         globalType: function(index) {
             return ar.assembly.globalVariables[index].type;
         },
-        sigInt: function(index) {
-            switch (code.op) {
-                case types.I32.CallInt:
-                    return ar.assembly.functionDeclarations[index].signature;
-                case types.I32.CallInd:
-                    return ar.assembly.functionPointerTables[index].signature;
-                case types.I32.CallImp:
-                    return ar.assembly.functionImportSignatures[index].signature;
-            }
-        },
         sig: function(index) {
             switch (type) {
                 case undefined:
@@ -315,28 +305,38 @@ function S(ar, type) {
             for (var i=args.length-1; i>=0; --i)
                 ar.state.push(args[i]);
         },
-        stmt: function(operands) {
+        stmt: function(operands, withImm) {
             st = new stmt.Stmt(code.op, operands);
+            if (withImm)
+                st.withImm = true;
             parent.add(st);
             return st;
         },
-        exprI32: function(operands) {
+        exprI32: function(operands, withImm) {
             st = new stmt.I32Stmt(code.op, operands);
+            if (withImm)
+                st.withImm = true;
             parent.add(st);
             return st;
         },
-        exprF32: function(operands) {
+        exprF32: function(operands, withImm) {
             st = new stmt.F32Stmt(code.op, operands);
+            if (withImm)
+                st.withImm = true;
             parent.add(st);
             return st;
         },
-        exprF64: function(operands) {
+        exprF64: function(operands, withImm) {
             st = new stmt.F64Stmt(code.op, operands);
+            if (withImm)
+                st.withImm = true;
             parent.add(st);
             return st;
         },
-        exprVoid : function(operands) {
+        exprVoid : function(operands, withImm) {
             st = new stmt.VoidStmt(code, operands);
+            if (withImm)
+                st.withImm = true;
             parent.add(st);
             return st;
         },
@@ -548,7 +548,7 @@ AstReader.prototype._readStmt = function() {
                 break;
 
             default:
-                throw Error("illegal Stmt OpCode: " + code.op);
+                throw Error("illegal Stmt opcode: " + code.op);
         }
     } else {
         if (verbose >= 1)
@@ -558,22 +558,20 @@ AstReader.prototype._readStmt = function() {
 
             // opcodeWithImm (imm=local variable index) + Stmt<local variable type>
             case Op.SetLoc:
-                temp = code.imm;
                 s.advance();
-                s.stmt(temp);
-                s.expect(stateForType(s.localType(temp)));
+                s.stmt(code.imm, true);
+                s.expect(stateForType(s.localType(code.imm)));
                 break;
 
             // opcodeWithImm (imm=global variable index) + Stmt<global variable type>
             case Op.SetGlo:
-                temp = code.imm;
                 s.advance();
-                s.stmt(temp);
-                s.expect(stateForType(s.globalType(temp)));
+                s.stmt(code.imm, true);
+                s.expect(stateForType(s.globalType(code.imm)));
                 break;
 
             default:
-                throw Error("illegal StmtWithImm OpCode: " + code.op);
+                throw Error("illegal StmtWithImm opcode: " + code.op);
         }
     }
 };
@@ -852,7 +850,7 @@ AstReader.prototype._readExprI32 = function() {
                 break;
 
             default:
-                throw Error("illegal I32 OpCode: "+code.op);
+                throw Error("illegal I32 opcode: "+code.op);
         }
     } else {
         if (verbose >= 1)
@@ -870,11 +868,11 @@ AstReader.prototype._readExprI32 = function() {
             // opcodeWithImm (imm = local variable index)
             case Op.GetLoc:
                 s.advance();
-                s.stmt(code.imm);
+                s.stmt(code.imm, true);
                 break;
 
             default:
-                throw Error("illegal I32WithImm OpCode: "+code.op+" at "+(this.globalOffset + this.offset).toString(16));
+                throw Error("illegal I32WithImm opcode: "+code.op+" at "+(this.globalOffset + this.offset).toString(16));
         }
     }
 };
@@ -1032,7 +1030,7 @@ AstReader.prototype._readExprF32 = function() {
                 break;
 
             default:
-                throw Error("illegal F32 OpCode: "+code.op);
+                throw Error("illegal F32 opcode: "+code.op);
         }
     } else {
         var Op = types.F32WithImm;
@@ -1044,11 +1042,11 @@ AstReader.prototype._readExprF32 = function() {
             // opcode + local variable index
             case Op.GetLoc:
                 s.advance();
-                s.stmt(code.imm);
+                s.stmt(code.imm, true);
                 break;
 
             default:
-                throw Error("illegal F32WithImm OpCode: "+code.op);
+                throw Error("illegal F32WithImm opcode: "+code.op);
         }
     }
 };
@@ -1239,7 +1237,7 @@ AstReader.prototype._readExprF64 = function() {
                 break;
 
             default:
-                throw Error("illegal F64 OpCode: "+code.op);
+                throw Error("illegal F64 opcode: "+code.op);
         }
     } else {
         if (verbose >= 1)
@@ -1254,11 +1252,11 @@ AstReader.prototype._readExprF64 = function() {
             // opcode + local variable index
             case Op.GetLoc:
                 s.advance();
-                s.stmt(code.imm);
+                s.stmt(code.imm, true);
                 break;
 
             default:
-                throw Error("illegal F64WithImm OpCode: "+code.op);
+                throw Error("illegal F64WithImm opcode: "+code.op);
         }
     }
 };
@@ -1306,7 +1304,7 @@ AstReader.prototype._readExprVoid = function() {
             break;
 
         default:
-            throw Error("illegal Void OpCode: "+code);
+            throw Error("illegal Void opcode: "+code);
     }
 };
 

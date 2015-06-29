@@ -77,7 +77,7 @@ util.unpackWithImm = function(b) {
 };
 
 /**
- * Reads an OpCode. Always one byte.
+ * Reads an opcode. Always one byte.
  * @param {!Buffer} buffer
  * @param {number} offset
  * @returns {!{op: number, imm: ?number}}
@@ -95,7 +95,7 @@ util.readCode = function(buffer, offset) {
     };
 };
 
-util.readIfI32Lit = function(buffer, offset) {
+/* util.readIfI32Lit = function(buffer, offset) {
     if (offset >= buffer.length)
         throw E_MORE;
     var off = offset;
@@ -140,7 +140,7 @@ util.readIfI32Lit = function(buffer, offset) {
         }
     }
     return false;
-};
+}; */
 
 // Identifier characters
 var IdenChars = [

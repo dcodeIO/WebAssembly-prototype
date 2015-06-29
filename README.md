@@ -3,10 +3,11 @@ WebAssembly
 This package aims to provide tools for working with [WebAssembly](https://github.com/WebAssembly) binaries from within
 JavaScript itself.
 
-For now it contains:
+Contents
+--------
 
 * **[Type definitions](https://github.com/dcodeIO/WebAssembly/blob/master/wasm/types.js)**
-  Relevant type and OpCode definitions.
+  Relevant type and opcode definitions.
 
 * **[Reflection structure](https://github.com/dcodeIO/WebAssembly/tree/master/wasm/reflect)**
   Classes to represent the different sections of a WASM binary.
@@ -19,5 +20,13 @@ For now it contains:
 
 * **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/wasm/AstReader.js)**
   A streaming reader for parsing function bodies, returning their respective AST.
+
+Compatibility
+-------------
+For now this library aims to be compatible with what can be learned from the [polyfill prototype](https://github.com/WebAssembly/polyfill-prototype-1),
+but it written in plain JavaScript and does not contain any compiled code.
+
+Please note that the [WebAssembly design](https://github.com/WebAssembly/design) is still in flux and that the binary
+format may change at any time.
 
 Feel free to contribute!
