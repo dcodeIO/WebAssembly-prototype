@@ -1,5 +1,5 @@
-WebAssembly
-===========
+<p align="center"><img alt="WebAssembly" src="https://raw.githubusercontent.com/dcodeIO/WebAssembly/master/WebAssembly.png" /></p>
+
 This package aims to provide tools for working with [WebAssembly](https://github.com/WebAssembly) binaries from within
 JavaScript itself.
 
