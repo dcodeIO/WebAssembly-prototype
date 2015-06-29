@@ -6,10 +6,13 @@ exports.GlobalVariable = require("./GlobalVariable");
 exports.FunctionSignature = require("./FunctionSignature");
 exports.FunctionDeclaration = require("./FunctionDeclaration");
 exports.FunctionDefinition = require("./FunctionDefinition");
-exports.FunctionImport = require("./FunctionImport");
-exports.FunctionPointerElement = require("./FunctionPointerElement");
-exports.FunctionPointerTable = require("./FunctionPointerTable");
 exports.LocalVariable = require("./LocalVariable");
+
+exports.FunctionImport = require("./FunctionImport");
+exports.FunctionImportSignature = require("./FunctionImportSignature");
+
+exports.FunctionPointerTable = require("./FunctionPointerTable");
+exports.FunctionPointerElement = require("./FunctionPointerElement");
 
 exports.BaseExport = require("./BaseExport");
 exports.DefaultExport = require("./DefaultExport");

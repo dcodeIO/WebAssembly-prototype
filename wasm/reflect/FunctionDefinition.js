@@ -1,5 +1,7 @@
 var types = require("../types"),
-    FunctionSignature = require("./FunctionSignature"),
+    util = require("../util");
+
+var FunctionSignature = require("./FunctionSignature"),
     LocalVariable = require("./LocalVariable");
 
 /**
@@ -54,15 +56,62 @@ Object.defineProperty(FunctionDefinition.prototype, "name", {
  * @returns {string}
  */
 FunctionDefinition.prototype.toString = function() {
-    return "FunctionDefinition vars:" + this.variables.length + " for " + this.declaration;
+    return "FunctionDefinition " + this.name
+         + " vars:" + this.variables.length
+         + " decl:" + this.declaration.index;
 };
 
 FunctionDefinition.prototype.header = function() {
     var sb = [];
-    sb.push("function ", this,name, "(");
+    sb.push("function ", this.name, "(");
     var args = this.declaration.signature.argumentTypes;
-    args.forEach(function(type) {
-
-    });
+    for (var i=0; i<args.length; ++i) {
+        if (i > 0)
+            sb.push(",");
+        sb.push(util.localName(i));
+    }
+    sb.push(") {\n");
+    if (args.length > 0) {
+        for (i = 0; i < args.length; ++i) {
+            sb.push("    ", util.localName(i), "=");
+            switch (args[i]) {
+                case types.Type.I32:
+                    sb.push(util.localName(i), "|0;\n");
+                    break;
+                case types.Type.F32:
+                    sb.push(util.hotStdLibName("FRound"), "(", util.localName(i), ");\n");
+                    break;
+                case types.Type.F64:
+                    sb.push("+", util.localName(i), ";\n");
+                    break;
+            }
+        }
+    }
+    if (this.variables.length > 0) {
+        var lastType = -1;
+        for (i = 0; i < this.variables.length; ++i) {
+            var v = this.variables[i];
+            if (i > 0) {
+                if (v.type !== lastType)
+                    sb.push(";\n    var ");
+                else
+                    sb.push(",\n    ");
+            } else
+                sb.push("    var ");
+            lastType = v.type;
+            sb.push(util.localName(i + args.length), "=");
+            switch (v.type) {
+                case types.Type.I32:
+                    sb.push("0");
+                    break;
+                case types.Type.F32:
+                    sb.push(util.hotStdLibName("FRound"), "(0)");
+                    break;
+                case types.Type.F64:
+                    sb.push("0.");
+            }
+        }
+        sb.push(";\n");
+    }
     return sb.join("");
 };

@@ -95,7 +95,7 @@ util.readCode = function(buffer, offset) {
     };
 };
 
-/* util.readIfI32Lit = function(buffer, offset) {
+util.readIfI32Lit = function(buffer, offset) {
     if (offset >= buffer.length)
         throw E_MORE;
     var off = offset;
@@ -140,7 +140,7 @@ util.readCode = function(buffer, offset) {
         }
     }
     return false;
-}; */
+};
 
 // Identifier characters
 var IdenChars = [
@@ -199,7 +199,13 @@ util.localName = function(i) {
 };
 
 util.globalName = function(i) {
-    return util.indexedName(util.NextCharRange, i + types.StdLib.length);
+    return '$' + util.indexedName(util.NextCharRange, i + types.StdLib.length);
+};
+
+util.hotStdLibName = function(funcName) {
+    var i = types.HotStdLib.indexOf(funcName);
+    assert(i >= 0 && i < types.HotStdLib.length);
+    return String.fromCharCode(0x61 + i);
 };
 
 util.combine = function(target, var_args) {

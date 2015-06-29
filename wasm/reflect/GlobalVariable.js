@@ -52,6 +52,8 @@ Object.defineProperty(GlobalVariable.prototype, "name", {
  * @returns {string}
  */
 GlobalVariable.prototype.toString = function() {
-    return "GlobalVariable " + this.name + " index:" + this.index + " type:" + types.TypeNames[this.type]
-         + " value:" + (this.importName === null ? "0" : "foreign."+this.importName);
+    return "GlobalVariable " + this.name
+         + " idx:" + this.index
+         + " type:" + types.TypeNames[this.type]
+         + " val:" + (this.importName === null ? "0" : "foreign."+this.importName);
 };

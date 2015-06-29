@@ -47,5 +47,7 @@ Object.defineProperty(LocalVariable.prototype, "name", {
  * @returns {string}
  */
 LocalVariable.prototype.toString = function() {
-    return "LocalVariable " + this.name + " index:" +this.index + " type:" + types.TypeNames[this.type];
+    return "LocalVariable " + this.name
+         + " idx:" +this.index
+         + " type:" + types.TypeNames[this.type];
 };

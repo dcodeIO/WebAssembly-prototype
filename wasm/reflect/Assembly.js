@@ -9,6 +9,7 @@ var assertInteger = util.assertInteger,
 var ConstantPool = require("./ConstantPool"),
     FunctionSignature = require("./FunctionSignature"),
     FunctionImport = require("./FunctionImport"),
+    FunctionImportSignature = require("./FunctionImportSignature"),
     GlobalVariable = require("./GlobalVariable"),
     FunctionDeclaration = require("./FunctionDeclaration"),
     FunctionPointerTable = require("./FunctionPointerTable"),
@@ -50,6 +51,12 @@ var Assembly = module.exports = function(precomputedSize) {
      * @type {!Array.<!FunctionImport>}
      */
     this.functionImports = [];
+
+    /**
+     * Function import signatures.
+     * @type {!Array<!FunctionSignature>}
+     */
+    this.functionImportSignatures = [];
 
     /**
      * Global variables.
@@ -247,7 +254,10 @@ Assembly.prototype.getFunctionSignature = function(index) {
  */
 Assembly.prototype.initFunctionImportPool = function(nImports, nSignatures) {
     assertInteger("nImports", nImports, 0, 0xFFFFFFFF);
+    assertInteger("nSignatures", nSignatures, 0, 0xFFFFFFFF);
     this.functionImports = new Array(nImports);
+    this.functionImportSignatures = new Array(nSignatures);
+    this.functionImportSignatures.offset = 0;
 };
 
 /**
@@ -256,6 +266,14 @@ Assembly.prototype.initFunctionImportPool = function(nImports, nSignatures) {
  */
 Assembly.prototype.getFunctionImportPoolSize = function() {
     return this.functionImports.length;
+};
+
+/**
+ * Gets the size of the function import signature pool.
+ * @returns {number}
+ */
+Assembly.prototype.getFunctionImportSignaturePoolSize = function() {
+    return this.functionImportSignatures.length;
 };
 
 /**
@@ -272,7 +290,15 @@ Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
     signatureIndexes.forEach(function(index, i) {
         assertInteger("signatureIndexes["+i+"]", index, 0, ssize);
     });
-    return this.functionImports[index] = new FunctionImport(this, index, name, signatureIndexes);
+    var imp = this.functionImports[index] = new FunctionImport(this, index, name, signatureIndexes);
+    var isize = this.getFunctionImportSignaturePoolSize();
+    for (var i=0; i<signatureIndexes.length; ++i) {
+        if (this.functionImportSignatures.offset >= isize)
+            throw RangeError("illegal function import signature index: "+this.functionImportSignatures.offset);
+        this.functionImportSignatures[this.functionImportSignatures.offset]
+            = new FunctionImportSignature(this, this.functionImportSignatures.offset++, signatureIndexes[i], imp.index);
+    }
+    return imp;
 };
 
 /**
@@ -284,6 +310,17 @@ Assembly.prototype.getFunctionImport = function(index) {
     var size = this.getFunctionImportPoolSize();
     assertInteger("index", index, 0, size-1);
     return this.functionImports[index];
+};
+
+/**
+ * Gets the function import signature at the specified index.
+ * @param {number} index
+ * @returns {!FunctionImportSignature}
+ */
+Assembly.prototype.getFunctionImportSignature = function(index) {
+    var size = this.getFunctionImportSignaturePoolSize();
+    assertInteger("index", index, 0, size-1);
+    return this.functionImportSignatures[index];
 };
 
 // ----- global variables -----
@@ -492,4 +529,17 @@ Assembly.prototype.setRecordExport = function(functionIndexes) {
         assertInteger("functionIndexes["+name+"]", index, 0, size-1);
     });
     return this.export = new RecordExport(this, functionIndexes);
+};
+
+// ----- general -----
+
+Assembly.prototype.toString = function() {
+    return "Assembly"
+         + " size:" + this.precomputedSize
+         + " consts:" + (this.constantPools[0].length + this.constantPools[1].length + this.constantPools[2].length)
+         + " sigs:" + this.functionSignatures.length
+         + " imps:" + this.functionImports.length
+         + " impSigs:" + this.functionImportSignatures.length
+         + " globals:" + this.globalVariables.length
+         + " decls:" + this.functionDeclarations.length;
 };

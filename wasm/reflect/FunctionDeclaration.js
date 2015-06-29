@@ -8,9 +8,9 @@ var FunctionSignature = require("./FunctionSignature");
  * @constructor
  * @param {!Assembly} assembly
  * @param {number} index
- * @param {number|!FunctionSignature} signatureOrIndex
+ * @param {number} signatureIndex
  */
-var FunctionDeclaration = module.exports = function(assembly, index, signatureOrIndex) {
+var FunctionDeclaration = module.exports = function(assembly, index, signatureIndex) {
 
     /**
      * Assembly reference.
@@ -28,11 +28,7 @@ var FunctionDeclaration = module.exports = function(assembly, index, signatureOr
      * Signature reference.
      * @type {!FunctionSignature}
      */
-    this.signature;
-    if (signatureOrIndex instanceof FunctionSignature)
-        this.signature = assembly.getFunctionSignature(signatureOrIndex.index);
-    else
-        this.signature = assembly.getFunctionSignature(signatureOrIndex);
+    this.signature = assembly.getFunctionSignature(signatureIndex);
 
     /**
      * Function definition.
@@ -53,6 +49,12 @@ Object.defineProperty(FunctionDeclaration.prototype, "name", {
     }
 });
 
+/**
+ * Returns a string representation of this function declaration.
+ * @returns {string}
+ */
 FunctionDeclaration.prototype.toString = function() {
-    return "FunctionDeclaration " + this.name + " index:" + this.index + " sig:" + this.signature.index.toString();
+    return "FunctionDeclaration " + this.name
+         + " idx:" + this.index
+         + " sig:" + this.signature.index;
 };

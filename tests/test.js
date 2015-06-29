@@ -11,7 +11,7 @@ reader.on("header", function (size) {
     console.log("Precomputed size: " + size);
 });
 
-/* reader.on("constants", function (nI32, nF32, nF64) {
+reader.on("constants", function (nI32, nF32, nF64) {
     console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
 });
 
@@ -93,7 +93,7 @@ reader.on("functionDefinitionsEnd", function() {
 
 reader.on("export", function(exprt) {
     console.log("Export: "+exprt.toString());
-}); */
+});
 
 reader.on("end", function() {
     console.log("Complete.");

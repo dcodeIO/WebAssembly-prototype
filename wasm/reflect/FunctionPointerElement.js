@@ -18,3 +18,13 @@ var FunctionPointerElement = module.exports = function(table, value) {
      */
     this.value = value;
 };
+
+/**
+ * Returns a string representation of this function pointer element.
+ * @returns {string}
+ */
+FunctionPointerElement.prototype.toString = function() {
+    return "FunctionPointerElement"
+         + " tbl:" + this.table.index
+         + " val:" + this.value;
+};

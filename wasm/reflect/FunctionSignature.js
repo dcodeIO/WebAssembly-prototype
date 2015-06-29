@@ -41,7 +41,7 @@ var FunctionSignature = module.exports = function(assembly, index, returnType, a
  */
 FunctionSignature.prototype.toString = function() {
     var sb = [];
-    sb.push("FunctionSignature ", this.index.toString(), " ", types.RTypeNames[this.returnType], "(");
+    sb.push("FunctionSignature idx:", this.index.toString(), " ", types.RTypeNames[this.returnType], "(");
     for (var i=0; i<this.argumentTypes.length; ++i) {
         if (i>0)
             sb.push(",");

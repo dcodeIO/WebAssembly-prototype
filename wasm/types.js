@@ -309,8 +309,7 @@ exports.HotStdLib = [
     "HeapF32",
     "HeapF64",
     "IMul",
-    "FRound",
-    "Count"
+    "FRound"
 ];
 
 exports.StdLib = [
@@ -335,8 +334,7 @@ exports.StdLib = [
     "pow",
     "clz32",
     "NaN",
-    "Infinity",
-    "Count"
+    "Infinity"
 ];
 
 /*exports.Prec = {

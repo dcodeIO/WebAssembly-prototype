@@ -1,3 +1,5 @@
+var types = require("../types");
+
 /**
  * A typed constant pool.
  * @constructor
@@ -25,3 +27,13 @@ var ConstantPool = module.exports = function(assembly, type, size) {
 };
 
 ConstantPool.prototype = Object.create(Array.prototype);
+
+/**
+ * Returns a string representation of this constant pool.
+ * @returns {string}
+ */
+ConstantPool.prototype.toString = function() {
+    return "ConstantPool "
+         + " type:" + types.TypeNames[this.type]
+         + " size:" + this.length;
+};

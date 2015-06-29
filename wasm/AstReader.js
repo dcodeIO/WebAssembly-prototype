@@ -145,14 +145,6 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
             return;
         }
         var state = this.state.pop();
-        if (verbose >= 2) {
-            console.log("---");
-            console.log("state " + state);
-            if (this.state.length > 10)
-                console.log("state stack: +"+(this.state.length-10)+" "+this.state.slice(-10));
-            else
-                console.log("state stack: "+this.state);
-        }
         try {
             switch (state) {
                 case AstReader.STATE.STMT_LIST:
@@ -177,9 +169,7 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
                     this._readSwitch();
                     break;
                 case AstReader.STATE.POP:
-                    var last = this.stack.pop();
-                    if (verbose >= 1)
-                        console.log("pop from stack: "+last.toString());
+                    this.stack.pop();
                     break;
                 default:
                     throw Error("illegal state: " + this.state);
@@ -190,7 +180,6 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
                 callback();
                 return;
             }
-            console.log(this.inspect());
             throw err;
         }
     } while (true);
@@ -199,11 +188,10 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
 AstReader.prototype._advance = function (nBytes) {
     this.buffer = this.buffer.slice(nBytes);
     this.offset += nBytes;
-    // console.log("advancing to "+(this.readerOffset + this.offset).toString(16)+" : "+(this.buffer.length === 0 ? "EOF" : this.buffer[0].toString(16)));
 };
 
 // A closure holding state of and providing utility for the current read operation.
-function S(ar) {
+function S(ar, type) {
     var off = 0;
     var code;
     var parent = ar.stack[ar.stack.length-1];
@@ -248,45 +236,82 @@ function S(ar) {
             if (index < ar.signature.argumentTypes.length)
                 return ar.signature.argumentTypes[index];
             index -= ar.signature.argumentTypes.length;
-            if (index >= ar.definition.variables.length)
-                throw Error("illegal local variable index: "+index);
             return ar.definition.variables[index].type;
         },
         globalType: function(index) {
-            if (index >= ar.assembly.globalVariables.length)
-                throw Error("illegal global variable index: "+index);
             return ar.assembly.globalVariables[index].type;
         },
-        internalSig: function(index) {
-            if (index >= ar.assembly.functionDeclarations.length)
-                throw Error("illegal internal function index: "+index);
-            return ar.assembly.functionDeclarations[index].signature;
+        sigInt: function(index) {
+            switch (code.op) {
+                case types.I32.CallInt:
+                    return ar.assembly.functionDeclarations[index].signature;
+                case types.I32.CallInd:
+                    return ar.assembly.functionPointerTables[index].signature;
+                case types.I32.CallImp:
+                    return ar.assembly.functionImportSignatures[index].signature;
+            }
         },
-        indirectSig: function(index) {
-            if (index >= ar.assembly.functionPointerTables.length)
-                throw Error("illegal indirect function index: "+index);
-            return ar.assembly.functionPointerTables[index].signature;
-        },
-        importSig: function(index) {
-            if (index >= ar.assembly.functionImports.length)
-                throw Error("illegal import function index: "+index);
-            if (ar.assembly.functionImports[index].signatures.length === 0)
-                throw Error("import function "+index+" has no signatures");
-            return ar.assembly.functionImports[index].signatures[0]; // FIXME: I have no idea how this is determined
+        sig: function(index) {
+            switch (type) {
+                case undefined:
+                    switch (code.op) {
+                        case types.Stmt.CallInt:
+                            return ar.assembly.functionDeclarations[index].signature;
+                        case types.Stmt.CallInd:
+                            return ar.assembly.functionPointerTables[index].signature;
+                        case types.Stmt.CallImp:
+                            return ar.assembly.functionImportSignatures[index].signature;
+                    }
+                    break;
+                case types.RType.I32:
+                    switch (code.op) {
+                        case types.I32.CallInt:
+                            return ar.assembly.functionDeclarations[index].signature;
+                        case types.I32.CallInd:
+                            return ar.assembly.functionPointerTables[index].signature;
+                        case types.I32.CallImp:
+                            return ar.assembly.functionImportSignatures[index].signature;
+                    }
+                    break;
+                case types.RType.F32:
+                    switch (code.op) {
+                        case types.F32.CallInt:
+                            return ar.assembly.functionDeclarations[index].signature;
+                        case types.F32.CallInd:
+                            return ar.assembly.functionPointerTables[index].signature;
+                    }
+                    break;
+                case types.RType.F64:
+                    switch (code.op) {
+                        case types.F64.CallInt:
+                            return ar.assembly.functionDeclarations[index].signature;
+                        case types.F64.CallInd:
+                            return ar.assembly.functionPointerTables[index].signature;
+                        case types.F64.CallImp:
+                            return ar.assembly.functionImportSignatures[index].signature;
+                    }
+                    break;
+                case types.RType.Void:
+                    switch (code) {
+                        case types.Void.CallInt:
+                            return ar.assembly.functionDeclarations[index].signature;
+                        case types.Void.CallInd:
+                            return ar.assembly.functionPointerTables[index].signature;
+                        case types.Void.CallImp:
+                            return ar.assembly.functionImportSignatures[index].signature;
+                    }
+                    break;
+            }
+            throw Error("opcode does not reference a function signature: "+(code.op || code));
         },
         expect: function(state) {
             var args = Array.isArray(state) ? state : Array.prototype.slice.call(arguments);
             if (args.length === 0)
                 throw Error("s.expect called with zero args");
-            if (st) {
-                if (verbose >= 2)
-                    console.log("push to stack: "+st);
+            if (st)
                 ar.stack.push(st);
-            }
             if (st)
                 args.push(AstReader.STATE.POP);
-            if (verbose >= 2)
-                console.log("expecting state: "+args.join(","));
             for (var i=args.length-1; i>=0; --i)
                 ar.state.push(args[i]);
         },
@@ -331,7 +356,7 @@ AstReader.prototype._readStmtList = function() {
 };
 
 AstReader.prototype._readStmt = function() {
-    var s = S(this);
+    var s = S(this, undefined);
     var code = s.code();
     var STATE = AstReader.STATE;
     var temp, temp2, i, j;
@@ -409,14 +434,13 @@ AstReader.prototype._readStmt = function() {
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
             case Op.CallInt:
-                temp2 = s.internalSig;
 
             // opcode + imported function index + argument list as Stmt<args[i] type>
             case Op.CallImp:
                 temp = s.varint();
                 s.advance();
                 s.stmt(temp);
-                temp2 = (temp2 || s.importSig)(temp).argumentTypes;
+                temp2 = s.sig(temp).argumentTypes;
                 if (temp2.length > 0) {
                     var expectFromArgs = [];
                     temp2.forEach(function (type) {
@@ -432,12 +456,9 @@ AstReader.prototype._readStmt = function() {
                 s.advance();
                 s.stmt(temp);
                 var expectFromArgs = [STATE.EXPR_I32];
-                temp2 = s.indirectSig(temp).argumentTypes;
-                if (temp2.length > 0) {
-                    temp2.forEach(function (type) {
-                        expectFromArgs.push(stateForType(type));
-                    });
-                }
+                s.sig(temp).argumentTypes.forEach(function (type) {
+                    expectFromArgs.push(stateForType(type));
+                });
                 s.expect(expectFromArgs);
                 break;
 
@@ -562,7 +583,7 @@ AstReader.prototype._readSwitch = function() {
     if (sw.code !== types.Stmt.Switch)
         throw Error("illegal state: not a switch statement: "+sw);
     var STATE = AstReader.STATE;
-    var s = S(this);
+    var s = S(this, undefined);
     var cas = s.u8();
     var switchOperands = [cas];
     var expectWithinSwitch = [];
@@ -607,10 +628,11 @@ AstReader.prototype._readSwitch = function() {
 };
 
 AstReader.prototype._readExprI32 = function() {
-    var s = S(this); s.stmt = s.exprI32;
+    var s = S(this, types.RType.I32); s.stmt = s.exprI32;
     var code = s.code();
     var STATE = AstReader.STATE;
     var temp, temp2, i, j;
+    var callFunc = null;
 
     if (code.imm === null) {
         if (verbose >= 1)
@@ -689,14 +711,13 @@ AstReader.prototype._readExprI32 = function() {
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
             case Op.CallInt:
-                temp2 = s.internalSig;
 
             // opcode + imported function index + argument list as Stmt<args[i] type>
             case Op.CallImp:
                 temp = s.varint();
                 s.advance();
                 s.stmt(temp);
-                temp2 = (temp2 || s.importSig)(temp).argumentTypes;
+                temp2 = s.sig(temp).argumentTypes;
                 if (temp2.length > 0) {
                     var expectFromArgs = [];
                     temp2.forEach(function (type) {
@@ -712,7 +733,7 @@ AstReader.prototype._readExprI32 = function() {
                 s.advance();
                 s.stmt(temp);
                 expectFromArgs = [STATE.EXPR_I32];
-                temp2 = s.indirectSig(temp).argumentTypes;
+                temp2 = s.sig(temp).argumentTypes;
                 if (temp2.length > 0) {
                     temp2.forEach(function (type) {
                         expectFromArgs.push(stateForType(type));
@@ -859,7 +880,7 @@ AstReader.prototype._readExprI32 = function() {
 };
 
 AstReader.prototype._readExprF32 = function() {
-    var s = S(this); s.stmt = s.exprF32;
+    var s = S(this, types.RType.F32); s.stmt = s.exprF32;
     var code = s.code();
     var STATE = AstReader.STATE;
     var temp, temp2, i, j;
@@ -937,7 +958,7 @@ AstReader.prototype._readExprF32 = function() {
                 temp = s.varint();
                 s.advance();
                 s.stmt(temp);
-                temp2 = s.internalSig(temp).argumentTypes;
+                temp2 = s.sig(temp).argumentTypes;
                 if (temp2.length > 0) {
                     var expectFromArgs = [];
                     temp2.forEach(function (type) {
@@ -953,7 +974,7 @@ AstReader.prototype._readExprF32 = function() {
                 s.advance();
                 s.stmt(temp);
                 expectFromArgs = [STATE.EXPR_I32];
-                s.indirectSig(temp).argumentTypes.forEach(function (type) {
+                s.sig(temp).argumentTypes.forEach(function (type) {
                     expectFromArgs.push(stateForType(type));
                 });
                 s.expect(expectFromArgs);
@@ -1033,17 +1054,17 @@ AstReader.prototype._readExprF32 = function() {
 };
 
 AstReader.prototype._readExprF64 = function() {
-            var s = S(this); s.stmt = s.exprF64;
-            var code = s.code();
-            var STATE = AstReader.STATE;
-            var temp, temp2, i, j;
+    var s = S(this, types.RType.F64); s.stmt = s.exprF64;
+    var code = s.code();
+    var STATE = AstReader.STATE;
+    var temp, temp2, i, j;
 
-            if (code.imm === null) {
-                if (verbose >= 1)
-                    console.log("processing F64:" + types.F64Names[code.op]);
+    if (code.imm === null) {
+        if (verbose >= 1)
+            console.log("processing F64:" + types.F64Names[code.op]);
 
-                var Op = types.F64;
-                switch (code.op) {
+        var Op = types.F64;
+        switch (code.op) {
 
             // opcode + value
             case Op.LitImm:
@@ -1108,18 +1129,17 @@ AstReader.prototype._readExprF64 = function() {
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
             case Op.CallInt:
-                temp2 = s.internalSig;
 
             // opcode + imported function index + argument list as Stmt<args[i] type>
             case Op.CallImp:
                 temp = s.varint();
                 s.advance();
                 s.stmt(temp);
-                temp2 = (temp2 || s.importSig)(temp).argumentTypes;
+                temp2 = s.sig(temp).argumentTypes;
                 if (temp2.length > 0) {
                     var expectFromArgs = [];
                     temp2.forEach(function (type) {
-                        expectFromArgs.push(stateForType(type));
+                        expectFromArgs.push(stateForType(type, true));
                     });
                     s.expect(expectFromArgs);
                 }
@@ -1131,7 +1151,7 @@ AstReader.prototype._readExprF64 = function() {
                 s.advance();
                 s.stmt(temp);
                 expectFromArgs = [STATE.EXPR_I32];
-                s.indirectSig(temp).argumentTypes.forEach(function (type) {
+                s.sig(temp).argumentTypes.forEach(function (type) {
                     expectFromArgs.push(stateForType(type));
                 });
                 s.expect(expectFromArgs);
@@ -1244,10 +1264,10 @@ AstReader.prototype._readExprF64 = function() {
 };
 
 AstReader.prototype._readExprVoid = function() {
-    var s = S(this); s.stmt = s.exprVoid;
+    var s = S(this, types.RType.Void); s.stmt = s.exprVoid;
     var code = s.codeU8();
     var STATE = AstReader.STATE;
-    var temp, temp2, i, j;
+    var temp, temp2;
 
     if (verbose >= 1)
         console.log("processing Void:" + types.VoidNames[code]);
@@ -1257,14 +1277,13 @@ AstReader.prototype._readExprVoid = function() {
 
         // opcode + internal function index + argument list as Stmt<args[i] type>
         case Op.CallInt:
-            temp2 = s.internalSig;
 
         // opcode + imported function index + argument list as Stmt<args[i] type>
         case Op.CallImp:
             temp = s.varint();
             s.advance();
             s.stmt(temp);
-            temp2 = (temp2 || s.importSig)(temp).argumentTypes;
+            temp2 = s.sig(temp).argumentTypes;
             if (temp2.length > 0) {
                 var expectFromArgs = [];
                 temp2.forEach(function (type) {
@@ -1280,7 +1299,7 @@ AstReader.prototype._readExprVoid = function() {
             s.advance();
             s.stmt(temp);
             expectFromArgs = [STATE.EXPR_I32];
-            s.indirectSig(temp).argumentTypes.forEach(function (type) {
+            s.sig(temp).argumentTypes.forEach(function (type) {
                 expectFromArgs.push(stateForType(type));
             });
             s.expect(expectFromArgs);
@@ -1325,8 +1344,11 @@ AstReader.prototype.inspect = function() {
     sb.push("AstReader debug\n---------------\n");
     sb.push("Global offset: ", this.globalOffset.toString(16), "\n");
     sb.push("Current offset: ", (this.globalOffset + this.offset).toString(16), "\n");
+    sb.push("Function index: ", this.declaration.index.toString(10), "\n");
     sb.push("Stack size: ", this.stack.length.toString(10), "\n");
     sb.push("State size: "+this.state.length.toString(10), "\n\n");
+    sb.push(this.assembly.toString(), "\n\n");
+    sb.push(this.definition.header(), "\n");
     sb.push(inspect(this.stack[0]));
     return sb.join("");
 };

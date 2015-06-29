@@ -468,6 +468,7 @@ Reader.prototype._readFunctionDefinitions = function() {
             this.offset += this.astReader.offset;
             // console.log("AstReader complete at "+this.offset.toString(16));
             def.ast = this.astReader.stack[0];
+            this.emit("functionDefinition", def, index);
             var remainingBuffer = this.astReader.buffer;
             this.astReader.removeAllListeners();
             this.astReader = null;
