@@ -24,7 +24,7 @@ Contents
 Compatibility
 -------------
 For now this library aims to be compatible with what can be learned from the [polyfill prototype](https://github.com/WebAssembly/polyfill-prototype-1),
-but it written in plain JavaScript and does not contain any compiled code.
+but is written in plain JavaScript and does not contain any compiled code.
 
 Please note that the [WebAssembly design](https://github.com/WebAssembly/design) is still in flux and that the binary
 format may change at any time.

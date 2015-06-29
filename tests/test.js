@@ -3,7 +3,7 @@ var Reader = require("../wasm/Reader"),
 
 var reader = new Reader();
 
-reader.on("switchState", function (prevState, newState, offset) {
+/* reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
 });
 
@@ -93,7 +93,7 @@ reader.on("functionDefinitionsEnd", function() {
 
 reader.on("export", function(exprt) {
     console.log("Export: "+exprt.toString());
-});
+}); */
 
 reader.on("end", function() {
     console.log("Complete.");
