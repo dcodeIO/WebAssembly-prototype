@@ -6,7 +6,7 @@ JavaScript itself.
 Contents
 --------
 
-* **[Type definitions](https://github.com/dcodeIO/WebAssembly/blob/master/sr/ctypes.js)**
+* **[Type definitions](https://github.com/dcodeIO/WebAssembly/blob/master/src/types.js)**
   Relevant type and opcode definitions.
 
 * **[Reflection structure](https://github.com/dcodeIO/WebAssembly/tree/master/src/reflect)**
@@ -88,3 +88,5 @@ reader.on("end", function() {
 ```
 
 Feel free to contribute!
+
+**License:** Apache License, Version 2.0 - http://www.apache.org/licenses/LICENSE-2.0.html
