@@ -180,7 +180,7 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                 case Reader.STATE.END:
                     if (this.buffer.length > 0)
                         throw Error("illegal trailing data: " + this.buffer.length);
-                    this.emit("end");
+                    this.emit("end", this.assembly);
                     return;
                 default:
                     throw Error("illegal state: " + this.state);
@@ -319,14 +319,14 @@ Reader.prototype._readSignatures = function () {
 Reader.prototype._readFunctionImportsCount = function () {
     var off = 0, vi;
     vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nFunctionImports = vi.value;
+    var count = vi.value;
     vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nSignatures = vi.value;
+    var signatureCount = vi.value;
     this._advance(off);
-    this.assembly.initFunctionImportPool(nFunctionImports, nSignatures);
+    this.assembly.initFunctionImportPool(count, signatureCount);
     this.sequence = 0;
     this.state = Reader.STATE.FUNCTION_IMPORTS;
-    this.emit("functionImports", nFunctionImports, nSignatures);
+    this.emit("functionImports", count, signatureCount);
 };
 
 Reader.prototype._readFunctionImports = function () {

@@ -218,6 +218,14 @@ util.combine = function(target, var_args) {
     return target;
 };
 
+util.values = function(obj) {
+    var values = [];
+    for (var i in obj)
+        if (obj.hasOwnProperty(i))
+            values.push(obj[i]);
+    return values;
+};
+
 var FNAME_RE = /^[a-zA-Z_\$][a-zA-Z0-9_\$]*$/; // FIXME
 
 util.isValidFName = function(value) {
@@ -228,28 +236,28 @@ util.isValidFName = function(value) {
 
 util.assertInteger = function(name, value, min, max) {
     if (typeof value !== 'number' || value%1 !== 0)
-        assert.fail(value, "integer", name+" must be an integer");
+        assert.fail(value, "integer", name+" must be an integer", "===");
     if (typeof min === 'undefined' && typeof max === 'undefined')
         return;
     if (typeof max === 'undefined')
         max = min, min = 0;
     if (value < min || value > max)
-        assert.fail(value, "["+min+","+max+"]", name+" out of bounds");
+        assert.fail(value, "["+min+","+max+"]", name+" out of bounds", "in");
 };
 
 util.assertRType = function(name, value) {
     util.assertInteger(name, value);
     if (!types.isValidRType(value))
-        assert.fail(value, types.RType, name+" must be a valid return type");
+        assert.fail(value, types.RType, name+" must be a valid return type", "in");
 };
 
 util.assertType = function(name, value) {
     util.assertInteger(name, value);
     if (!types.isValidType(value))
-        assert.fail(value, types.Type, name+" must be a valid type");
+        assert.fail(value, util.values(types.Type), name+" must be a valid type", "in");
 };
 
 util.assertFName = function(name, value) {
     if (!util.isValidFName(value))
-        assert.fail(value, "function name", name+" must be a valid function name");
+        assert.fail(value, "function name", name+" must be a valid function name", "===");
 };

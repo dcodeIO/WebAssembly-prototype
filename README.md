@@ -92,6 +92,12 @@ reader.on("end", function() {
 ...
 ```
 
+Documentation
+-------------
+* [Binary Format](https://github.com/dcodeIO/WebAssembly/wiki/Binary-Format)
+* [Opcodes](https://github.com/dcodeIO/WebAssembly/wiki/Opcodes)
+* [Reader](https://github.com/dcodeIO/WebAssembly/wiki/Reader)
+
 Feel free to contribute!
 
 **License:** Apache License, Version 2.0 - http://www.apache.org/licenses/LICENSE-2.0.html

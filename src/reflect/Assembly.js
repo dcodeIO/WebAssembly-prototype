@@ -220,7 +220,7 @@ Assembly.prototype.validateConstantPools = function() {
     this.constantPools[0].forEach(function(value, index) {
         assert.strictEqual(typeof value, "number", "I32 constant "+index+" must be a number");
         if (value%1 !== 0)
-            assert.fail(value, "integer", "I32 constant "+index+" must be an integer");
+            assert.fail(value, "integer", "I32 constant "+index+" must be an integer", "===");
     }, this);
     this.constantPools[1].forEach(function(value, index) {
         assert.strictEqual(typeof value, "number", "F32 constant "+index+" must be a number");
