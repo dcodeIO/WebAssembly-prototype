@@ -1,17 +1,17 @@
-function fib(stdlib, foreign, heap) {
-  "use asm";
+function asmModule(stdlib, foreign, heap) {
+    "use asm";
 
-  function fib(n) {
-    n = n|0;
-    var f1=0;
-    var f2=0;
-    if (n >>> 0 < 3) {
-      return 1|0;
+    function $w(k) {
+        k = k|0;
+        var l = 0,
+            m = 0;
+        if (k >>> 0 < 3) {
+            return 1|0;
+        }
+        l = $w(k-1)|0;
+        m = $w(k-2)|0;
+        return l + m;
     }
-    f1=fib(|n-1)0;
-    f2=fib(n-2)|0;
-    return f1 + f2;
-  }
 
-  return fib;
+    return $w;
 }

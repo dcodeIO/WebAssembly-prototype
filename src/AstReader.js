@@ -99,7 +99,7 @@ var AstReader = module.exports = function(functionDefinition, options) {
      * Read state closure.
      * @type {!AstReadState}
      */
-    this.s = new AstReadState(this, AstReader.STATE.POP);
+    this.readState = new AstReadState(this, AstReader.STATE.POP);
 
     /**
      * Whether to skip ahead, not parsing the AST in detail.
@@ -170,7 +170,7 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
 AstReader.prototype._process = function() {
     do {
         if (this.state.length === 0) { // Done
-            this.s.finish();
+            this.readState.finish();
             if (!this.skipAhead) {
                 if (this.stack.length !== 1)
                     throw Error("illegal state: stack not cleared: "+this.stack.length);
@@ -232,13 +232,13 @@ AstReader.prototype._process = function() {
             console.log(this.inspect());
             throw err;
         } finally {
-            this.s.reset();
+            this.readState.reset();
         }
     } while (true);
 };
 
 AstReader.prototype._readStmtList = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var size = s.varint();
     s.advance();
@@ -250,7 +250,7 @@ AstReader.prototype._readStmtList = function() {
 };
 
 AstReader.prototype._readStmt = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var code = s.code(undefined);
     var STATE = AstReader.STATE;
@@ -440,7 +440,7 @@ AstReader.prototype._readSwitch = function() {
         throw Error("illegal state: not a switch statement: "+sw);
     var STATE = AstReader.STATE;
 
-    var s = this.s;
+    var s = this.readState;
     var cas = s.u8();
 
     var switchOperands = [cas];
@@ -486,7 +486,7 @@ AstReader.prototype._readSwitch = function() {
 };
 
 AstReader.prototype._readExprI32 = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var code = s.code(types.RType.I32);
     var STATE = AstReader.STATE;
@@ -704,7 +704,7 @@ AstReader.prototype._readExprI32 = function() {
 };
 
 AstReader.prototype._readExprF32 = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var code = s.code(types.RType.F32);
     var STATE = AstReader.STATE;
@@ -852,7 +852,7 @@ AstReader.prototype._readExprF32 = function() {
 };
 
 AstReader.prototype._readExprF64 = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var code = s.code(types.RType.F64);
     var STATE = AstReader.STATE;
@@ -1031,7 +1031,7 @@ AstReader.prototype._readExprF64 = function() {
 };
 
 AstReader.prototype._readExprVoid = function() {
-    var s = this.s;
+    var s = this.readState;
 
     var code = s.code_u8();
     var STATE = AstReader.STATE;

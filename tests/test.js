@@ -5,7 +5,7 @@ var WebAssembly = require("../"),
     Reader = WebAssembly.Reader,
     AstReader = WebAssembly.AstReader;
 
-var file = __dirname+"/AngryBots.wasm",
+var file = __dirname+"/fib.wasm",
     stats = fs.statSync(file);
 
 var reader = new Reader({
@@ -90,13 +90,13 @@ reader.on("functionPointerTablesEnd", function() {
 
 reader.on("functionDefinitions", function (nDefinitions) {
     console.log("Function definitions: " + nDefinitions);
-});
+}); */
 
 reader.on("functionDefinition", function(definition, index) {
     console.log(definition.header(true)+"\n");
 });
 
-reader.on("functionDefinitionsEnd", function() {
+/* reader.on("functionDefinitionsEnd", function() {
     console.log("End of function definitions");
 });
 
