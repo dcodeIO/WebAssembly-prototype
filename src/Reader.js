@@ -486,7 +486,8 @@ Reader.prototype._readFunctionDefinitions = function() {
             skipAhead: this.skipAhead
         });
         this.astReader.on("end", function() {
-            this.offset += this.astReader.offset;
+            def.byteLength = this.astReader.offset;
+            this.offset += def.byteLength;
             if (!this.skipAhead)
                 def.ast = this.astReader.stack[0];
             this.emit("functionDefinition", def, index);

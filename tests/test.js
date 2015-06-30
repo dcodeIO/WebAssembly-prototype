@@ -1,6 +1,12 @@
+var fs = require("fs");
+
 var WebAssembly = require("../"),
     types = WebAssembly.types,
-    Reader = WebAssembly.Reader;
+    Reader = WebAssembly.Reader,
+    AstReader = WebAssembly.AstReader;
+
+var file = __dirname+"/AngryBots.wasm",
+    stats = fs.statSync(file);
 
 var reader = new Reader({
     skipAhead: true
@@ -84,13 +90,13 @@ reader.on("functionPointerTablesEnd", function() {
 
 reader.on("functionDefinitions", function (nDefinitions) {
     console.log("Function definitions: " + nDefinitions);
-}); */
+});
 
 reader.on("functionDefinition", function(definition, index) {
     console.log(definition.header(true)+"\n");
 });
 
-/* reader.on("functionDefinitionsEnd", function() {
+reader.on("functionDefinitionsEnd", function() {
     console.log("End of function definitions");
 });
 
@@ -99,7 +105,41 @@ reader.on("export", function(exprt) {
 }); */
 
 reader.on("end", function() {
+    if (reader.offset !== stats.size)
+        throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
     console.log("Complete: "+reader.assembly.toString());
+    validateAstOffsets();
 });
 
-require("fs").createReadStream(__dirname+"/AngryBots.wasm").pipe(reader);
+fs.createReadStream(file).pipe(reader);
+
+function validateAstOffsets() {
+    var assembly = reader.assembly;
+    var stats = fs.statSync(file);
+    var current = 0;
+
+    function next() {
+        if (current === assembly.functionDeclarations.length) {
+            console.log("Validated ASTs: "+current);
+            return;
+        }
+        var declaration = assembly.functionDeclarations[current++],
+            definition = declaration.definition;
+        var offset = definition.byteOffset,
+            length = definition.byteLength;
+        if (length < 0)
+            throw Error("length "+length+" < 0");
+        if (offset + length > stats.size)
+            throw Error("offset + length "+(offset+length)+" > "+stats.size);
+        var astReader = new AstReader(definition);
+
+        astReader.on("end", next);
+
+        fs.createReadStream(file, {
+            start: offset,
+            end: offset + length
+        }).pipe(astReader);
+    }
+
+    next();
+}

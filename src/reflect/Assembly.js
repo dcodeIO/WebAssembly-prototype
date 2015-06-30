@@ -482,14 +482,15 @@ Assembly.prototype.setFunctionPointerTable = function(index, signatureIndex, ele
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
- * @param {number} globalOffset
+ * @param {number} byteOffset
+ * @param {number=} byteLength
  * @returns {!FunctionDefinition}
  */
-Assembly.prototype.setFunctionDefinition = function(index, nI32vars, nF32vars, nF64vars, globalOffset) {
+Assembly.prototype.setFunctionDefinition = function(index, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
     var size = this.getFunctionDeclarationPoolSize();
     assertInteger("index", index, 0, size-1);
     var declaration = this.functionDeclarations[index];
-    return declaration.definition = new FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, globalOffset);
+    return declaration.definition = new FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, byteOffset, byteLength);
 };
 
 /**

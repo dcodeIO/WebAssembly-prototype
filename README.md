@@ -70,7 +70,6 @@ var reader = new Reader({
 reader.on("end", function() {
     reader.assembly.functionDeclarations.forEach(function(declaration) {
         var definition = declaration.definition;
-        var byteIndexInBinary = definition.globalOffset;
         ...
 
         // And create an AstReader from the definition manually,
@@ -80,7 +79,10 @@ reader.on("end", function() {
             ...
         });
 
-        ...
+        astReader.createReadStream("wasmBinaryFile.wasm", {
+            start: definition.byteOffset,
+            end: definition.byteOffset + definition.byteLength
+        }).pipe(reader);
     });
 });
 

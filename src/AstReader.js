@@ -18,7 +18,7 @@ var stream = require("stream"),
     types  = require("./types"),
     stmt   = require("./stmt/");
 
-var AstReaderState = require("./AstReaderState");
+var AstReadState = require("./AstReadState");
 
 var BaseStmt = stmt.BaseStmt,
     StmtList = stmt.StmtList,
@@ -45,7 +45,7 @@ var AstReader = module.exports = function(functionDefinition, options) {
      * Global byte index of the function body.
      * @type {number}
      */
-    this.globalOffset = functionDefinition.globalOffset;
+    this.byteOffset = functionDefinition.byteOffset;
 
     /**
      * Function declaration.
@@ -96,10 +96,10 @@ var AstReader = module.exports = function(functionDefinition, options) {
     this.stack = []; // Expected to contain the root StmtList only when finished
 
     /**
-     * AstReaderState closure.
-     * @type {!AstReaderState}
+     * Read state closure.
+     * @type {!AstReadState}
      */
-    this.s = new AstReaderState(this, AstReader.STATE.POP);
+    this.s = new AstReadState(this, AstReader.STATE.POP);
 
     /**
      * Whether to skip ahead, not parsing the AST in detail.
@@ -698,7 +698,7 @@ AstReader.prototype._readExprI32 = function() {
                 break;
 
             default:
-                throw Error("illegal I32WithImm opcode: "+code.op+" at "+(this.globalOffset + this.offset).toString(16));
+                throw Error("illegal I32WithImm opcode: "+code.op+" at "+(this.byteOffset + this.offset).toString(16));
         }
     }
 };
@@ -1110,8 +1110,8 @@ function inspect(stmt, depth) {
 AstReader.prototype.inspect = function() {
     var sb = [];
     sb.push("AstReader debug\n---------------\n");
-    sb.push("Global offset: ", this.globalOffset.toString(16), "\n");
-    sb.push("Current offset: ", (this.globalOffset + this.offset).toString(16), "\n");
+    sb.push("Global offset: ", this.byteOffset.toString(16), "\n");
+    sb.push("Current offset: ", (this.byteOffset + this.offset).toString(16), "\n");
     sb.push("Function index: ", this.declaration.index.toString(10), "\n");
     sb.push("Stack size: ", this.stack.length.toString(10), "\n");
     sb.push("State size: "+this.state.length.toString(10), "\n\n");

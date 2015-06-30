@@ -11,9 +11,10 @@ var FunctionSignature = require("./FunctionSignature"),
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
- * @param {number} globalOffset
+ * @param {number} byteOffset
+ * @param {number=} byteLength
  */
-var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32vars, nF64vars, globalOffset) {
+var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
 
     /**
      * Function declaration reference.
@@ -35,10 +36,16 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
         this.variables[index] = new LocalVariable(this, index, types.Type.F64);
 
     /**
-     * Global byte index of the function body.
+     * Byte offset of the function body.
      * @type {number}
      */
-    this.globalOffset = globalOffset;
+    this.byteOffset = byteOffset;
+
+    /**
+     * Byte length of the function body.
+     * @type {number}
+     */
+    this.byteLength = byteLength || -1;
 
     /**
      * Abstract syntax tree.

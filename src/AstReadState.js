@@ -12,7 +12,7 @@ var Stmt = require("./stmt/Stmt"),
  * @function
  * @param {!AstReader} reader
  */
-var AstReaderState = module.exports = function(reader, popState) {
+var AstReadState = module.exports = function(reader, popState) {
 
     // Previous offset
     var previousOffset = 0;
@@ -74,10 +74,8 @@ var AstReaderState = module.exports = function(reader, popState) {
     };
 
     s.advance = function() {
-        // reader.buffer = reader.buffer.slice(offset);
-        reader.offset += offset;
+        reader.offset += offset - previousOffset;
         previousOffset = offset;
-        // offset = 0;
     };
 
     s.reset = function() {
