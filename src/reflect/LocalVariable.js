@@ -1,28 +1,21 @@
 var types = require("../types"),
     util = require("../util");
 
-var FunctionDefinition = require("./FunctionDefinition");
-
 /**
  * A local variable.
  * @constructor
- * @param {!FunctionDefinition} functionDefinition
- * @param {number} index
+ * @param {number|!FunctionDefinition} functionDefinition
  * @param {number} type
  */
-var LocalVariable = module.exports = function(functionDefinition, index, type) {
+var LocalVariable = module.exports = function(functionDefinition, type) {
 
     /**
      * Function definition reference.
      * @type {!FunctionDefinition}
      */
-    this.functionDefinition = functionDefinition;
-
-    /**
-     * Variable index.
-     * @type {number}
-     */
-    this.index = index;
+    this.functionDefinition = functionDefinition instanceof FunctionDefinition
+        ? functionDefinition
+        : this.assembly.getFunctionDefinition(functionDefinition);
 
     /**
      * Variable type.
@@ -30,6 +23,19 @@ var LocalVariable = module.exports = function(functionDefinition, index, type) {
      */
     this.type = type;
 };
+
+var FunctionDefinition = require("./FunctionDefinition"); // cyclic
+
+/**
+ * Local variable index.
+ * @name LocalVariable#index
+ * @type {number}
+ */
+Object.defineProperty(LocalVariable.prototype, "index", {
+    get: function() {
+        return this.functionDefinition.variables.indexOf(this);
+    }
+});
 
 /**
  * Indexed name.

@@ -1,12 +1,15 @@
-var fs = require("fs");
+var fs = require("fs"),
+    path = require("path");
 
 var WebAssembly = require("../"),
     types = WebAssembly.types,
     Reader = WebAssembly.Reader,
     AstReader = WebAssembly.AstReader;
 
-var file = __dirname+"/fib.wasm",
+var file = path.join(__dirname, "AngryBots.wasm"),
     stats = fs.statSync(file);
+
+console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
     skipAhead: true
@@ -90,13 +93,13 @@ reader.on("functionPointerTablesEnd", function() {
 
 reader.on("functionDefinitions", function (nDefinitions) {
     console.log("Function definitions: " + nDefinitions);
-}); */
+});
 
 reader.on("functionDefinition", function(definition, index) {
     console.log(definition.header(true)+"\n");
 });
 
-/* reader.on("functionDefinitionsEnd", function() {
+reader.on("functionDefinitionsEnd", function() {
     console.log("End of function definitions");
 });
 
@@ -107,6 +110,7 @@ reader.on("export", function(exprt) {
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
+    reader.assembly.validate();
     console.log("Complete: "+reader.assembly.toString());
     validateAstOffsets();
 });

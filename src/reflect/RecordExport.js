@@ -1,20 +1,26 @@
-var BaseExport = require("./BaseExport");
+var BaseExport = require("./BaseExport"),
+    FunctionDeclaration = require("./FunctionDeclaration");
 
 /**
  * A record export.
  * @constructor
  * @param {!Assembly} assembly
- * @param {!Object.<string,number>=}
+ * @param {!Object.<string,number|!FunctionDeclaration>=}
  * @extends BaseExport
  */
-var RecordExport = module.exports = function(assembly, functionIndexes) {
+var RecordExport = module.exports = function(assembly, functions) {
     BaseExport.call(this, assembly);
 
     /**
      * Internal function indexes by exported name.
-     * @type {!Object.<string,number>}
+     * @type {!Object.<string,!FunctionDeclaration>}
      */
-    this.functionIndexes = functionIndexes || {};
+    this.functions = {};
+    Object.keys(functions).forEach(function(name) {
+        this.functions[name] = functions[name] instanceof FunctionDeclaration
+            ? functions[name]
+            : this.assembly.getFunctionDeclaration(functions[name]);
+    }, this);
 };
 
 RecordExport.prototype = Object.create(BaseExport.prototype);

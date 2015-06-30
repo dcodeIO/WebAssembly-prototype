@@ -4,23 +4,16 @@ var types = require("../types");
  * A function signature.
  * @constructor
  * @param {!Assembly} assembly
- * @param {number} index
  * @param {number=} returnType
  * @param {!Array.<number>=} argumentTypes
  */
-var FunctionSignature = module.exports = function(assembly, index, returnType, argumentTypes) {
+var FunctionSignature = module.exports = function(assembly, returnType, argumentTypes) {
 
     /**
      * Assembly reference.
      * @type {!Assembly}
      */
     this.assembly = assembly;
-
-    /**
-     * Signature index.
-     * @type {number}
-     */
-    this.index = index;
 
     /**
      * Return type.
@@ -34,6 +27,17 @@ var FunctionSignature = module.exports = function(assembly, index, returnType, a
      */
     this.argumentTypes = argumentTypes || [];
 };
+
+/**
+ * Function signature index.
+ * @name FunctionSignature#index
+ * @type {number}
+ */
+Object.defineProperty(FunctionSignature.prototype, "index", {
+    get: function() {
+        return this.assembly.functionSignatures.indexOf(this);
+    }
+});
 
 /**
  * Returns a string representation of this signature.

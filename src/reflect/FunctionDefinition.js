@@ -1,8 +1,7 @@
 var types = require("../types"),
     util = require("../util");
 
-var FunctionSignature = require("./FunctionSignature"),
-    LocalVariable = require("./LocalVariable");
+var FunctionSignature = require("./FunctionSignature");
 
 /**
  * A function definition.
@@ -29,11 +28,11 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
     this.variables = new Array(nI32vars + nF32vars + nF64vars);
     var index = 0;
     for (var i=0; i<nI32vars; ++i, ++index)
-        this.variables[index] = new LocalVariable(this, index, types.Type.I32);
+        this.variables[index] = new LocalVariable(this, types.Type.I32);
     for (i=0; i<nF32vars; ++i, ++index)
-        this.variables[index] = new LocalVariable(this, index, types.Type.F32);
+        this.variables[index] = new LocalVariable(this, types.Type.F32);
     for (i=0; i<nF64vars; ++i, ++index)
-        this.variables[index] = new LocalVariable(this, index, types.Type.F64);
+        this.variables[index] = new LocalVariable(this, types.Type.F64);
 
     /**
      * Byte offset of the function body.
@@ -53,6 +52,8 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
      */
     this.ast = null;
 };
+
+var LocalVariable = require("./LocalVariable"); // cyclic
 
 /**
  * Indexed internal function name.

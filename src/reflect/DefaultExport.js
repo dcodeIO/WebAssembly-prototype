@@ -1,20 +1,23 @@
-var BaseExport = require("./BaseExport");
+var BaseExport = require("./BaseExport"),
+    FunctionDeclaration = require("./FunctionDeclaration");
 
 /**
  * A default export.
  * @constructor
  * @param {!Assembly} assembly
- * @param {number} functionIndex
+ * @param {number|!FunctionDeclaration} function_
  * @extends BaseExport
  */
-var DefaultExport = module.exports = function(assembly, functionIndex) {
+var DefaultExport = module.exports = function(assembly, function_) {
     BaseExport.call(this, assembly);
 
     /**
-     * Internal function index.
-     * @type {number}
+     * Exported function.
+     * @type {!FunctionDeclaration}
      */
-    this.functionIndex = functionIndex;
+    this.function = function_ instanceof FunctionDeclaration
+        ? function_
+        : this.assembly.getFunctionDeclaration(function_);
 };
 
 DefaultExport.prototype = Object.create(BaseExport.prototype);
@@ -24,5 +27,5 @@ DefaultExport.prototype = Object.create(BaseExport.prototype);
  * @returns {string}
  */
 DefaultExport.prototype.toString = function() {
-    return "DefaultExport " + this.functionIndex.toString();
+    return "DefaultExport " + this.function.toString();
 };

@@ -1,11 +1,13 @@
+var FunctionSignature = require("./FunctionSignature");
+
 /**
  * A function import signature.
  * @constructor
  * @param {!Assembly} assembly
- * @param {number} signatureIndex
- * @param {number} functionImportIndex
+ * @param {number|!FunctionImport} functionImport
+ * @param {number|!FunctionSignature} signature
  */
-var FunctionImportSignature = module.exports = function(assembly, index, signatureIndex, functionImportIndex) {
+var FunctionImportSignature = module.exports = function(assembly, functionImport, signature) {
 
     /**
      * Assembly reference.
@@ -14,23 +16,34 @@ var FunctionImportSignature = module.exports = function(assembly, index, signatu
     this.assembly = assembly;
 
     /**
-     * Function import signature index.
-     * @type {number}
+     * Function import.
+     * @type {!FunctionImport}
      */
-    this.index = index;
+    this.import = functionImport instanceof FunctionImport
+        ? functionImport
+        : assembly.getFunctionImport(functionImport);
 
     /**
      * Function signature.
      * @type {!FunctionSignature}
      */
-    this.signature = assembly.getFunctionSignature(signatureIndex);
-
-    /**
-     * Function import.
-     * @type {!FunctionImport}
-     */
-    this.import = assembly.getFunctionImport(functionImportIndex);
+    this.signature = signature instanceof FunctionSignature
+        ? signature
+        : assembly.getFunctionSignature(signature);
 };
+
+var FunctionImport = require("./FunctionImport"); // cyclic
+
+/**
+ * Function import signature index.
+ * @name FunctionImportSignature#index
+ * @type {number}
+ */
+Object.defineProperty(FunctionImportSignature.prototype, "index", {
+    get: function() {
+        return this.assembly.functionImportSignatures.indexOf(this);
+    }
+});
 
 /**
  * Returns a string representation of this function import signature.

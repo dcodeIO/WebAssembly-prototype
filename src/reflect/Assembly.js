@@ -1,5 +1,6 @@
 var types = require("../types"),
-    util = require("../util");
+    util = require("../util"),
+    assert = require("assert");
 
 var assertInteger = util.assertInteger,
     assertRType = util.assertRType,
@@ -13,9 +14,13 @@ var ConstantPool = require("./ConstantPool"),
     GlobalVariable = require("./GlobalVariable"),
     FunctionDeclaration = require("./FunctionDeclaration"),
     FunctionPointerTable = require("./FunctionPointerTable"),
+    FunctionPointerElement = require("./FunctionPointerElement"),
     FunctionDefinition = require("./FunctionDefinition"),
+    LocalVariable = require("./LocalVariable"),
     DefaultExport = require("./DefaultExport"),
     RecordExport = require("./RecordExport");
+
+var StmtList = require("../stmt/StmtList");
 
 /**
  * An assembly.
@@ -199,6 +204,32 @@ Assembly.prototype.getConstant = function(type, index) {
     }
 };
 
+/**
+ * Validates constant pools.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateConstantPools = function() {
+    assert.strictEqual(Array.isArray(this.constantPools), true, "constant pools must be an array");
+    assert.strictEqual(this.constantPools.length, 3, "number of constant pools must be 3");
+    this.constantPools.forEach(function(pool, index) {
+        assert.strictEqual(pool instanceof ConstantPool, true, "constant pool "+index+" must be a ConstantPool");
+    });
+    assert.strictEqual(this.constantPools[0].type, types.Type.I32, "constant pool 0 type must be I32");
+    assert.strictEqual(this.constantPools[1].type, types.Type.F32, "constant pool 1 type must be F32");
+    assert.strictEqual(this.constantPools[2].type, types.Type.F64, "constant pool 2 type must be F64");
+    this.constantPools[0].forEach(function(value, index) {
+        assert.strictEqual(typeof value, "number", "I32 constant "+index+" must be a number");
+        if (value%1 !== 0)
+            assert.fail(value, "integer", "I32 constant "+index+" must be an integer");
+    }, this);
+    this.constantPools[1].forEach(function(value, index) {
+        assert.strictEqual(typeof value, "number", "F32 constant "+index+" must be a number");
+    }, this);
+    this.constantPools[2].forEach(function(value, index) {
+        assert.strictEqual(typeof value, "number", "F64 constant "+index+" must be a number");
+    }, this);
+};
+
 // ----- function signatures -----
 
 /**
@@ -231,7 +262,7 @@ Assembly.prototype.setFunctionSignature = function(index, returnType, argumentTy
     argumentTypes.forEach(function(type, i) {
         assertType("argumentTypes["+i+"]", type);
     });
-    return this.functionSignatures[index] = new FunctionSignature(this, index, returnType, argumentTypes);
+    return this.functionSignatures[index] = new FunctionSignature(this, returnType, argumentTypes);
 };
 
 /**
@@ -243,6 +274,36 @@ Assembly.prototype.getFunctionSignature = function(index) {
     var size = this.getFunctionSignaturePoolSize();
     assertInteger("index", index, 0, size-1);
     return this.functionSignatures[index];
+};
+
+/**
+ * Validates a function signature.
+ * @param {!Assembly} assembly
+ * @param {!FunctionSignature} signature
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateFunctionSignature = function(assembly, signature, index) {
+    assert.strictEqual(signature instanceof FunctionSignature, true, "function signature "+index+" must be a FunctionSignature");
+    assert.notEqual(assembly.functionSignatures.indexOf(signature), -1, "function signature "+index+" must be part of this assembly");
+    assert.strictEqual(signature.assembly, assembly, "function signature "+index+" must reference this assembly");
+    assert.strictEqual(signature.index, index, "function signature "+index+" must reference its own index");
+    assert.strictEqual(types.isValidRType(signature.returnType), true, "function signature "+index+" must have a valid return type");
+    assert.strictEqual(Array.isArray(signature.argumentTypes), true, "function signature "+index+" arguments must be an array");
+    signature.argumentTypes.forEach(function(type, signatureArgumentIndex) {
+        assert.strictEqual(types.isValidType(type), true, "function signature "+index+" argument "+signatureArgumentIndex+" must be a valid type");
+    }, this);
+};
+
+/**
+ * Validates function signatures.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateFunctionSignatures = function() {
+    assert.strictEqual(Array.isArray(this.functionSignatures), true, "function signatures must be an array");
+    this.functionSignatures.forEach(function(signature, signatureIndex) {
+        Assembly.validateFunctionSignature(this, signature, signatureIndex);
+    }, this);
 };
 
 // ----- function imports -----
@@ -257,7 +318,6 @@ Assembly.prototype.initFunctionImportPool = function(nImports, nSignatures) {
     assertInteger("nSignatures", nSignatures, 0, 0xFFFFFFFF);
     this.functionImports = new Array(nImports);
     this.functionImportSignatures = new Array(nSignatures);
-    this.functionImportSignatures.offset = 0;
 };
 
 /**
@@ -290,15 +350,21 @@ Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
     signatureIndexes.forEach(function(index, i) {
         assertInteger("signatureIndexes["+i+"]", index, 0, ssize);
     });
-    var imp = this.functionImports[index] = new FunctionImport(this, index, name, signatureIndexes);
     var isize = this.getFunctionImportSignaturePoolSize();
+    if (typeof this.functionImportSignatures.offset === 'undefined')
+        this.functionImportSignatures.offset = 0;
+    var imprt = this.functionImports[index] = new FunctionImport(this, name, [] /* to be filled */);
     for (var i=0; i<signatureIndexes.length; ++i) {
         if (this.functionImportSignatures.offset >= isize)
             throw RangeError("illegal function import signature index: "+this.functionImportSignatures.offset);
-        this.functionImportSignatures[this.functionImportSignatures.offset]
-            = new FunctionImportSignature(this, this.functionImportSignatures.offset++, signatureIndexes[i], imp.index);
+        imprt.signatures.push(
+            this.functionImportSignatures[this.functionImportSignatures.offset++]
+                = new FunctionImportSignature(this, index, signatureIndexes[i])
+        );
+        if (this.functionImportSignatures.offset === isize)
+            delete this.functionImportSignatures.offset;
     }
-    return imp;
+    return imprt;
 };
 
 /**
@@ -321,6 +387,66 @@ Assembly.prototype.getFunctionImportSignature = function(index) {
     var size = this.getFunctionImportSignaturePoolSize();
     assertInteger("index", index, 0, size-1);
     return this.functionImportSignatures[index];
+};
+
+/**
+ * Validates a function import signature.
+ * Does not inspect the function import signature pool for proper order.
+ * @param {!Assembly} assembly
+ * @param {!FunctionImportSignature} signature
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateFunctionImportSignature = function(assembly, signature, index) {
+    assert.strictEqual(signature instanceof FunctionImportSignature, true, "function import signature "+index+" must be a FunctionImportSignature");
+    assert.notEqual(assembly.functionImportSignatures.indexOf(signature), -1, "function import signature "+index+" must be part of this assembly");
+    assert.strictEqual(signature.assembly, assembly, "function import signature "+index+" must reference this assembly");
+    assert.strictEqual(signature.index, index, "function import signature "+index+" must reference its own index");
+    assert.strictEqual(signature.import instanceof FunctionImport, true, "function import signature "+index+" must reference a function import");
+};
+
+/**
+ * Validates a function import.
+ * Does not inspect other function imports for proper order of function import signatures. Does not inspect enclosed
+ * function import signatures in every detail (type and back-reference only).
+ * @param {!Assembly} assembly
+ * @param {!FunctionImport} import_
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateFunctionImport = function(assembly, import_, index) {
+    assert.strictEqual(import_ instanceof FunctionImport, true, "function import "+index+" must be a FunctionImport");
+    assert.notEqual(assembly.functionImports.indexOf(import_), -1, "functino import "+index+" must be part of this assembly");
+    assert.strictEqual(import_.assembly, assembly, "function import "+index+" must reference this assembly");
+    assert.strictEqual(import_.index, index, "function import "+index+" must reference its own index");
+    assert.strictEqual(util.isValidFName(import_.name), true, "function import "+index+" must have a valid function name");
+    assert.strictEqual(Array.isArray(import_.signatures), true, "function import "+index+" signatures must be an array");
+    import_.signatures.forEach(function(importSignature, importSignatureIndex) {
+        assert.strictEqual(importSignature instanceof FunctionImportSignature, true, "function import "+index+" signature "+importSignatureIndex+" must be a FunctionImportSignature");
+        assert.notEqual(assembly.functionImportSignatures.indexOf(importSignature), -1, "function import "+index+" signature "+importSignatureIndex+" must be part of this assembly");
+        assert.strictEqual(importSignature.import, import_, "function import "+index+" signature "+importSignatureIndex+" must reference its own function import");
+    }, this);
+};
+
+/**
+ * Validates function imports.
+ * @returns {boolean}
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateFunctionImports = function() {
+    assert.strictEqual(Array.isArray(this.functionImports), true, "function imports must be an array");
+    assert.strictEqual(Array.isArray(this.functionImportSignatures), true, "function import signatures must be an array");
+    this.functionImportSignatures.forEach(function(signature, index) {
+        Assembly.validateFunctionImportSignature(this, signature, index);
+    }, this);
+    var importSignatures = [];
+    this.functionImports.forEach(function(import_, importIndex) {
+        Assembly.validateFunctionImport(this, import_, importIndex);
+        import_.signatures.forEach(function(importSignature) {
+            importSignatures.push(importSignature);
+        }, this);
+    }, this);
+    assert.deepEqual(this.functionImportSignatures.slice() /* removes .offset */, importSignatures, "function import signatures must be ordered liked defined by function imports");
 };
 
 // ----- global variables -----
@@ -352,18 +478,18 @@ Assembly.prototype.initGlobalVariablePool = function(nI32zero, nF32zero, nF64zer
     this.globalVariables = new Array(total);
     var index = 0;
     for (var i=0; i<nI32zero; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.I32);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.I32);
     for (i=0; i<nF32zero; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.F32);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.F32);
     for (i=0; i<nF64zero; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.F64);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.F64);
     var sequence = index;
     for (i=0; i<nI32import; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.I32);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.I32);
     for (i=0; i<nF32import; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.F32);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.F32);
     for (i=0; i<nF64import; ++i, ++index)
-        this.globalVariables[index] = new GlobalVariable(this, index, types.Type.F64);
+        this.globalVariables[index] = new GlobalVariable(this, types.Type.F64);
     return sequence;
 };
 
@@ -388,7 +514,7 @@ Assembly.prototype.setGlobalVariable = function(index, type, importName) {
     assertType("type", type);
     if (typeof importName !== 'undefined')
         assertFName(importName);
-    return this.globalVariables[index] = new GlobalVariable(this, index, type, importName);
+    return this.globalVariables[index] = new GlobalVariable(this, type, importName);
 };
 
 /**
@@ -400,6 +526,47 @@ Assembly.prototype.getGlobalVariable = function(index) {
     var size = this.getGlobalVariablePoolSize();
     assertInteger("index", index, 0, size-1);
     return this.globalVariables[index];
+};
+
+/**
+ * Validates a global variable.
+ * Does not inspect the global variable pool for proper order.
+ * @param {!Assembly} assembly
+ * @param {!GlobalVariable} variable
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateGlobalVariable = function(assembly, variable, index) {
+    assert.strictEqual(variable instanceof GlobalVariable, true, "global variable "+index+" must be a GlobalVariable");
+    assert.notEqual(assembly.globalVariables.indexOf(variable), -1, "global variable "+index+" must be part of this assembly");
+    assert.strictEqual(variable.assembly, assembly, "global variable "+index+" must reference this assembly");
+    assert.strictEqual(variable.index, index, "global variable "+index+" must reference its own index");
+    assert.strictEqual(types.isValidType(variable.type), true, "global variable "+index+" must be of a valid type");
+    assert.strictEqual(variable.importName === null || util.isValidFName(variable.importName), true, "global variable "+index+" import name must be null or a valid import name");
+};
+
+/**
+ * Validates global variables.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateGlobalVariables = function() {
+    assert.strictEqual(Array.isArray(this.globalVariables), true, "global variables must be an array");
+    var previousType,
+        zeroDone = false;
+    this.globalVariables.forEach(function(variable, index) {
+        Assembly.validateGlobalVariable(this, variable, index);
+        if (variable.type === previousType) {
+            if (variable.importName !== null)
+                zeroDone = true;
+            if (zeroDone)
+                assert.strictEqual(util.isValidFName(variable.importName), true, "global variable "+index+" must have a valid import name");
+            else
+                assert.strictEqual(variable.importName, null, "global variable "+index+" import name must be null");
+        } else {
+            previousType = variable.type;
+            zeroDone = false;
+        }
+    }, this);
 };
 
 // ----- function declarations -----
@@ -433,7 +600,7 @@ Assembly.prototype.setFunctionDeclaration = function(index, signatureIndex) {
     assertInteger("index", index, 0, size-1);
     var ssize = this.getFunctionSignaturePoolSize();
     assertInteger("signatureIndex", signatureIndex, 0, ssize-1);
-    return this.functionDeclarations[index] = new FunctionDeclaration(this, index, signatureIndex);
+    return this.functionDeclarations[index] = new FunctionDeclaration(this, signatureIndex);
 };
 
 /**
@@ -445,6 +612,49 @@ Assembly.prototype.getFunctionDeclaration = function(index) {
     var size = this.getFunctionDeclarationPoolSize();
     assertInteger("index", index, 0, size-1);
     return this.functionDeclarations[index];
+};
+
+/**
+ * Validates a function declaration including its enclosed function definition.
+ * @param {!Assembly} assembly
+ * @param {!FunctionDeclaration} declaration
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateFunctionDeclaration = function(assembly, declaration, index) {
+    assert.strictEqual(declaration instanceof FunctionDeclaration, true, "function declaration "+index+" must be a FunctionDeclaration");
+    assert.notEqual(assembly.functionDeclarations.indexOf(declaration), -1, "function declaration "+index+" must be part of this assembly");
+    assert.strictEqual(declaration.assembly, assembly,"function declaration "+index+" must reference this assembly");
+    assert.strictEqual(declaration.index, index, "function declaration "+index+" must reference its own index");
+    assert.notEqual(assembly.functionSignatures.indexOf(declaration.signature), -1, "function declaration "+index+" signature must be part of this assembly");
+
+    // Also validate definition, which is a part of the declaration in this library, here
+    assert.strictEqual(declaration.definition instanceof FunctionDefinition, true, "function declaration "+index+" must reference a function definition");
+    var definition = declaration.definition;
+    assert.strictEqual(definition.declaration, declaration, "function definition "+index+" must reference function declaration "+index);
+    assert.strictEqual(Array.isArray(definition.variables), true, "function definition "+index+" variables must be an array");
+    definition.variables.forEach(function(variable, variableIndex) {
+        assert.strictEqual(variable instanceof LocalVariable, true, "function definition "+index+" variable "+variableIndex+" must be a LocalVariable");
+        assert.strictEqual(variable.functionDefinition, definition, "function definition "+index+" variable "+variableIndex+" must reference its own definition");
+        assert.strictEqual(variable.index, variableIndex, "function definition "+index+" variable "+variableIndex+" must reference its own index");
+        assert.strictEqual(types.isValidType(variable.type), true, "function definition "+index+" variable "+variableIndex+" must be of a valid type");
+    });
+    assert.strictEqual(typeof definition.byteOffset, "number", "function definition "+index+" byte offset must be a number");
+    assert.strictEqual(definition.byteOffset%1, 0, "function definition "+index+" byte offset must be an integer");
+    assert.strictEqual(typeof definition.byteLength, "number", "function definition "+index+" byte length must be a number");
+    assert.strictEqual(definition.byteLength%1, 0, "function definition "+index+" byte length must be an integer");
+    assert.strictEqual(definition.ast === null || definition.ast instanceof StmtList, true, "function definition "+index+" ast must be a StmtList (or null if skipAhead=true)");
+};
+
+/**
+ * Validates function declarations.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateFunctionDeclarations = function() {
+    assert.strictEqual(Array.isArray(this.functionDeclarations), true, "function declarations must be an array");
+    this.functionDeclarations.forEach(function(declaration, index) {
+        Assembly.validateFunctionDeclaration(this, declaration, index);
+    }, this);
 };
 
 // ----- function pointer tables -----
@@ -466,12 +676,64 @@ Assembly.prototype.getFunctionPointerTablePoolSize = function() {
     return this.functionPointerTables.length;
 };
 
+/**
+ * Sets the function pointer table at the specified index.
+ * @param {number} index
+ * @param {number} signatureIndex
+ * @param {!Array.<number>=} elements
+ * @returns {FunctionPointerTable}
+ */
 Assembly.prototype.setFunctionPointerTable = function(index, signatureIndex, elements) {
     var size = this.getFunctionPointerTablePoolSize();
     assertInteger("index", index, 0, size-1);
     var ssize = this.getFunctionSignaturePoolSize();
     assertInteger("signatureIndex", signatureIndex, 0, ssize-1);
-    return this.functionPointerTables[index] = new FunctionPointerTable(this, index, signatureIndex, elements);
+    return this.functionPointerTables[index] = new FunctionPointerTable(this, signatureIndex, elements);
+};
+
+/**
+ * Gets the function pointer table at the specified index.
+ * @param {number} index
+ * @returns {!FunctionPointerTable}
+ */
+Assembly.prototype.getFunctionPointerTable = function(index) {
+    var size = this.getFunctionPointerTablePoolSize();
+    assertInteger("index", index, 0, size-1);
+    return this.functionPointerTables[index];
+};
+
+/**
+ * Validate a function pointer table.
+ * @param {!Assembly} assembly
+ * @param {!FunctionPointerTable} table
+ * @param {number} index
+ * @throws {assert.AssertionError}
+ */
+Assembly.validateFunctionPointerTable = function(assembly, table, index) {
+    assert.strictEqual(table instanceof FunctionPointerTable, true, "function pointer table "+index+" must be a FunctionPointerTable");
+    assert.notEqual(assembly.functionPointerTables.indexOf(table), -1, "function pointer table "+index+" must be part of this assembly");
+    assert.strictEqual(table.assembly, assembly, "function pointer table "+index+" must reference this assembly");
+    assert.strictEqual(table.index, index, "function pointer table "+index+" must reference its own index");
+    assert.strictEqual(table.signature instanceof FunctionSignature, true, "function pointer table "+index+" signature must be a FunctionSignature");
+    assert.notEqual(assembly.functionSignatures.indexOf(table.signature), -1, "function pointer table "+index+" signature must be part of this assembly");
+    assert.strictEqual(Array.isArray(table.elements), true, "function pointer table "+index+" elements must be an array");
+    table.elements.forEach(function(element, elementIndex) {
+        assert.strictEqual(element instanceof FunctionPointerElement, true, "function pointer table "+index+" element "+elementIndex+" must be a FunctionPointerElement");
+        assert.strictEqual(element.table, table, "function pointer table "+index+" element "+elementIndex+" must reference its own table");
+        assert.strictEqual(typeof element.value, "number", "function pointer table "+index+" element "+elementIndex+" value must be a number");
+        assert.strictEqual(element.value%1, 0, "function pointer table "+index+" element "+elementIndex+" value must be an integer");
+    }, this);
+};
+
+/**
+ * Validates function pointer tables.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateFunctionPointerTables = function() {
+    assert.strictEqual(Array.isArray(this.functionPointerTables), true, "function pointer tables must be an array");
+    this.functionPointerTables.forEach(function(table, index) {
+        Assembly.validateFunctionPointerTable(this, table, index);
+    }, this);
 };
 
 // ----- function definitions -----
@@ -533,6 +795,26 @@ Assembly.prototype.setRecordExport = function(functionIndexes) {
     return this.export = new RecordExport(this, functionIndexes);
 };
 
+/**
+ * Validates the export.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validateExport = function() {
+    assert.strictEqual(this.export instanceof DefaultExport || this.export instanceof RecordExport, true, "export must be a DefaultExport or RecordExport");
+    assert.strictEqual(this.export.assembly, this, "export must reference this assembly");
+    if (this.export instanceof DefaultExport) {
+        assert.strictEqual(this.export.function instanceof FunctionDeclaration, true, "export function must be a FunctionDeclaration");
+        assert.notEqual(this.functionDeclarations.indexOf(this.export.function), -1, "export function must be part of this assembly");
+    } else {
+        assert.strictEqual(this.export.functions && typeof this.export.functions === 'object', true, "export functions must be an object");
+        Object.keys(this.export.functions).forEach(function(name, index) {
+            assert.strictEqual(util.isValidFName(name), true, "export functions "+index+" must have a valid name");
+            assert.strictEqual(this.export.functions[name] instanceof FunctionDeclaration, true, "export functions "+index+" must be a FunctionDeclaration");
+            assert.notEqual(this.functionDeclarations.indexOf(this.export.functions[name]), -1, "export functions "+index+" must be part of this assembly");
+        }, this);
+    }
+};
+
 // ----- general -----
 
 Assembly.prototype.toString = function() {
@@ -544,4 +826,19 @@ Assembly.prototype.toString = function() {
          + " impSigs:" + this.functionImportSignatures.length
          + " globals:" + this.globalVariables.length
          + " decls:" + this.functionDeclarations.length;
+};
+
+/**
+ * Validates this assembly.
+ * @throws {assert.AssertionError}
+ */
+Assembly.prototype.validate = function() {
+    this.validateConstantPools();
+    this.validateFunctionSignatures();
+    this.validateFunctionImports();
+    this.validateGlobalVariables();
+    this.validateFunctionDeclarations();
+    this.validateFunctionPointerTables();
+    this.validateExport();
+    return true;
 };

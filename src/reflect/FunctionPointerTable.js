@@ -1,14 +1,15 @@
-var FunctionPointerElement = require("./FunctionPointerElement");
+var FunctionSignature = require("./FunctionSignature"),
+    FunctionPointerElement = require("./FunctionPointerElement");
 
 /**
  * A function pointer table.
  * @constructor
  * @param {!Assembly} assembly
  * @param {number} index
- * @param {number} signatureIndex
- * @param {!Array.<number>} elements
+ * @param {number|!FunctionSignature} signature
+ * @param {!Array.<number|!FunctionPointerElement>} elements
  */
-var FunctionPointerTable = module.exports = function(assembly, index, signatureIndex, elements) {
+var FunctionPointerTable = module.exports = function(assembly, signature, elements) {
 
     /**
      * Assembly reference.
@@ -17,25 +18,37 @@ var FunctionPointerTable = module.exports = function(assembly, index, signatureI
     this.assembly = assembly;
 
     /**
-     * Table index.
-     * @type {number}
-     */
-    this.index = index;
-
-    /**
      * Signature.
      * @type {!FunctionSignature}
      */
-    this.signature = assembly.getFunctionSignature(signatureIndex);
+    this.signature = signature instanceof FunctionSignature
+        ? signature
+        : assembly.getFunctionSignature(signature);
 
     /**
      * Elements.
      * @type {!Array.<!FunctionPointerElement>}
      */
     this.elements = [];
-    for (var i=0; i<elements.length; ++i)
-        this.elements.push(new FunctionPointerElement(this, elements[i]));
+    elements.forEach(function(element) {
+        this.elements.push(
+            element instanceof FunctionPointerElement
+                ? element // usually not the case, but for completeness
+                : new FunctionPointerElement(this, element)
+        );
+    }, this);
 };
+
+/**
+ * Function pointer table index.
+ * @name FunctionPointerTable#index
+ * @type {number}
+ */
+Object.defineProperty(FunctionPointerTable.prototype, "index", {
+    get: function() {
+        return this.assembly.functionPointerTables.indexOf(this);
+    }
+});
 
 /**
  * Returns a string representation of this function pointer table.

@@ -5,23 +5,16 @@ var types = require("../types"),
  * A global variable.
  * @constructor
  * @param {!Assembly} assembly
- * @param {number} index
  * @param {number} type
  * @param {string=} name
  */
-var GlobalVariable = module.exports = function(assembly, index, type, importName) {
+var GlobalVariable = module.exports = function(assembly,  type, importName) {
 
     /**
      * Assembly reference.
      * @type {!Assembly}
      */
     this.assembly = assembly;
-
-    /**
-     * Variable index.
-     * @type {number}
-     */
-    this.index = index;
 
     /**
      * Variable type.
@@ -35,6 +28,17 @@ var GlobalVariable = module.exports = function(assembly, index, type, importName
      */
     this.importName = importName || null;
 };
+
+/**
+ * Global variable index.
+ * @name GlobalVariable#index
+ * @type {number}
+ */
+Object.defineProperty(GlobalVariable.prototype, "index", {
+    get: function() {
+        return this.assembly.globalVariables.indexOf(this);
+    }
+});
 
 /**
  * Indexed name.

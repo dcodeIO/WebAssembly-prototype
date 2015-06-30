@@ -1,24 +1,27 @@
 <p align="center"><img alt="WebAssembly" src="https://raw.githubusercontent.com/dcodeIO/WebAssembly/master/WebAssembly.png" /></p>
 
-This package aims to provide tools for working with [WebAssembly](https://github.com/WebAssembly) binaries from within
-JavaScript itself.
+**WebAssembly** is a new, portable, size- and load-time-efficient format suitable for compilation to the web, designed
+in a collaborative afford under the umbrella of the W3C ([see](https://www.w3.org/community/webassembly/)).
+
+This package aims to provide tools for working with [WebAssembly](https://github.com/WebAssembly) binaries, providing
+interested developers with an easy way to experiment with the technology from within JavaScript itself.
 
 Contents
 --------
 
-* **[Type definitions](https://github.com/dcodeIO/WebAssembly/blob/master/src/types.js)**
+* **[Type definitions](https://github.com/dcodeIO/WebAssembly/blob/master/src/types.js)**<br />
   Relevant type and opcode definitions.
 
-* **[Reflection structure](https://github.com/dcodeIO/WebAssembly/tree/master/src/reflect)**
+* **[Reflection structure](https://github.com/dcodeIO/WebAssembly/tree/master/src/reflect)**<br />
   Classes to represent the different sections of a WASM binary.
 
-* **[Statement types](https://github.com/dcodeIO/WebAssembly/tree/master/src/stmt)**
+* **[Statement types](https://github.com/dcodeIO/WebAssembly/tree/master/src/stmt)**<br />
   Classes to represent the different statement types.
 
-* **[Reader](https://github.com/dcodeIO/WebAssembly/blob/master/src/Reader.js)**
+* **[Reader](https://github.com/dcodeIO/WebAssembly/blob/master/src/Reader.js)**<br />
   A streaming reader for dissecting a WASM binary into its reflection structure.
 
-* **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/src/AstReader.js)**
+* **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/src/AstReader.js)**<br />
   A streaming reader for parsing function bodies, returning their respective AST.
 
 Compatibility

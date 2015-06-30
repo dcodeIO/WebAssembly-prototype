@@ -218,34 +218,38 @@ util.combine = function(target, var_args) {
     return target;
 };
 
+var FNAME_RE = /^[a-zA-Z_\$][a-zA-Z0-9_\$]*$/; // FIXME
+
+util.isValidFName = function(value) {
+    return !!(typeof value === 'string' && FNAME_RE.test(value));
+};
+
+// ----- inline assertions -----
+
 util.assertInteger = function(name, value, min, max) {
     if (typeof value !== 'number' || value%1 !== 0)
-        throw TypeError(name+" must be an integer");
+        assert.fail(value, "integer", name+" must be an integer");
     if (typeof min === 'undefined' && typeof max === 'undefined')
         return;
     if (typeof max === 'undefined')
         max = min, min = 0;
     if (value < min || value > max)
-        throw RangeError(name+" out of bounds: "+value+" ["+min+","+max+"]")
+        assert.fail(value, "["+min+","+max+"]", name+" out of bounds");
 };
 
 util.assertRType = function(name, value) {
     util.assertInteger(name, value);
     if (!types.isValidRType(value))
-        throw RangeError(name+" is not a valid rtype: "+value);
+        assert.fail(value, types.RType, name+" must be a valid return type");
 };
 
 util.assertType = function(name, value) {
     util.assertInteger(name, value);
     if (!types.isValidType(value))
-        throw RangeError(name+" is not a valid type: "+value);
+        assert.fail(value, types.Type, name+" must be a valid type");
 };
 
-var FNAME_RE = /^[a-zA-Z_\$][a-zA-Z0-9_\$]*$/; // FIXME
-
 util.assertFName = function(name, value) {
-    if (typeof value !== 'string' || value.length === 0)
-        throw TypeError(name+" must be a non-empty string");
-    if (!FNAME_RE.test(value))
-        throw Error(name+" is not a valid function name: "+value);
+    if (!util.isValidFName(value))
+        assert.fail(value, "function name", name+" must be a valid function name");
 };

@@ -1,3 +1,5 @@
+var assert = require("assert");
+
 var types = require("../types");
 
 /**
@@ -27,6 +29,17 @@ var ConstantPool = module.exports = function(assembly, type, size) {
 };
 
 ConstantPool.prototype = Object.create(Array.prototype);
+
+/**
+ * Constant pool size.
+ * @name ConstantPool#size
+ * @type {number}
+ */
+Object.defineProperty(ConstantPool.prototype, "size", {
+    get: function() {
+        return this.length;
+    }
+});
 
 /**
  * Returns a string representation of this constant pool.
