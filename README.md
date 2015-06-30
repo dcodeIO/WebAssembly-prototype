@@ -56,7 +56,7 @@ reader.write(wasmBinaryData);
 require("fs").createReadStream("wasmBinaryFile.wasm").pipe(reader);
 ```
 
-##### Just indexing a WASM binary, parsing the AST on demand
+##### Just indexing a WASM binary, parsing ASTs on demand
 
 ```js
 var WebAssembly = require("webassembly"),

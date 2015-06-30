@@ -68,7 +68,14 @@ FunctionDefinition.prototype.toString = function() {
          + " decl:" + this.declaration.index;
 };
 
-FunctionDefinition.prototype.header = function() {
+/**
+ * Builds the function header in JavaScript.
+ * @param {bool=} pack
+ * @returns {string}
+ */
+FunctionDefinition.prototype.header = function(pack) {
+    var ws = pack ? "" : "    ";
+    var nl = pack ? "" : "\n";
     var sb = [];
     sb.push("function ", this.name, "(");
     var args = this.declaration.signature.argumentTypes;
@@ -77,35 +84,29 @@ FunctionDefinition.prototype.header = function() {
             sb.push(",");
         sb.push(util.localName(i));
     }
-    sb.push(") {\n");
+    sb.push("){\n");
     if (args.length > 0) {
         for (i = 0; i < args.length; ++i) {
-            sb.push("    ", util.localName(i), "=");
+            sb.push(ws, util.localName(i), "=");
             switch (args[i]) {
                 case types.Type.I32:
-                    sb.push(util.localName(i), "|0;\n");
+                    sb.push(util.localName(i), "|0;", nl);
                     break;
                 case types.Type.F32:
-                    sb.push(util.hotStdLibName("FRound"), "(", util.localName(i), ");\n");
+                    sb.push(util.hotStdLibName("FRound"), "(", util.localName(i), ");", nl);
                     break;
                 case types.Type.F64:
-                    sb.push("+", util.localName(i), ";\n");
+                    sb.push("+", util.localName(i), ";", nl);
                     break;
             }
         }
     }
     if (this.variables.length > 0) {
-        var lastType = -1;
+        sb.push(ws, "var ");
         for (i = 0; i < this.variables.length; ++i) {
             var v = this.variables[i];
-            if (i > 0) {
-                if (v.type !== lastType)
-                    sb.push(";\n    var ");
-                else
-                    sb.push(",\n    ");
-            } else
-                sb.push("    var ");
-            lastType = v.type;
+            if (i > 0)
+                sb.push(",", nl, ws);
             sb.push(util.localName(i + args.length), "=");
             switch (v.type) {
                 case types.Type.I32:
@@ -118,7 +119,7 @@ FunctionDefinition.prototype.header = function() {
                     sb.push("0.");
             }
         }
-        sb.push(";\n");
+        sb.push(";");
     }
     return sb.join("");
 };
