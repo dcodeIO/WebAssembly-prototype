@@ -19,7 +19,19 @@ function swap(obj) {
     return swp;
 }
 
-types.MagicNumber = 0x6d736177;
+types.MagicNumber = 0x6d736177; // "wasm" LE
+
+// ----- imm encoding constants -----
+
+types.ImmFlag = 0x80;
+types.OpWithImmBits = 2;
+types.OpWithImmLimit = 1 << types.OpWithImmBits; // 4
+types.OpWithImmMax = types.OpWithImmLimit-1; // 0x3
+types.ImmBits = 5;
+types.ImmLimit = 1 << types.ImmBits; // 32
+types.ImmMax = types.ImmLimit - 1; // 0x1F
+
+// ----- statements and expressions -----
 
 types.Stmt = {
     SetLoc: 0,
@@ -262,6 +274,8 @@ types.Void = {
 
 types.VoidNames = swap(types.Void);
 
+// ----- types -----
+
 types.Type = {
     I32: 0,
     F32: 1,
@@ -311,6 +325,8 @@ types.ExportFormat = {
 
 types.ExportFormatNames = swap(types.ExportFormat);
 
+// ----- platform specific standard library -----
+
 types.HotStdLib = [
     "HeapS8",
     "HeapU8",
@@ -349,7 +365,9 @@ types.StdLib = [
     "Infinity"
 ];
 
-/*types.Prec = {
+// ----- operation precedence (yet unused) -----
+
+types.Prec = {
     Lowest: 0,
     Comma: 2,
     Assign: 4,
@@ -370,6 +388,8 @@ types.StdLib = [
 
 types.PrecNames = swap(types.Prec);
 
+// ----- operation context (yet unused) -----
+
 types.Ctx = {
     Default: 0,
     AddSub: 1,
@@ -378,4 +398,4 @@ types.Ctx = {
     ToNumber: 4
 };
 
-types.CtxNames = swap(types.Ctx); */
+types.CtxNames = swap(types.Ctx);

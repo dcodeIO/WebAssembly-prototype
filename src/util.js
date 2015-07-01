@@ -64,17 +64,11 @@ util.readCString = function(buffer, offset) {
     throw E_MORE;
 };
 
-var HasImmFlag = 0x80;
-var OpWithImmBits = 2;
-var OpWithImmLimit = 1 << OpWithImmBits; // 4
-var ImmBits = 5;
-var ImmLimit = 1 << ImmBits; // 32
-
 util.unpackWithImm = function(b) {
-    if ((b & HasImmFlag) === 0)
+    if ((b & types.ImmFlag) === 0)
         return false;
-    var op = (b >> ImmBits) & (OpWithImmLimit - 1);
-    var imm = b & (ImmLimit - 1);
+    var op = (b >> types.ImmBits) & types.OpWithImmMax;
+    var imm = b & types.ImmMax;
     return {
         op: op,
         imm: imm
