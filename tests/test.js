@@ -4,7 +4,8 @@ var fs = require("fs"),
 var webassembly = require("../"),
     types = webassembly.types,
     Reader = webassembly.Reader,
-    AstReader = webassembly.AstReader;
+    AstReader = webassembly.AstReader,
+    Assembly = webassembly.reflect.Assembly;
 
 var file = path.join(__dirname, "AngryBots.wasm"),
     stats = fs.statSync(file);
@@ -12,7 +13,7 @@ var file = path.join(__dirname, "AngryBots.wasm"),
 console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
-    // skipAhead: true
+    skipAhead: true
 });
 
 /* reader.on("switchState", function (prevState, newState, offset) {
@@ -96,7 +97,7 @@ reader.on("functionDefinitions", function (nDefinitions) {
 });
 
 reader.on("functionDefinition", function(definition, index) {
-    console.log(definition.header(true)+"\n");
+    console.log(definition.header()+"\n");
 });
 
 reader.on("functionDefinitionsEnd", function() {

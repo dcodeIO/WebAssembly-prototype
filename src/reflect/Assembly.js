@@ -26,9 +26,10 @@ var StmtList = require("../stmt/StmtList");
  * An assembly.
  * @constructor
  * @param {number=} precomputedSize
+ * @param {!Object.<string,*>=} options
  * @exports reflect.Assembly
  */
-var Assembly = module.exports = function(precomputedSize) {
+var Assembly = module.exports = function(precomputedSize, options) {
 
     /**
      * Precomputed size.
@@ -95,6 +96,24 @@ var Assembly = module.exports = function(precomputedSize) {
      * @type {BaseExport}
      */
     this.export = null;
+
+    /**
+     * Naming style. Defaults to {@link Assembly.NamingStyle.ASM}.
+     * @type {number}
+     * @see {@link Assembly.NamingStyle}
+     */
+    this.namingStyle = options && util.values(Assembly.NamingStyle).indexOf(options.namingStyle) >= 0
+        ? options.namingStyle
+        : Assembly.NamingStyle.ASM;
+};
+
+/**
+ * Naming styles.
+ * @type {!Object.<string,number>}
+ */
+Assembly.NamingStyle = {
+    ASM: 0,
+    INDEX: 1
 };
 
 // ----- constant pools ------
@@ -651,7 +670,7 @@ Assembly.validateFunctionDeclaration = function(assembly, declaration, index) {
     assert.strictEqual(definition.byteOffset%1, 0, "function definition "+index+" byte offset must be an integer");
     assert.strictEqual(typeof definition.byteLength, "number", "function definition "+index+" byte length must be a number");
     assert.strictEqual(definition.byteLength%1, 0, "function definition "+index+" byte length must be an integer");
-    assert.strictEqual(definition.ast === null || definition.ast instanceof StmtList, true, "function definition "+index+" ast must be a StmtList (or null if skipAhead=true)");
+    assert(definition.ast === null || definition.ast instanceof StmtList, "function definition "+index+" ast must be a StmtList (or null if skipAhead=true)");
 };
 
 /**
@@ -824,6 +843,36 @@ Assembly.prototype.validateExport = function() {
 };
 
 // ----- general -----
+
+/**
+ * Generates a local name.
+ * @param {number} index
+ * @param {string=} prefix
+ * @returns {string}
+ */
+Assembly.prototype.localName = function(index, prefix) {
+    switch (this.namingStyle) {
+        case Assembly.NamingStyle.INDEX:
+            return (prefix || "L") + (index + types.HotStdLib.length);
+        default:
+            return util.indexedName(util.FirstCharRangeMinusDollar, index + types.HotStdLib.length);
+    }
+};
+
+/**
+ * Generates a global name.
+ * @param {number} index
+ * @param {string=} prefix
+ * @returns {string}
+ */
+Assembly.prototype.globalName = function(index, prefix) {
+    switch (this.namingStyle) {
+        case Assembly.NamingStyle.INDEX:
+            return (prefix || "G") + (index + types.StdLib.length);
+        default:
+            return '$' + util.indexedName(util.NextCharRange, index + types.StdLib.length);
+    }
+};
 
 Assembly.prototype.toString = function() {
     return "Assembly"

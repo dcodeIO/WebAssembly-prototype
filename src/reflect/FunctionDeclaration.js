@@ -52,7 +52,7 @@ Object.defineProperty(FunctionDeclaration.prototype, "index", {
 Object.defineProperty(FunctionDeclaration.prototype, "name", {
     get: function() {
         var func_name_base = this.assembly.functionImports.length + this.assembly.globalVariables.length;
-        return util.globalName(func_name_base + this.index);
+        return this.assembly.globalName(func_name_base + this.index, "F");
     }
 });
 

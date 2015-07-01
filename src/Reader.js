@@ -74,10 +74,10 @@ var Reader = module.exports = function (options) {
     this.astReader = null;
 
     /**
-     * Whether to skip ahead, not parsing the AST in detail.
-     * @type {boolean}
+     * Options.
+     * @type {!Object.<string,*>}
      */
-    this.skipAhead = !!(options && options.skipAhead);
+    this.options = options || {};
 };
 
 // Extends stream.Writable
@@ -220,7 +220,7 @@ Reader.prototype._readHeader = function () {
     var size = this.buffer.readUInt32LE(off);
     off += 4;
     this._advance(off);
-    this.assembly = new Assembly(size);
+    this.assembly = new Assembly(size, this.options);
     this.state = Reader.STATE.CONSTANTS_COUNT;
     this.emit("header", size);
 };
@@ -483,13 +483,11 @@ Reader.prototype._readFunctionDefinitions = function() {
         this.emit("functionDefinitionPre", def, index);
 
         // Read the AST
-        this.astReader = new AstReader(def, {
-            skipAhead: this.skipAhead
-        });
+        this.astReader = new AstReader(def, this.options);
         this.astReader.on("end", function() {
             def.byteLength = this.astReader.offset;
             this.offset += def.byteLength;
-            if (!this.skipAhead)
+            if (!this.options.skipAhead)
                 def.ast = this.astReader.stack[0];
             this.emit("functionDefinition", def, index);
             var remainingBuffer = this.astReader.buffer;

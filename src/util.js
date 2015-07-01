@@ -207,6 +207,19 @@ util.hotStdLibName = function(funcName) {
     return String.fromCharCode(0x61 + i);
 };
 
+util.variablePrefix = function(variableType) {
+    switch (variableType) {
+        case types.Type.I32:
+            return "i";
+        case types.Type.F32:
+            return "f";
+        case types.Type.F64:
+            return "d";
+        default:
+            throw Error("illegal type: "+variableType);
+    }
+};
+
 util.combine = function(target, var_args) {
     target = target || {};
     Array.prototype.slice.call(arguments, 1).forEach(function(arg) {

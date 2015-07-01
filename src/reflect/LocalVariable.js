@@ -56,7 +56,7 @@ Object.defineProperty(LocalVariable.prototype, "isArgument", {
  */
 Object.defineProperty(LocalVariable.prototype, "name", {
     get: function() {
-        return util.localName(this.index);
+        return this.functionDefinition.declaration.assembly.localName(this.index, util.variablePrefix(this.type));
     }
 });
 
