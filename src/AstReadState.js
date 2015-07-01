@@ -129,7 +129,7 @@ var AstReadState = module.exports = function(reader, popState) {
             reader.state.push(args[i]);
     };
 
-    s.emit = function(operands, withImm) {
+    s.emit_code = function(code, operands) {
         if (reader.skipAhead) {
             s.advance();
             return;
@@ -154,12 +154,14 @@ var AstReadState = module.exports = function(reader, popState) {
             default:
                 throw Error("illegal type: "+type);
         }
-        stmt = new ctor(typeof code === 'number' ? code : code.op, operands);
-        if (withImm)
-            stmt.withImm = true;
+        stmt = new ctor(code, operands);
         reader.stack[reader.stack.length-1].add(stmt);
         s.advance();
         return stmt;
+    };
+
+    s.emit = function(operands) {
+        return s.emit_code(typeof code === 'number' ? code : code.op, operands);
     };
 
     s.finish = function() {

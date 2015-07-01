@@ -138,12 +138,13 @@ AstReader.STATE = {
 
 /**
  * Returns the reader state suitable for the specified statement type.
+ * @function
+ * @name AstReader.stateForType
  * @param {number} type
  * @param {boolean=} exprVoid
  * @returns {number}
- * @inner
  */
-function stateForType(type, exprVoid) {
+var stateForType = AstReader.stateForType = function(type, exprVoid) {
     switch (type) {
         case types.RType.I32:
             return AstReader.STATE.EXPR_I32;
@@ -159,7 +160,9 @@ function stateForType(type, exprVoid) {
         default:
             throw Error("illegal type: "+type);
     }
-}
+};
+
+var Behavior = require("./stmt/Behavior"); // cyclic
 
 AstReader.prototype._write = function (chunk, encoding, callback) {
     if (this.state.length === 0) { // Already done
@@ -275,6 +278,7 @@ AstReader.prototype._readStmt = function() {
 
             // opcode + local variable index + Stmt<local variable type>
             case Op.SetLoc:
+                // Behavior.SetLoc.read(s);
                 temp = s.local(s.varint());
                 s.emit(temp);
                 s.expect(stateForType(temp.type));
@@ -282,6 +286,7 @@ AstReader.prototype._readStmt = function() {
 
             // opcode + global variable index + Stmt<global variable type>
             case Op.SetGlo:
+                // Behavior.SetGlo.read(s);
                 temp = s.global(s.varint());
                 s.emit(temp);
                 s.expect(stateForType(temp.type));
@@ -441,15 +446,15 @@ AstReader.prototype._readStmt = function() {
 
             // opcodeWithImm (imm=local variable index) + Stmt<local variable type>
             case Op.SetLoc:
-                temp = s.local(code.imm);
-                s.emit(temp, true);
+                // Behavior.SetLoc.read(s, code.imm);
+                s.emit_code(types.Stmt.SetLoc, temp = s.local(code.imm));
                 s.expect(stateForType(temp.type));
                 break;
 
             // opcodeWithImm (imm=global variable index) + Stmt<global variable type>
             case Op.SetGlo:
-                temp = s.global(code.imm);
-                s.emit(temp, true);
+                // Behavior.SetGlo.read(s, code.imm);
+                s.emit_code(types.Stmt.SetGlo, temp = s.global(code.imm));
                 s.expect(stateForType(temp.type));
                 break;
 
@@ -736,15 +741,17 @@ AstReader.prototype._readExprI32 = function() {
 
             // opcodeWithImm (imm = value)
             case Op.LitImm:
+                s.emit_code(types.I32.LitImm, s.const(code.imm));
+                break;
 
             // opcodeWithImm (imm = I32 constant index)
             case Op.LitPool:
-                s.emit(s.const(code.imm), true);
+                s.emit_code(types.I32.LitPool, s.const(code.imm));
                 break;
 
             // opcodeWithImm (imm = local variable index)
             case Op.GetLoc:
-                s.emit(s.local(code.imm), true);
+                s.emit_code(types.I32.GetLoc, s.local(code.imm));
                 break;
 
             default:
@@ -899,12 +906,12 @@ AstReader.prototype._readExprF32 = function() {
 
             // opcode + F32 constant index
             case Op.LitPool:
-                s.emit(s.const(code.imm), true);
+                s.emit_code(types.F32.LitPool, s.const(code.imm));
                 break;
 
             // opcode + local variable index
             case Op.GetLoc:
-                s.emit(s.local(code.imm), true);
+                s.emit_code(types.F32.GetLoc, s.local(code.imm));
                 break;
 
             default:
@@ -1099,12 +1106,12 @@ AstReader.prototype._readExprF64 = function() {
 
             // opcode + F64 constant index
             case Op.LitPool:
-                s.emit(s.const(code.imm), true);
+                s.emit_code(types.F64.LitPool, s.const(code.imm));
                 break;
 
             // opcode + local variable index
             case Op.GetLoc:
-                s.emit(s.local(code.imm), true);
+                s.emit_code(types.F64.GetLoc, s.local(code.imm));
                 break;
 
             default:
