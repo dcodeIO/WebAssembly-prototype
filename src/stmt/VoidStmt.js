@@ -5,7 +5,7 @@ var types = require("../types"),
  * An explicit void expression.
  * @constructor
  * @param {number} code
- * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
+ * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
  */

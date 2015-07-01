@@ -4,7 +4,7 @@ var types = require("../types");
  * Abstract base class of all statements.
  * @constructor
  * @param {number} code
- * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
+ * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @abstract
  */
 var BaseStmt = module.exports = function(type, code, operands) {
@@ -31,7 +31,7 @@ var BaseStmt = module.exports = function(type, code, operands) {
 
     /**
      * Operands.
-     * @type {!Array.<number|!BaseStmt>}
+     * @type {!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>}
      */
     this.operands = Array.isArray(operands)
         ? operands
