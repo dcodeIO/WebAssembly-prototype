@@ -1,6 +1,11 @@
 var types = require("./types"),
     assert = require("assert");
 
+/**
+ * Utility.
+ * @namespace
+ * @exports util
+ */
 var util = module.exports = {};
 
 // Special error indicating that more data is required to proceed

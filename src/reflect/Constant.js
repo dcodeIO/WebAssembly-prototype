@@ -6,6 +6,7 @@ var types = require("../types");
  * @param {!Assembly} assembly
  * @param {number} type
  * @param {number} value
+ * @exports reflect.Constant
  */
 var Constant = module.exports = function(assembly, type, value) {
 

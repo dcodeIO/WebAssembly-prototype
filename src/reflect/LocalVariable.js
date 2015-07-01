@@ -6,6 +6,7 @@ var types = require("../types"),
  * @constructor
  * @param {number|!FunctionDefinition} functionDefinition
  * @param {number} type
+ * @exports reflect.LocalVariable
  */
 var LocalVariable = module.exports = function(functionDefinition, type) {
 

@@ -25,6 +25,7 @@ var Assembly = require("./reflect/Assembly");
  * A WebAssembly Reader implemented as a writable stream.
  * @extends stream.Writable
  * @param {!Object.<string,*>=} options 'skipAhead' skips parsing ASTs in detail
+ * @exports Reader
  */
 var Reader = module.exports = function (options) {
     stream.Writable.call(this, options);

@@ -26,6 +26,7 @@ var StmtList = require("../stmt/StmtList");
  * An assembly.
  * @constructor
  * @param {number=} precomputedSize
+ * @exports reflect.Assembly
  */
 var Assembly = module.exports = function(precomputedSize) {
 

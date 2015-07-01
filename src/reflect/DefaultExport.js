@@ -7,6 +7,7 @@ var BaseExport = require("./BaseExport"),
  * @param {!Assembly} assembly
  * @param {number|!FunctionDeclaration} function_
  * @extends BaseExport
+ * @exports reflect.DefaultExport
  */
 var DefaultExport = module.exports = function(assembly, function_) {
     BaseExport.call(this, assembly);

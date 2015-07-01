@@ -3,6 +3,7 @@
  * @constructor
  * @param {number} size
  * @extends Array
+ * @exports stmt.StmtList
  */
 var StmtList = module.exports = function(size) {
     Array.call(this, size);

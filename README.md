@@ -42,8 +42,8 @@ Usage
 ##### Parsing a WASM binary including ASTs
 
 ```js
-var WebAssembly = require("webassembly"),
-    Reader = WebAssembly.Reader;
+var webassembly = require("webassembly"),
+    Reader = webassembly.Reader;
 
 var reader = new Reader();
 
@@ -66,9 +66,9 @@ require("fs").createReadStream("wasmBinaryFile.wasm").pipe(reader);
 ##### Just indexing a WASM binary, parsing ASTs on demand
 
 ```js
-var WebAssembly = require("webassembly"),
-    Reader = WebAssembly.Reader,
-    AstReader = WebAssembly.AstReader;
+var webassembly = require("webassembly"),
+    Reader = webassembly.Reader,
+    AstReader = webassembly.AstReader;
 
 var reader = new Reader({
     skipAhead: true // Tells the AstReader not to generate statements, skipping ahead

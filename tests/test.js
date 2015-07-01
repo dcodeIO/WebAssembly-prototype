@@ -1,10 +1,10 @@
 var fs = require("fs"),
     path = require("path");
 
-var WebAssembly = require("../"),
-    types = WebAssembly.types,
-    Reader = WebAssembly.Reader,
-    AstReader = WebAssembly.AstReader;
+var webassembly = require("../"),
+    types = webassembly.types,
+    Reader = webassembly.Reader,
+    AstReader = webassembly.AstReader;
 
 var file = path.join(__dirname, "AngryBots.wasm"),
     stats = fs.statSync(file);

@@ -39,6 +39,7 @@ var verbose = 0; // For debugging
  * @constructor
  * @param {!FunctionDefinition} functionDefinition
  * @param {!Object.<string,*>=} options
+ * @exports AstReader
  */
 var AstReader = module.exports = function(functionDefinition, options) {
     stream.Writable.call(this, options);

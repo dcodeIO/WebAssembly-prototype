@@ -7,6 +7,7 @@ var types = require("../types"),
  * @param {!Assembly} assembly
  * @param {number} type
  * @param {string=} name
+ * @exports reflect.GlobalVariable
  */
 var GlobalVariable = module.exports = function(assembly,  type, importName) {
 

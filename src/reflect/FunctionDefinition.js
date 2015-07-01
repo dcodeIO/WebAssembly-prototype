@@ -12,6 +12,7 @@ var FunctionSignature = require("./FunctionSignature");
  * @param {number} nF64vars
  * @param {number} byteOffset
  * @param {number=} byteLength
+ * @exports reflect.FunctionDefinition
  */
 var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
 

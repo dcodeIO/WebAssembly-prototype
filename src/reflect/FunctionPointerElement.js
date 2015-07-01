@@ -3,6 +3,7 @@
  * @constructor
  * @param {!FunctionPointerTable} table
  * @param {number} value
+ * @exports reflect.FunctionPointerElement
  */
 var FunctionPointerElement = module.exports = function(table, value) {
 

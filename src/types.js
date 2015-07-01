@@ -1,4 +1,16 @@
-// Swaps an object's keys and values, returning an array that may contain undefined elements
+/**
+ * Type and opcode definitions.
+ * @namespace
+ * @exports types
+ */
+var types = module.exports = {};
+
+/**
+ * Swaps an object's keys and values, returning an array that may contain undefined elements.
+ * @param {!Object} obj
+ * @returns {!Array}
+ * @inner
+ */
 function swap(obj) {
     var swp = [];
     Object.keys(obj).forEach(function(key) {
@@ -7,9 +19,9 @@ function swap(obj) {
     return swp;
 }
 
-exports.MagicNumber = 0x6d736177;
+types.MagicNumber = 0x6d736177;
 
-exports.Stmt = {
+types.Stmt = {
     SetLoc: 0,
     SetGlo: 1,
     I32Store8: 2,
@@ -39,18 +51,18 @@ exports.Stmt = {
     Switch: 26
 };
 
-exports.StmtNames = swap(exports.Stmt);
+types.StmtNames = swap(types.Stmt);
 
-exports.StmtWithImm = {
+types.StmtWithImm = {
     SetLoc: 0,
     SetGlo: 1,
     Reserved1: 2,
     Reserved2: 3
 };
 
-exports.StmtWithImmNames = swap(exports.StmtWithImm);
+types.StmtWithImmNames = swap(types.StmtWithImm);
 
-exports.SwitchCase = {
+types.SwitchCase = {
     Case0: 0,
     Case1: 1,
     CaseN: 2,
@@ -59,9 +71,9 @@ exports.SwitchCase = {
     DefaultN: 5
 };
 
-exports.SwitchCaseNames = swap(exports.SwitchCase);
+types.SwitchCaseNames = swap(types.SwitchCase);
 
-exports.I32 = {
+types.I32 = {
     LitPool: 0,
     LitImm: 1,
     GetLoc: 2,
@@ -137,18 +149,18 @@ exports.I32 = {
     Abs: 72
 };
 
-exports.I32Names = swap(exports.I32);
+types.I32Names = swap(types.I32);
 
-exports.I32WithImm = {
+types.I32WithImm = {
     LitPool: 0,
     LitImm: 1,
     GetLoc: 2,
     Reserved: 3
 };
 
-exports.I32WithImmNames = swap(exports.I32WithImm);
+types.I32WithImmNames = swap(types.I32WithImm);
 
-exports.F32 = {
+types.F32 = {
     LitPool: 0,
     LitImm: 1,
     GetLoc: 2,
@@ -177,18 +189,18 @@ exports.F32 = {
     Sqrt: 25
 };
 
-exports.F32Names = swap(exports.F32);
+types.F32Names = swap(types.F32);
 
-exports.F32WithImm = {
+types.F32WithImm = {
     LitPool: 0,
     GetLoc: 1,
     Reserved0: 2,
     Reserved1: 3
 };
 
-exports.F32WithImmNames = swap(exports.F32WithImm);
+types.F32WithImmNames = swap(types.F32WithImm);
 
-exports.F64 = {
+types.F64 = {
     LitPool: 0,
     LitImm: 1,
     GetLoc: 2,
@@ -231,75 +243,75 @@ exports.F64 = {
     Pow: 39
 };
 
-exports.F64Names = swap(exports.F64);
+types.F64Names = swap(types.F64);
 
-exports.F64WithImm = {
+types.F64WithImm = {
     LitPool: 0,
     GetLoc: 1,
     Reserved0: 2,
     Reserved1: 3
 };
 
-exports.F64WithImmNames = swap(exports.F64WithImm);
+types.F64WithImmNames = swap(types.F64WithImm);
 
-exports.Void = {
+types.Void = {
     CallInt: 0,
     CallInd: 1,
     CallImp: 2
 };
 
-exports.VoidNames = swap(exports.Void);
+types.VoidNames = swap(types.Void);
 
-exports.Type = {
+types.Type = {
     I32: 0,
     F32: 1,
     F64: 2
 };
 
-exports.TypeNames = swap(exports.Type);
+types.TypeNames = swap(types.Type);
 
-exports.isValidType = function(type) {
+types.isValidType = function(type) {
     return type === 0 || type === 1 || type === 2;
 };
 
-exports.VarType = {
+types.VarType = {
     I32: 0x1,
     F32: 0x2,
     F64: 0x4
 };
 
-exports.VarTypeNames = swap(exports.VarType);
+types.VarTypeNames = swap(types.VarType);
 
-exports.VarTypeWithImm = {
+types.VarTypeWithImm = {
     OnlyI32: 0,
     Reserved0: 1,
     Reserved1: 2,
     Reserved2: 3
 };
 
-exports.VarTypeWithImmNames = swap(exports.VarTypeWithImm);
+types.VarTypeWithImmNames = swap(types.VarTypeWithImm);
 
-exports.RType = {
-    I32: exports.Type.I32,
-    F32: exports.Type.F32,
-    F64: exports.Type.F64,
+types.RType = {
+    I32: types.Type.I32,
+    F32: types.Type.F32,
+    F64: types.Type.F64,
     Void: 3
 };
 
-exports.RTypeNames = swap(exports.RType);
+types.RTypeNames = swap(types.RType);
 
-exports.isValidRType = function(type) {
+types.isValidRType = function(type) {
     return type === 0 || type === 1 || type === 2 || type === 3;
 };
 
-exports.ExportFormat = {
+types.ExportFormat = {
     Default: 0,
     Record: 1
 };
 
-exports.ExportFormatNames = swap(exports.ExportFormat);
+types.ExportFormatNames = swap(types.ExportFormat);
 
-exports.HotStdLib = [
+types.HotStdLib = [
     "HeapS8",
     "HeapU8",
     "HeapS16",
@@ -312,7 +324,7 @@ exports.HotStdLib = [
     "FRound"
 ];
 
-exports.StdLib = [
+types.StdLib = [
     "stdlib",
     "foreign",
     "buffer",
@@ -337,7 +349,7 @@ exports.StdLib = [
     "Infinity"
 ];
 
-/*exports.Prec = {
+/*types.Prec = {
     Lowest: 0,
     Comma: 2,
     Assign: 4,
@@ -356,9 +368,9 @@ exports.StdLib = [
     Highest: 30
 };
 
-exports.PrecNames = swap(exports.Prec);
+types.PrecNames = swap(types.Prec);
 
-exports.Ctx = {
+types.Ctx = {
     Default: 0,
     AddSub: 1,
     ToI32: 2,
@@ -366,4 +378,4 @@ exports.Ctx = {
     ToNumber: 4
 };
 
-exports.CtxNames = swap(exports.Ctx); */
+types.CtxNames = swap(types.Ctx); */

@@ -8,6 +8,7 @@ var types = require("../types"),
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
+ * @exports stmt.F32Stmt
  */
 var F32Stmt = module.exports = function(code, operands) {
     BaseStmt.call(this, types.RType.F32, code, operands);

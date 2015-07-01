@@ -8,6 +8,7 @@ var types = require("../types"),
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
+ * @exports stmt.VoidStmt
  */
 var VoidStmt = module.exports = function(code, operands) {
     BaseStmt.call(this, types.RType.Void, code, operands);

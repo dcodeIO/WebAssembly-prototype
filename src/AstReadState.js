@@ -11,6 +11,7 @@ var Stmt = require("./stmt/Stmt"),
  * A closure holding state of and providing utility for the current read operation.
  * @function
  * @param {!AstReader} reader
+ * @exports AstReadState
  */
 var AstReadState = module.exports = function(reader, popState) {
 

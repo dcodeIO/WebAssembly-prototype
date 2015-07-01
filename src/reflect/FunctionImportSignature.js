@@ -6,6 +6,7 @@ var FunctionSignature = require("./FunctionSignature");
  * @param {!Assembly} assembly
  * @param {number|!FunctionImport} functionImport
  * @param {number|!FunctionSignature} signature
+ * @exports reflect.FunctionImportSignature
  */
 var FunctionImportSignature = module.exports = function(assembly, functionImport, signature) {
 

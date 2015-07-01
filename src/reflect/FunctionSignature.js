@@ -6,6 +6,7 @@ var types = require("../types");
  * @param {!Assembly} assembly
  * @param {number=} returnType
  * @param {!Array.<number>=} argumentTypes
+ * @exports reflect.FunctionSignature
  */
 var FunctionSignature = module.exports = function(assembly, returnType, argumentTypes) {
 

@@ -6,6 +6,7 @@ var types = require("../types");
  * @param {number} code
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @abstract
+ * @exports stmt.BaseStmt
  */
 var BaseStmt = module.exports = function(type, code, operands) {
     if (type !== undefined && !types.isValidRType(type))

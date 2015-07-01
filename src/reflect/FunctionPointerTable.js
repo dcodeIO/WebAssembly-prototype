@@ -10,6 +10,7 @@ var FunctionSignature = require("./FunctionSignature"),
  * @param {number} index
  * @param {number|!FunctionSignature} signature
  * @param {!Array.<number|!FunctionPointerElement>} elements
+ * @exports reflect.FunctionPointerTable
  */
 var FunctionPointerTable = module.exports = function(assembly, signature, elements) {
 

@@ -8,6 +8,7 @@ var types = require("../types"),
  * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
  * @constructor
  * @extends BaseStmt
+ * @exports stmt.Stmt
  */
 var Stmt = module.exports = function(code, operands) {
     BaseStmt.call(this, undefined, code, operands);

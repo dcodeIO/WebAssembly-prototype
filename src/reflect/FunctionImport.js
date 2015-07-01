@@ -4,6 +4,7 @@
  * @param {!Assembly} assembly
  * @param {string} name
  * @param {!Array.<number|!FunctionImportSignature>} importSignatureIndexes
+ * @exports reflect.FunctionImport
  */
 var FunctionImport = module.exports = function(assembly, name, importSignatures) {
 
