@@ -84,68 +84,23 @@ var AstReadState = module.exports = function(reader, popState) {
     };
 
     s.local = function(index) {
-        if (index < reader.signature.argumentTypes.length)
-            return reader.signature.argumentTypes[index];
-        index -= reader.signature.argumentTypes.length;
-        return reader.definition.variables[index].type;
+        return reader.definition.variables[index];
     };
 
     s.global = function(index) {
-        return reader.assembly.globalVariables[index].type;
+        return reader.assembly.globalVariables[index];
     };
 
-    s.sig = function(index) {
-        switch (type) {
-            case undefined:
-                switch (code.op) {
-                    case types.Stmt.CallInt:
-                        return reader.assembly.functionDeclarations[index].signature;
-                    case types.Stmt.CallInd:
-                        return reader.assembly.functionPointerTables[index].signature;
-                    case types.Stmt.CallImp:
-                        return reader.assembly.functionImportSignatures[index].signature;
-                }
-                break;
-            case types.RType.I32:
-                switch (code.op) {
-                    case types.I32.CallInt:
-                        return reader.assembly.functionDeclarations[index].signature;
-                    case types.I32.CallInd:
-                        return reader.assembly.functionPointerTables[index].signature;
-                    case types.I32.CallImp:
-                        return reader.assembly.functionImportSignatures[index].signature;
-                }
-                break;
-            case types.RType.F32:
-                switch (code.op) {
-                    case types.F32.CallInt:
-                        return reader.assembly.functionDeclarations[index].signature;
-                    case types.F32.CallInd:
-                        return reader.assembly.functionPointerTables[index].signature;
-                }
-                break;
-            case types.RType.F64:
-                switch (code.op) {
-                    case types.F64.CallInt:
-                        return reader.assembly.functionDeclarations[index].signature;
-                    case types.F64.CallInd:
-                        return reader.assembly.functionPointerTables[index].signature;
-                    case types.F64.CallImp:
-                        return reader.assembly.functionImportSignatures[index].signature;
-                }
-                break;
-            case types.RType.Void:
-                switch (code) {
-                    case types.Void.CallInt:
-                        return reader.assembly.functionDeclarations[index].signature;
-                    case types.Void.CallInd:
-                        return reader.assembly.functionPointerTables[index].signature;
-                    case types.Void.CallImp:
-                        return reader.assembly.functionImportSignatures[index].signature;
-                }
-                break;
-        }
-        throw Error("opcode does not reference a function signature: "+(code.op || code));
+    s.internal = function(index) {
+        return reader.assembly.functionDeclarations[index];
+    };
+
+    s.indirect = function(index) {
+        return reader.assembly.functionPointerTables[index];
+    };
+
+    s.import = function(index) {
+        return reader.assembly.functionImportSignatures[index];
     };
 
     s.expect = function(state) {

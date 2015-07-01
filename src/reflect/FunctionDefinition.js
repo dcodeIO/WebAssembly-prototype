@@ -25,8 +25,11 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
      * Local variables.
      * @type {!Array.<!LocalVariable>}
      */
-    this.variables = new Array(nI32vars + nF32vars + nF64vars);
+    this.variables = new Array(declaration.signature.argumentTypes.length + nI32vars + nF32vars + nF64vars);
     var index = 0;
+    declaration.signature.argumentTypes.forEach(function(type) {
+        this.variables[index++] = new LocalVariable(this, type);
+    }, this);
     for (var i=0; i<nI32vars; ++i, ++index)
         this.variables[index] = new LocalVariable(this, types.Type.I32);
     for (i=0; i<nF32vars; ++i, ++index)
@@ -109,9 +112,9 @@ FunctionDefinition.prototype.header = function(pack) {
             }
         }
     }
-    if (this.variables.length > 0) {
+    if (this.variables.length > args.length) {
         sb.push(ws, "var ");
-        for (i = 0; i < this.variables.length; ++i) {
+        for (i = args.length; i < this.variables.length; ++i) {
             var v = this.variables[i];
             if (i > 0)
                 sb.push(",", nl, ws);

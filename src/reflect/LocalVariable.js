@@ -38,6 +38,17 @@ Object.defineProperty(LocalVariable.prototype, "index", {
 });
 
 /**
+ * Whether this local variable is a function argument or not.
+ * @name LocalVariable#isArgument
+ * @type {boolean}
+ */
+Object.defineProperty(LocalVariable.prototype, "isArgument", {
+    get: function() {
+        return this.index < this.functionDefinition.signature.argumentTypes.length;
+    }
+});
+
+/**
  * Indexed name.
  * @name LocalVariable#name
  * @type {string}

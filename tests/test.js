@@ -12,7 +12,7 @@ var file = path.join(__dirname, "AngryBots.wasm"),
 console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
-    skipAhead: true
+    // skipAhead: true
 });
 
 /* reader.on("switchState", function (prevState, newState, offset) {

@@ -1,3 +1,5 @@
+var util = require("../util");
+
 var FunctionSignature = require("./FunctionSignature"),
     FunctionPointerElement = require("./FunctionPointerElement");
 
@@ -47,6 +49,14 @@ var FunctionPointerTable = module.exports = function(assembly, signature, elemen
 Object.defineProperty(FunctionPointerTable.prototype, "index", {
     get: function() {
         return this.assembly.functionPointerTables.indexOf(this);
+    }
+});
+
+Object.defineProperty(FunctionPointerTable.prototype, "name", {
+    get: function() {
+        var func_name_base = this.assembly.functionImports.length + this.assembly.globalVariables.length;
+        var func_ptr_name_base = func_name_base + this.assembly.functionDeclarations.length;
+        return util.globalName(func_ptr_name_base + this.index);
     }
 });
 
