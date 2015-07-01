@@ -33,8 +33,8 @@ var AstReadState = module.exports = function(reader, popState) {
 
     s.rtype = reader.signature.returnType;
 
-    s.code = function(typeCtx) {
-        type = typeCtx;
+    s.code = function(type_) {
+        type = type_;
         return code = util.readCode(reader.buffer, offset++);
     };
 
@@ -81,6 +81,17 @@ var AstReadState = module.exports = function(reader, popState) {
     s.reset = function() {
         offset = previousOffset;
         type = code = stmt = undefined;
+    };
+
+    s.const = function(index) {
+        switch (type) {
+            case types.Type.I32:
+                return reader.assembly.constantsI32[index];
+            case types.Type.F32:
+                return reader.assembly.constantsF32[index];
+            case types.Type.F64:
+                return reader.assembly.constantsF64[index];
+        }
     };
 
     s.local = function(index) {

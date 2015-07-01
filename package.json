@@ -2,7 +2,7 @@
     "name": "webassembly",
     "description": "JavaScript tools for working with WebAssembly (WASM) binaries.",
     "author": "Daniel Wirtz <dcode@dcode.io>",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "main": "src/index.js",
     "repository": {
         "type": "git",

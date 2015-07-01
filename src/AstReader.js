@@ -527,7 +527,7 @@ AstReader.prototype._readExprI32 = function() {
 
             // opcode + I32 constant index
             case Op.LitPool:
-                s.push(s.varint());
+                s.push(s.const(s.varint()));
                 break;
 
             // opcode + local variable index
@@ -738,7 +738,7 @@ AstReader.prototype._readExprI32 = function() {
 
             // opcodeWithImm (imm = I32 constant index)
             case Op.LitPool:
-                s.push(code.imm, true);
+                s.push(s.const(code.imm), true);
                 break;
 
             // opcodeWithImm (imm = local variable index)
@@ -773,7 +773,7 @@ AstReader.prototype._readExprF32 = function() {
 
             // opcode + F32 constant index
             case Op.LitPool:
-                s.push(s.varint());
+                s.push(s.const(s.varint()));
                 break;
 
             // opcode + local variable index
@@ -898,7 +898,7 @@ AstReader.prototype._readExprF32 = function() {
 
             // opcode + F32 constant index
             case Op.LitPool:
-                s.push(code.imm, true);
+                s.push(s.const(code.imm), true);
                 break;
 
             // opcode + local variable index
@@ -933,7 +933,7 @@ AstReader.prototype._readExprF64 = function() {
 
             // opcode + F64 constant index
             case Op.LitPool:
-                s.push(s.varint());
+                s.push(s.const(s.varint()));
                 break;
 
             // opcode + local variable index
@@ -1098,7 +1098,7 @@ AstReader.prototype._readExprF64 = function() {
 
             // opcode + F64 constant index
             case Op.LitPool:
-                s.push(code.imm, true);
+                s.push(s.const(code.imm), true);
                 break;
 
             // opcode + local variable index

@@ -275,8 +275,8 @@ Reader.prototype._readConstantsF64 = function () {
         var value = this.buffer.readDoubleLE(0);
         this._advance(8);
         var index = this.sequence++;
-        this.assembly.setConstant(types.Type.F64, index, value);
-        this.emit("constant", types.Type.F64, value, index);
+        var constant = this.assembly.setConstant(types.Type.F64, index, value);
+        this.emit("constant", constant, index);
     }
     this.emit("constantsEnd");
     this.state = Reader.STATE.SIGNATURES_COUNT;

@@ -7,7 +7,7 @@ var assertInteger = util.assertInteger,
     assertType = util.assertType,
     assertFName = util.assertFName;
 
-var ConstantPool = require("./ConstantPool"),
+var Constant = require("./Constant"),
     FunctionSignature = require("./FunctionSignature"),
     FunctionImport = require("./FunctionImport"),
     FunctionImportSignature = require("./FunctionImportSignature"),
@@ -36,14 +36,22 @@ var Assembly = module.exports = function(precomputedSize) {
     this.precomputedSize = precomputedSize || 0;
 
     /**
-     * Constant pools.
-     * @type {!Array.<!ConstantPool>}
+     * I32 constants.
+     * @type {!Array.<!Constant>}
      */
-    this.constantPools = [
-        new ConstantPool(this, types.Type.I32),
-        new ConstantPool(this, types.Type.F32),
-        new ConstantPool(this, types.Type.F64)
-    ];
+    this.constantsI32 = [];
+
+    /**
+     * F32 constants.
+     * @type {!Array.<!Constant>}
+     */
+    this.constantsF32 = [];
+
+    /**
+     * F64 constants.
+     * @type {!Array.<!Constant>}
+     */
+    this.constantsF64 = [];
 
     /**
      * Function signatures.
@@ -100,11 +108,9 @@ Assembly.prototype.initConstantPools = function(nI32, nF32, nF64) {
     assertInteger("nI32", nI32, 0, 0xFFFFFFFF);
     assertInteger("nF32", nF32, 0, 0xFFFFFFFF);
     assertInteger("nF64", nF64, 0, 0xFFFFFFFF);
-    this.constantPools = [
-        new ConstantPool(this, types.Type.I32, nI32),
-        new ConstantPool(this, types.Type.F32, nF32),
-        new ConstantPool(this, types.Type.F64, nF64)
-    ];
+    this.constantsI32 = new Array(nI32);
+    this.constantsF32 = new Array(nF32);
+    this.constantsF64 = new Array(nF64);
 };
 
 /**
@@ -116,11 +122,11 @@ Assembly.prototype.getConstantPoolSize = function(type) {
     assertInteger("type", type);
     switch (type) {
         case types.Type.I32:
-            return this.constantPools[0].length;
+            return this.constantsI32.length;
         case types.Type.F32:
-            return this.constantPools[1].length;
+            return this.constantsF32.length;
         case types.Type.F64:
-            return this.constantPools[2].length;
+            return this.constantsF64.length;
         default:
             throw RangeError("illegal type: "+type);
     }
@@ -132,36 +138,37 @@ Assembly.prototype.getConstantPoolSize = function(type) {
  */
 Assembly.prototype.getConstantPoolSizes = function() {
     return [
-        this.getConstantPoolSize(types.Type.I32),
-        this.getConstantPoolSize(types.Type.F32),
-        this.getConstantPoolSize(types.Type.F64)
+        this.constantsI32.length,
+        this.constantsF32.length,
+        this.constantsF64.length
     ];
 };
 
 /**
- * Gets the constant pool of the specified type.
+ * Gets the constants of the specified type.
  * @param {number} type
- * @returns {!ConstantPool}
+ * @returns {!Array.<!Constant>}
  */
 Assembly.prototype.getConstantPool = function(type) {
     assertInteger("type", type);
     switch (type) {
         case types.Type.I32:
-            return this.constantPools[0];
+            return this.constantsI32;
         case types.Type.F32:
-            return this.constantPools[1];
+            return this.constantsF32;
         case types.Type.F64:
-            return this.constantPools[2];
+            return this.constantsF64;
         default:
             throw RangeError("illegal type: "+type);
     }
 };
 
 /**
- * Sets the value of a constant of the specified type.
+ * Sets the constant of the specified type.
  * @param {number} type
  * @param {number} index
  * @param {number} value
+ * @returns {!Constant}
  */
 Assembly.prototype.setConstant = function(type, index, value) {
     assertInteger("type", type);
@@ -169,24 +176,21 @@ Assembly.prototype.setConstant = function(type, index, value) {
     assertInteger("index", index, 0, size-1);
     switch (type) {
         case types.Type.I32:
-            this.constantPools[0][index] = value;
-            break;
+            return this.constantsI32[index] = new Constant(this, type, value);
         case types.Type.F32:
-            this.constantPools[1][index] = value;
-            break;
+            return this.constantsF32[index] = new Constant(this, type, value);
         case types.Type.F64:
-            this.constantPools[2][index] = value;
-            break;
+            return this.constantsF64[index] = new Constant(this, type, value);
         default:
             throw RangeError("illegal type: "+type);
     }
 };
 
 /**
- * Gets the value of a constant of the specified type.
+ * Gets the constant of the specified type.
  * @param {number} type
  * @param {number} index
- * @returns {number|undefined}
+ * @returns {!Constant}
  */
 Assembly.prototype.getConstant = function(type, index) {
     assertInteger("type", type);
@@ -194,11 +198,11 @@ Assembly.prototype.getConstant = function(type, index) {
     assertInteger("index", index, 0, size-1);
     switch (type) {
         case types.Type.I32:
-            return this.constantPools[0][index];
+            return this.constantsI32[index];
         case types.Type.F32:
-            return this.constantPools[1][index];
+            return this.constantsF32[index];
         case types.Type.F64:
-            return this.constantPools[2][index];
+            return this.constantsF64[index];
         default:
             throw RangeError("illegal type: "+type);
     }
@@ -209,24 +213,27 @@ Assembly.prototype.getConstant = function(type, index) {
  * @throws {assert.AssertionError}
  */
 Assembly.prototype.validateConstantPools = function() {
-    assert.strictEqual(Array.isArray(this.constantPools), true, "constant pools must be an array");
-    assert.strictEqual(this.constantPools.length, 3, "number of constant pools must be 3");
-    this.constantPools.forEach(function(pool, index) {
-        assert.strictEqual(pool instanceof ConstantPool, true, "constant pool "+index+" must be a ConstantPool");
-    });
-    assert.strictEqual(this.constantPools[0].type, types.Type.I32, "constant pool 0 type must be I32");
-    assert.strictEqual(this.constantPools[1].type, types.Type.F32, "constant pool 1 type must be F32");
-    assert.strictEqual(this.constantPools[2].type, types.Type.F64, "constant pool 2 type must be F64");
-    this.constantPools[0].forEach(function(value, index) {
-        assert.strictEqual(typeof value, "number", "I32 constant "+index+" must be a number");
-        if (value%1 !== 0)
-            assert.fail(value, "integer", "I32 constant "+index+" must be an integer", "===");
+    assert(Array.isArray(this.constantsI32), "I32 constant pool must be an array");
+    assert(Array.isArray(this.constantsF32), "F32 constant pool must be an array");
+    assert(Array.isArray(this.constantsF64), "F64 constant pool must be an array");
+    this.constantsI32.forEach(function(constant, index) {
+        assert(constant instanceof Constant, "I32 constant "+index+" must be a Constant");
+        assert.strictEqual(constant.assembly, this, "I32 constant "+index+" must reference this assembly");
+        assert.strictEqual(constant.type, types.Type.I32, "I32 constant "+index+" type must be I32");
+        assert.strictEqual(typeof constant.value, "number", "I32 constant "+index+" value must be a number");
+        assert.strictEqual(constant.value%1, 0, "I32 constant "+index+" value must be an integer");
     }, this);
-    this.constantPools[1].forEach(function(value, index) {
-        assert.strictEqual(typeof value, "number", "F32 constant "+index+" must be a number");
+    this.constantsF32.forEach(function(constant, index) {
+        assert(constant instanceof Constant, "F32 constant "+index+" must be a Constant");
+        assert.strictEqual(constant.assembly, this, "F32 constant "+index+" must reference this assembly");
+        assert.strictEqual(constant.type, types.Type.F32, "F32 constant "+index+" type must be F32");
+        assert.strictEqual(typeof constant.value, "number", "F32 constant "+index+" value must be a number");
     }, this);
-    this.constantPools[2].forEach(function(value, index) {
-        assert.strictEqual(typeof value, "number", "F64 constant "+index+" must be a number");
+    this.constantsF64.forEach(function(constant, index) {
+        assert(constant instanceof Constant, "F64 constant "+index+" must be a Constant");
+        assert.strictEqual(constant.assembly, this, "F64 constant "+index+" must reference this assembly");
+        assert.strictEqual(constant.type, types.Type.F64, "F64 constant "+index+" type must be F64");
+        assert.strictEqual(typeof constant.value, "number", "F63 constant "+index+" value must be a number");
     }, this);
 };
 
@@ -820,7 +827,9 @@ Assembly.prototype.validateExport = function() {
 Assembly.prototype.toString = function() {
     return "Assembly"
          + " size:" + this.precomputedSize
-         + " consts:" + (this.constantPools[0].length + this.constantPools[1].length + this.constantPools[2].length)
+         + " I32s:" + this.constantsI32.length
+         + " F32s:" + this.constantsF32.length
+         + " F64s:" + this.constantsF64.length
          + " sigs:" + this.functionSignatures.length
          + " imps:" + this.functionImports.length
          + " impSigs:" + this.functionImportSignatures.length

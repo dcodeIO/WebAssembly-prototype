@@ -1,6 +1,6 @@
 exports.Assembly = require("./Assembly");
 
-exports.ConstantPool = require("./ConstantPool");
+exports.Constant = require("./Constant");
 exports.GlobalVariable = require("./GlobalVariable");
 
 exports.FunctionSignature = require("./FunctionSignature");
