@@ -29,8 +29,12 @@ Compatibility
 For now this library aims to be compatible with what can be learned from the [polyfill prototype](https://github.com/WebAssembly/polyfill-prototype-1),
 but is written in plain JavaScript and does not contain any compiled code.
 
-Please note that the [WebAssembly design](https://github.com/WebAssembly/design) is still in flux and that the binary
-format may change at any time.
+While this package is built for the [node.js](https://nodejs.org/) platform, it *should* be trivial to also package it
+for browsers using [browserify](http://browserify.org).
+
+Please note that the [WebAssembly design](https://github.com/WebAssembly/design) is still in flux and that
+[binary encoding](https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md) and
+[AST semantics](https://github.com/WebAssembly/design/blob/master/AstSemantics.md) may change at any time.
 
 Usage
 -----
@@ -100,4 +104,4 @@ Documentation
 
 Feel free to contribute!
 
-**License:** Apache License, Version 2.0 - http://www.apache.org/licenses/LICENSE-2.0.html
+**License:** [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html) - Logo derived from [W3C HTML5 Logos](http://www.w3.org/html/logo/) (CC A 3.0)
