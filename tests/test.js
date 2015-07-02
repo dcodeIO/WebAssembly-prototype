@@ -1,10 +1,12 @@
 var fs = require("fs"),
-    path = require("path");
+    path = require("path"),
+    assert = require("assert");
 
 var webassembly = require("../"),
     types = webassembly.types,
     Reader = webassembly.Reader,
     AstReader = webassembly.AstReader,
+    Writer = webassembly.Writer,
     Assembly = webassembly.reflect.Assembly;
 
 var file = path.join(__dirname, "AngryBots.wasm"),
@@ -116,16 +118,20 @@ reader.on("end", function() {
     validateAstOffsets();
 });
 
+console.log("Reading assembly ...");
 fs.createReadStream(file).pipe(reader);
 
 function validateAstOffsets() {
+    console.log("Reading ASTs ...");
+
     var assembly = reader.assembly;
     var stats = fs.statSync(file);
     var current = 0;
 
     function next() {
         if (current === assembly.functionDeclarations.length) {
-            console.log("Validated ASTs: "+current);
+            console.log("ASTs: "+current);
+            write(assembly);
             return;
         }
         var declaration = assembly.functionDeclarations[current++],
@@ -147,4 +153,25 @@ function validateAstOffsets() {
     }
 
     next();
+}
+
+function write(assembly) {
+    console.log("Writing assembly ...");
+
+    var contents = fs.readFileSync(file),
+        offset = 0;
+    var writer = new Writer(assembly);
+    writer.on("data", function(chunk) {
+        for (var i=0; i<chunk.length; ++i) {
+            if (contents[offset+i] !== chunk[i]) {
+                console.log("Reader", contents.slice(offset+i, offset+i+16));
+                console.log("Writer", chunk.slice(i, i+16));
+                throw Error("difference at offset "+(offset+i)+": "+contents[offset+i].toString(16)+" != "+chunk[i].toString(16));
+            }
+        }
+        offset += chunk.length;
+    });
+    writer.on("switchState", function(state, previousState, offset) {
+        console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
+    });
 }

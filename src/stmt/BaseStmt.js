@@ -25,12 +25,6 @@ var BaseStmt = module.exports = function(type, code, operands) {
     this.code = code;
 
     /**
-     * Whether the opcode included a value or not. If true, the first operand is the value.
-     * @type {boolean}
-     */
-    this.withImm = false;
-
-    /**
      * Operands.
      * @type {!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>}
      */

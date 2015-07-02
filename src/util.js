@@ -40,7 +40,41 @@ util.readVarint = function(buffer, offset) {
                 length: c
             };
         u32 |= (b & 0x7f) << shift;
+        if (c >= 5)
+            throw Error("illegal varint32: >5 bytes");
     }
+};
+
+/**
+ * Writes a varint.
+ * @param {!Buffer} buffer
+ * @param {number} u32
+ * @param {number} offset
+ * @returns {number} Bytes written
+ */
+util.writeVarint = function(buffer, u32, offset) {
+    var c = 1;
+    u32 >>>= 0;
+    while (u32 >= 1 << 7)
+        buffer[offset++] = (u32 & 0x7f) | 0x80,
+        u32 >>>= 7,
+        ++c;
+    buffer[offset] = u32;
+    return c;
+};
+
+/**
+ * Calculates the number of bytes required to store the specified value as a varint.
+ * @param {number} value
+ * @returns {number}
+ */
+util.calculateVarint = function(value) {
+    value = value >>> 0;
+         if (value < 1 << 7 ) return 1;
+    else if (value < 1 << 14) return 2;
+    else if (value < 1 << 21) return 3;
+    else if (value < 1 << 28) return 4;
+    else                      return 5;
 };
 
 /**

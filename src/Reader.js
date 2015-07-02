@@ -22,7 +22,7 @@ var stream = require("stream"),
 var Assembly = require("./reflect/Assembly");
 
 /**
- * A WebAssembly Reader implemented as a writable stream.
+ * A WebAssembly reader implemented as a writable stream.
  * @extends stream.Writable
  * @param {!Object.<string,*>=} options 'skipAhead' skips parsing ASTs in detail
  * @exports Reader
@@ -33,9 +33,9 @@ var Reader = module.exports = function (options) {
     /**
      * Current state.
      * @type {number}
-     * @see Reader.STATE
+     * @see Reader.State
      */
-    this.state = Reader.STATE.HEADER;
+    this.state = Reader.State.HEADER;
 
     /**
      * Read buffer.
@@ -88,7 +88,7 @@ Reader.prototype = Object.create(stream.Writable.prototype);
  * @type {!Object.<string,number>}
  * @const
  */
-Reader.STATE = {
+Reader.State = {
     HEADER: 0,
     CONSTANTS_COUNT: 1,
     CONSTANTS_I32: 2,
@@ -98,15 +98,16 @@ Reader.STATE = {
     SIGNATURES: 6,
     FUNCTION_IMPORTS_COUNT: 7,
     FUNCTION_IMPORTS: 8,
-    GLOBAL_VARS_COUNT: 9,
-    GLOBAL_VARS: 10,
+    GLOBAL_VARIABLES_COUNT: 9,
+    GLOBAL_VARIABLES: 10,
     FUNCTION_DECLARATIONS_COUNT: 11,
     FUNCTION_DECLARATIONS: 12,
-    FUNCTION_POINTERS_COUNT: 13,
-    FUNCTION_POINTERS: 14,
+    FUNCTION_POINTER_TABLES_COUNT: 13,
+    FUNCTION_POINTER_TABLES: 14,
     FUNCTION_DEFINITIONS: 15,
     EXPORT: 16,
-    END: 17
+    END: 17,
+    ERROR: 18
 };
 
 Reader.prototype._write = function (chunk, encoding, callback) {
@@ -124,64 +125,66 @@ Reader.prototype._write = function (chunk, encoding, callback) {
         var initialState = this.state;
         try {
             switch (this.state) {
-                case Reader.STATE.HEADER:
+                case Reader.State.HEADER:
                     this._readHeader();
                     break;
-                case Reader.STATE.CONSTANTS_COUNT:
+                case Reader.State.CONSTANTS_COUNT:
                     this._readConstantsCount();
                     break;
-                case Reader.STATE.CONSTANTS_I32:
+                case Reader.State.CONSTANTS_I32:
                     this._readConstantsI32();
                     break;
-                case Reader.STATE.CONSTANTS_F32:
+                case Reader.State.CONSTANTS_F32:
                     this._readConstantsF32();
                     break;
-                case Reader.STATE.CONSTANTS_F64:
+                case Reader.State.CONSTANTS_F64:
                     this._readConstantsF64();
                     break;
-                case Reader.STATE.SIGNATURES_COUNT:
+                case Reader.State.SIGNATURES_COUNT:
                     this._readSignaturesCount();
                     break;
-                case Reader.STATE.SIGNATURES:
+                case Reader.State.SIGNATURES:
                     this._readSignatures();
                     break;
-                case Reader.STATE.FUNCTION_IMPORTS_COUNT:
+                case Reader.State.FUNCTION_IMPORTS_COUNT:
                     this._readFunctionImportsCount();
                     break;
-                case Reader.STATE.FUNCTION_IMPORTS:
+                case Reader.State.FUNCTION_IMPORTS:
                     this._readFunctionImports();
                     break;
-                case Reader.STATE.GLOBAL_VARS_COUNT:
-                    this._readGlobalVarsCount();
+                case Reader.State.GLOBAL_VARIABLES_COUNT:
+                    this._readGlobalVariablesCount();
                     break;
-                case Reader.STATE.GLOBAL_VARS:
-                    this._readGlobalVars();
+                case Reader.State.GLOBAL_VARIABLES:
+                    this._readGlobalVariables();
                     break;
-                case Reader.STATE.FUNCTION_DECLARATIONS_COUNT:
+                case Reader.State.FUNCTION_DECLARATIONS_COUNT:
                     this._readFunctionDeclarationsCount();
                     break;
-                case Reader.STATE.FUNCTION_DECLARATIONS:
+                case Reader.State.FUNCTION_DECLARATIONS:
                     this._readFunctionDeclarations();
                     break;
-                case Reader.STATE.FUNCTION_POINTERS_COUNT:
-                    this._readFunctionPointersCount();
+                case Reader.State.FUNCTION_POINTER_TABLES_COUNT:
+                    this._readFunctionPointerTablesCount();
                     break;
-                case Reader.STATE.FUNCTION_POINTERS:
-                    this._readFunctionPointers();
+                case Reader.State.FUNCTION_POINTER_TABLES:
+                    this._readFunctionPointerTables();
                     break;
-                case Reader.STATE.FUNCTION_DEFINITIONS:
+                case Reader.State.FUNCTION_DEFINITIONS:
                     if (this._readFunctionDefinitions()) {
                         callback();
                         return; // controlled by AstReader
                     }
                     break;
-                case Reader.STATE.EXPORT:
+                case Reader.State.EXPORT:
                     this._readExport();
                     break;
-                case Reader.STATE.END:
+                case Reader.State.END:
                     if (this.buffer.length > 0)
                         throw Error("illegal trailing data: " + this.buffer.length);
                     this.emit("end", this.assembly);
+                    return;
+                case Reader.State.ERROR:
                     return;
                 default:
                     throw Error("illegal state: " + this.state);
@@ -197,7 +200,8 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                 callback();
                 return; // Wait for more
             }
-            throw err;
+            this.emit("error", err);
+            this.state = Reader.State.ERROR;
         }
         if (this.state !== initialState)
             this.emit("switchState", initialState, this.state, this.offset);
@@ -221,7 +225,7 @@ Reader.prototype._readHeader = function () {
     off += 4;
     this._advance(off);
     this.assembly = new Assembly(size, this.options);
-    this.state = Reader.STATE.CONSTANTS_COUNT;
+    this.state = Reader.State.CONSTANTS_COUNT;
     this.emit("header", size);
 };
 
@@ -236,7 +240,7 @@ Reader.prototype._readConstantsCount = function () {
     this._advance(off);
     this.assembly.initConstantPools(nI32, nF32, nF64);
     this.sequence = 0;
-    this.state = Reader.STATE.CONSTANTS_I32;
+    this.state = Reader.State.CONSTANTS_I32;
     this.emit("constants", nI32, nF32, nF64);
 };
 
@@ -250,7 +254,7 @@ Reader.prototype._readConstantsI32 = function () {
         this.emit("constant", types.Type.I32, vi.value, index);
     }
     this.sequence = 0;
-    this.state = Reader.STATE.CONSTANTS_F32;
+    this.state = Reader.State.CONSTANTS_F32;
 };
 
 Reader.prototype._readConstantsF32 = function () {
@@ -265,7 +269,7 @@ Reader.prototype._readConstantsF32 = function () {
         this.emit("constant", types.Type.F32, value, index);
     }
     this.sequence = 0;
-    this.state = Reader.STATE.CONSTANTS_F64;
+    this.state = Reader.State.CONSTANTS_F64;
 };
 
 Reader.prototype._readConstantsF64 = function () {
@@ -280,7 +284,7 @@ Reader.prototype._readConstantsF64 = function () {
         this.emit("constant", constant, index);
     }
     this.emit("constantsEnd");
-    this.state = Reader.STATE.SIGNATURES_COUNT;
+    this.state = Reader.State.SIGNATURES_COUNT;
 };
 
 Reader.prototype._readSignaturesCount = function () {
@@ -290,7 +294,7 @@ Reader.prototype._readSignaturesCount = function () {
     this._advance(off);
     this.assembly.initFunctionSignaturePool(nSigs);
     this.sequence = 0;
-    this.state = Reader.STATE.SIGNATURES;
+    this.state = Reader.State.SIGNATURES;
     this.emit("functionSignatures", nSigs);
 };
 
@@ -300,21 +304,21 @@ Reader.prototype._readSignatures = function () {
         if (this.buffer.length < 2) // RTYPE+VARINT
             throw util.E_MORE;
         var off = 0;
-        var rtype = this.buffer.readUInt8(off++);
+        var rtype = this.buffer[off++];
         var vi = util.readVarint(this.buffer, off); off += vi.length;
         var nArgs = vi.value;
         if (this.buffer.length < off + nArgs)
             throw util.E_MORE;
         var args = new Array(nArgs);
         for (var i = 0; i < nArgs; ++i)
-            args[i] = this.buffer.readUInt8(off++);
+            args[i] = this.buffer[off++];
         this._advance(off);
         var index = this.sequence++;
         var sig = this.assembly.setFunctionSignature(index, rtype, args);
         this.emit("functionSignature", sig, index);
     }
     this.emit("functionSignaturesEnd");
-    this.state = Reader.STATE.FUNCTION_IMPORTS_COUNT;
+    this.state = Reader.State.FUNCTION_IMPORTS_COUNT;
 };
 
 Reader.prototype._readFunctionImportsCount = function () {
@@ -326,7 +330,7 @@ Reader.prototype._readFunctionImportsCount = function () {
     this._advance(off);
     this.assembly.initFunctionImportPool(count, signatureCount);
     this.sequence = 0;
-    this.state = Reader.STATE.FUNCTION_IMPORTS;
+    this.state = Reader.State.FUNCTION_IMPORTS;
     this.emit("functionImports", count, signatureCount);
 };
 
@@ -351,10 +355,10 @@ Reader.prototype._readFunctionImports = function () {
         this.emit("functionImport", imp, index);
     }
     this.emit("functionImportsEnd");
-    this.state = Reader.STATE.GLOBAL_VARS_COUNT;
+    this.state = Reader.State.GLOBAL_VARIABLES_COUNT;
 };
 
-Reader.prototype._readGlobalVarsCount = function () {
+Reader.prototype._readGlobalVariablesCount = function () {
     var off = 0, vi;
     vi = util.readVarint(this.buffer, off); off += vi.length;
     var nI32zero = vi.value;
@@ -370,13 +374,13 @@ Reader.prototype._readGlobalVarsCount = function () {
     var nF64import = vi.value;
     this._advance(off);
     this.sequence = this.assembly.initGlobalVariablePool(nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import);
-    this.state = Reader.STATE.GLOBAL_VARS;
+    this.state = Reader.State.GLOBAL_VARIABLES;
     this.emit("globalVariables", nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import);
     for (var i=0; i<this.sequence; ++i)
         this.emit("globalVariable", this.assembly.globalVariables[i]);
 };
 
-Reader.prototype._readGlobalVars = function () {
+Reader.prototype._readGlobalVariables = function () {
     var size = this.assembly.getGlobalVariablePoolSize();
     while (this.sequence < size) {
         var off = 0;
@@ -389,7 +393,7 @@ Reader.prototype._readGlobalVars = function () {
         this.emit("globalVariable", global, index);
     }
     this.emit("globalVariablesEnd");
-    this.state = Reader.STATE.FUNCTION_DECLARATIONS_COUNT;
+    this.state = Reader.State.FUNCTION_DECLARATIONS_COUNT;
 };
 
 Reader.prototype._readFunctionDeclarationsCount = function () {
@@ -399,7 +403,7 @@ Reader.prototype._readFunctionDeclarationsCount = function () {
     this._advance(off);
     this.assembly.initFunctionDeclarationPool(nDecls);
     this.sequence = 0;
-    this.state = Reader.STATE.FUNCTION_DECLARATIONS;
+    this.state = Reader.State.FUNCTION_DECLARATIONS;
     this.emit("functionDeclarations", nDecls);
 };
 
@@ -414,21 +418,21 @@ Reader.prototype._readFunctionDeclarations = function () {
         this.emit("functionDeclaration", decl, index);
     }
     this.emit("functionDeclarationsEnd");
-    this.state = Reader.STATE.FUNCTION_POINTERS_COUNT;
+    this.state = Reader.State.FUNCTION_POINTER_TABLES_COUNT;
 };
 
-Reader.prototype._readFunctionPointersCount = function () {
+Reader.prototype._readFunctionPointerTablesCount = function () {
     var off = 0;
     var vi = util.readVarint(this.buffer, off); off += vi.length;
     var nTables = vi.value;
     this._advance(off);
     this.assembly.initFunctionPointerTablePool(nTables);
     this.sequence = 0;
-    this.state = Reader.STATE.FUNCTION_POINTERS;
+    this.state = Reader.State.FUNCTION_POINTER_TABLES;
     this.emit("functionPointerTables", nTables);
 };
 
-Reader.prototype._readFunctionPointers = function () {
+Reader.prototype._readFunctionPointerTables = function () {
     var size = this.assembly.getFunctionPointerTablePoolSize();
     while (this.sequence < size) {
         var off = 0;
@@ -447,7 +451,7 @@ Reader.prototype._readFunctionPointers = function () {
         this.emit("functionPointerTable", table, index);
     }
     this.emit("functionPointerTablesEnd");
-    this.state = Reader.STATE.FUNCTION_DEFINITIONS;
+    this.state = Reader.State.FUNCTION_DEFINITIONS;
     this.sequence = 0;
     this.emit("functionDefinitions", this.assembly.getFunctionDeclarationPoolSize());
 };
@@ -493,7 +497,7 @@ Reader.prototype._readFunctionDefinitions = function() {
             var remainingBuffer = this.astReader.buffer;
             this.astReader.removeAllListeners();
             this.astReader = null;
-            this.state = Reader.STATE.FUNCTION_DEFINITIONS;
+            this.state = Reader.State.FUNCTION_DEFINITIONS;
             ++this.sequence;
             this.write(remainingBuffer);
         }.bind(this));
@@ -511,7 +515,7 @@ Reader.prototype._readFunctionDefinitions = function() {
 
     }
     this.emit("functionDefinitionsEnd");
-    this.state = Reader.STATE.EXPORT;
+    this.state = Reader.State.EXPORT;
     return false;
 };
 
@@ -544,5 +548,5 @@ Reader.prototype._readExport = function() {
             throw Error("illegal export format: "+format);
     }
     this.emit("export", exprt);
-    this.state = Reader.STATE.END;
+    this.state = Reader.State.END;
 };

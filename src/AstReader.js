@@ -96,7 +96,7 @@ var AstReader = module.exports = function(functionDefinition, options) {
      * State stack.
      * @type {!Array.<number>}
      */
-    this.state = [AstReader.STATE.STMT_LIST];
+    this.state = [AstReader.State.STMT_LIST];
 
     /**
      * Processing stack.
@@ -108,7 +108,7 @@ var AstReader = module.exports = function(functionDefinition, options) {
      * Read state closure.
      * @type {!AstReadState}
      */
-    this.readState = new AstReadState(this, AstReader.STATE.POP);
+    this.readState = new AstReadState(this, AstReader.State.POP);
 
     /**
      * Whether to skip ahead, not parsing the AST in detail.
@@ -125,7 +125,7 @@ AstReader.prototype = Object.create(stream.Writable.prototype);
  * @type {!Object.<string,number>}
  * @const
  */
-AstReader.STATE = {
+AstReader.State = {
     STMT_LIST: 0,
     STMT: 1,
     EXPR_I32: 2,
@@ -147,16 +147,16 @@ AstReader.STATE = {
 var stateForType = AstReader.stateForType = function(type, exprVoid) {
     switch (type) {
         case types.RType.I32:
-            return AstReader.STATE.EXPR_I32;
+            return AstReader.State.EXPR_I32;
             break;
         case types.RType.F32:
-            return AstReader.STATE.EXPR_F32;
+            return AstReader.State.EXPR_F32;
             break;
         case types.RType.F64:
-            return AstReader.STATE.EXPR_F64;
+            return AstReader.State.EXPR_F64;
             break;
         case types.RType.Void:
-            return exprVoid ? AstReader.STATE.EXPR_VOID : AstReader.STATE.STMT;
+            return exprVoid ? AstReader.State.EXPR_VOID : AstReader.State.STMT;
         default:
             throw Error("illegal type: "+type);
     }
@@ -203,28 +203,28 @@ AstReader.prototype._process = function() {
         var state = this.state.pop();
         try {
             switch (state) {
-                case AstReader.STATE.STMT_LIST:
+                case AstReader.State.STMT_LIST:
                     this._readStmtList();
                     break;
-                case AstReader.STATE.STMT:
+                case AstReader.State.STMT:
                     this._readStmt();
                     break;
-                case AstReader.STATE.EXPR_I32:
+                case AstReader.State.EXPR_I32:
                     this._readExprI32();
                     break;
-                case AstReader.STATE.EXPR_F32:
+                case AstReader.State.EXPR_F32:
                     this._readExprF32();
                     break;
-                case AstReader.STATE.EXPR_F64:
+                case AstReader.State.EXPR_F64:
                     this._readExprF64();
                     break;
-                case AstReader.STATE.EXPR_VOID:
+                case AstReader.State.EXPR_VOID:
                     this._readExprVoid();
                     break;
-                case AstReader.STATE.SWITCH:
+                case AstReader.State.SWITCH:
                     this._readSwitch();
                     break;
-                case AstReader.STATE.POP:
+                case AstReader.State.POP:
                     this.stack.pop();
                     break;
                 default:
@@ -258,14 +258,14 @@ AstReader.prototype._readStmtList = function() {
     if (!this.skipAhead)
         this.stack.push(new StmtList(size));
     for (var i=0; i<size; ++i)
-        this.state.push(AstReader.STATE.STMT);
+        this.state.push(AstReader.State.STMT);
 };
 
 AstReader.prototype._readStmt = function() {
     var s = this.readState;
 
     var code = s.code(undefined);
-    var STATE = AstReader.STATE;
+    var State = AstReader.State;
     var temp, i;
 
     if (code.imm === null) {
@@ -297,7 +297,7 @@ AstReader.prototype._readStmt = function() {
             case Op.I32Store16:
             case Op.I32Store32:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<I32> value
@@ -305,31 +305,31 @@ AstReader.prototype._readStmt = function() {
             case Op.I32StoreOff16:
             case Op.I32StoreOff32:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> heap index + Stmt<F32> value
             case Op.F32Store:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F32);
+                s.expect(State.EXPR_I32, State.EXPR_F32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<F32> value
             case Op.F32StoreOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F32);
+                s.expect(State.EXPR_I32, State.EXPR_F32);
                 break;
 
             // opcode + Stmt<I32> heap index + Stmt<F64> value
             case Op.F64Store:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F64);
+                s.expect(State.EXPR_I32, State.EXPR_F64);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<F64> value
             case Op.F64StoreOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F64);
+                s.expect(State.EXPR_I32, State.EXPR_F64);
                 break;
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
@@ -358,7 +358,7 @@ AstReader.prototype._readStmt = function() {
             case Op.CallInd:
                 temp = s.indirect(s.varint()); // FunctionPointerTable
                 s.emit(temp);
-                var expectFromIndArgs = [STATE.EXPR_I32];
+                var expectFromIndArgs = [State.EXPR_I32];
                 temp.signature.argumentTypes.forEach(function(type) {
                     expectFromIndArgs.push(stateForType(type));
                 });
@@ -379,38 +379,38 @@ AstReader.prototype._readStmt = function() {
                 s.emit();
                 var expectFromCount = [];
                 for (i = 0; i < temp; ++i)
-                    expectFromCount.push(STATE.STMT);
+                    expectFromCount.push(State.STMT);
                 s.expect(expectFromCount);
                 break;
 
             // opcode + Stmt<I32> condition + Stmt<Void> then
             case Op.IfThen:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.STMT);
+                s.expect(State.EXPR_I32, State.STMT);
                 break;
 
             // opcode + Stmt<I32> condition + Stmt<Void> then + Stmt<Void> else
             case Op.IfElse:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.STMT, STATE.STMT);
+                s.expect(State.EXPR_I32, State.STMT, State.STMT);
                 break;
 
             // opcode + Stmt<I32> condition + Stmt<Void> body
             case Op.While:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.STMT);
+                s.expect(State.EXPR_I32, State.STMT);
                 break;
 
             // opcode + Stmt<void> body + Stmt<I32> condition
             case Op.Do:
                 s.emit();
-                s.expect(STATE.STMT, STATE.EXPR_I32);
+                s.expect(State.STMT, State.EXPR_I32);
                 break;
 
             // opcode + Stmt<void> body
             case Op.Label:
                 s.emit();
-                s.expect(STATE.STMT);
+                s.expect(State.STMT);
                 break;
 
             // opcode
@@ -429,9 +429,9 @@ AstReader.prototype._readStmt = function() {
             case Op.Switch:
                 temp = s.varint();
                 s.emit();
-                var expectFromSwitch = [STATE.EXPR_I32];
+                var expectFromSwitch = [State.EXPR_I32];
                 for (i = 0; i < temp; ++i)
-                    expectFromSwitch.push(STATE.SWITCH);
+                    expectFromSwitch.push(State.SWITCH);
                 s.expect(expectFromSwitch);
                 break;
 
@@ -468,11 +468,10 @@ AstReader.prototype._readSwitch = function() {
     var sw = this.stack[this.stack.length-1];
     if (!this.skipAhead && sw.code !== types.Stmt.Switch)
         throw Error("illegal state: not a switch statement: "+sw);
-    var STATE = AstReader.STATE;
 
+    var State = AstReader.State;
     var s = this.readState;
     var switchType = s.u8();
-
     var switchOperands = [switchType];
     var expectWithinSwitch = [];
     var temp, i;
@@ -483,7 +482,7 @@ AstReader.prototype._readSwitch = function() {
             break;
         case types.SwitchCase.Case1:
             switchOperands.push(s.varint());
-            expectWithinSwitch.push(STATE.STMT);
+            expectWithinSwitch.push(State.STMT);
             s.advance();
             break;
         case types.SwitchCase.CaseN:
@@ -491,20 +490,20 @@ AstReader.prototype._readSwitch = function() {
             temp = s.varint();
             s.advance();
             for (i=0; i<temp; ++i)
-                expectWithinSwitch.push(STATE.STMT);
+                expectWithinSwitch.push(State.STMT);
             break;
         case types.SwitchCase.Default0:
             s.advance();
             break;
         case types.SwitchCase.Default1:
             s.advance();
-            expectWithinSwitch.push(STATE.STMT);
+            expectWithinSwitch.push(State.STMT);
             break;
         case types.SwitchCase.DefaultN:
             temp = s.varint();
             s.advance();
             for (i=0; i<temp; ++i)
-                expectWithinSwitch.push(STATE.STMT);
+                expectWithinSwitch.push(State.STMT);
             break;
         default:
             throw Error("illegal switch case type: " + switchType);
@@ -517,10 +516,8 @@ AstReader.prototype._readSwitch = function() {
 
 AstReader.prototype._readExprI32 = function() {
     var s = this.readState;
-
+    var State = AstReader.State;
     var code = s.code(types.RType.I32);
-    var STATE = AstReader.STATE;
-
     var temp, i;
     if (code.imm === null) {
         if (verbose >= 1)
@@ -552,14 +549,14 @@ AstReader.prototype._readExprI32 = function() {
             case Op.SetLoc:
                 temp = s.local(s.varint());
                 s.emit(temp);
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + global variable index + Stmt<I32> value
             case Op.SetGlo:
                 temp = s.global(s.varint());
                 s.emit(temp);
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> heap index
@@ -569,7 +566,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.ULoad16:
             case Op.Load32:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index
@@ -579,7 +576,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.ULoadOff16:
             case Op.LoadOff32:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> heap index + Stmt<I32>
@@ -587,7 +584,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.Store16:
             case Op.Store32:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<I32> value
@@ -595,7 +592,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.StoreOff16:
             case Op.StoreOff32:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
@@ -624,7 +621,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.CallInd:
                 temp = s.indirect(s.varint()); // FunctionPointerTable
                 s.emit(temp);
-                expectFromArgs = [STATE.EXPR_I32];
+                expectFromArgs = [State.EXPR_I32];
                 temp.signature.argumentTypes.forEach(function(type) {
                     expectFromArgs.push(stateForType(type));
                 });
@@ -634,26 +631,26 @@ AstReader.prototype._readExprI32 = function() {
             // opcode + Stmt<I32> condition + Stmt<I32> then + Stmt<I32> else
             case Op.Cond:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + U8 RType + Stmt<previous RType> + Stmt<I32>
             case Op.Comma:
                 temp = s.u8();
                 s.emit();
-                s.expect(stateForType(temp, true), STATE.EXPR_I32);
+                s.expect(stateForType(temp, true), State.EXPR_I32);
                 break;
 
             // opcode + Stmt<F32> value
             case Op.FromF32:
                 s.emit();
-                s.expect(STATE.EXPR_F32);
+                s.expect(State.EXPR_F32);
                 break;
 
             // opcode + Stmt<F64> value
             case Op.FromF64:
                 s.emit();
-                s.expect(STATE.EXPR_F64);
+                s.expect(State.EXPR_F64);
                 break;
 
             // opcode + Stmt<I32> value
@@ -663,7 +660,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.LogicNot:
             case Op.Abs:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> left + Stmt<I32> right
@@ -691,7 +688,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.SGrEqI32:
             case Op.UGrEqI32:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+                s.expect(State.EXPR_I32, State.EXPR_I32);
                 break;
 
             // opcode + Stmt<F32> left + Stmt<F32> right
@@ -702,7 +699,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.GrThF32:
             case Op.GrEqF32:
                 s.emit();
-                s.expect(STATE.EXPR_F32, STATE.EXPR_F32);
+                s.expect(State.EXPR_F32, State.EXPR_F32);
                 break;
 
             // opcode + Stmt<F64> left + Stmt<F64> right
@@ -713,7 +710,7 @@ AstReader.prototype._readExprI32 = function() {
             case Op.GrThF64:
             case Op.GrEqF64:
                 s.emit();
-                s.expect(STATE.EXPR_F64, STATE.EXPR_F64);
+                s.expect(State.EXPR_F64, State.EXPR_F64);
                 break;
 
             // opcode + num args + num args * Stmt<I32>
@@ -725,7 +722,7 @@ AstReader.prototype._readExprI32 = function() {
                 s.emit();
                 var expectFromCount = [];
                 for (i = 0; i < temp; ++i)
-                    expectFromCount.push(STATE.EXPR_I32);
+                    expectFromCount.push(State.EXPR_I32);
                 s.expect(expectFromCount);
                 break;
 
@@ -762,9 +759,8 @@ AstReader.prototype._readExprI32 = function() {
 
 AstReader.prototype._readExprF32 = function() {
     var s = this.readState;
-
+    var State = AstReader.State;
     var code = s.code(types.RType.F32);
-    var STATE = AstReader.STATE;
 
     if (verbose >= 1)
         console.log("processing F32:" + types.F32Names[code.op]);
@@ -797,37 +793,37 @@ AstReader.prototype._readExprF32 = function() {
             // opcode + local variable index + Stmt<F32> value
             case Op.SetLoc:
                 s.emit(s.local(s.varint()));
-                s.expect(STATE.EXPR_F32);
+                s.expect(State.EXPR_F32);
                 break;
 
             // opcode + global variable index + Stmt<F32> value
             case Op.SetGlo:
                 s.emit(s.global(s.varint()));
-                s.expect(STATE.EXPR_F32);
+                s.expect(State.EXPR_F32);
                 break;
 
             // opcode + Stmt<I32> heap index
             case Op.Load:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index
             case Op.LoadOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> heap index + Stmt<F32> value
             case Op.Store:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F32);
+                s.expect(State.EXPR_I32, State.EXPR_F32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<F32> value
             case Op.StoreOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F32);
+                s.expect(State.EXPR_I32, State.EXPR_F32);
                 break;
 
             // opcode + internal function index + argument list as Stmt<args[i] type>, ...
@@ -845,7 +841,7 @@ AstReader.prototype._readExprF32 = function() {
             case Op.CallInd:
                 temp = s.indirect(s.varint()); // FunctionPointerTable
                 s.emit(temp);
-                expectFromArgs = [STATE.EXPR_I32];
+                expectFromArgs = [State.EXPR_I32];
                 temp.signature.argumentTypes.forEach(function (type) {
                     expectFromArgs.push(stateForType(type));
                 });
@@ -855,27 +851,27 @@ AstReader.prototype._readExprF32 = function() {
             // opcode + Stmt<I32> condition + Stmt<F32> then + Stmt<F32> else
             case Op.Cond:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F32, STATE.EXPR_F32);
+                s.expect(State.EXPR_I32, State.EXPR_F32, State.EXPR_F32);
                 break;
 
             // opcode + U8 RType + Stmt<previous RType> left + Stmt<F32> right
             case Op.Comma:
                 temp = s.u8();
                 s.emit();
-                s.expect(stateForType(temp, true), STATE.EXPR_F32);
+                s.expect(stateForType(temp, true), State.EXPR_F32);
                 break;
 
             // opcode + Stmt<I32> value
             case Op.FromS32:
             case Op.FromU32:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<F64> value
             case Op.FromF64:
                 s.emit();
-                s.expect(STATE.EXPR_F64);
+                s.expect(State.EXPR_F64);
                 break;
 
             // opcode + Stmt<F32> value
@@ -885,7 +881,7 @@ AstReader.prototype._readExprF32 = function() {
             case Op.Floor:
             case Op.Sqrt:
                 s.emit();
-                s.expect(STATE.EXPR_F32);
+                s.expect(State.EXPR_F32);
                 break;
 
             // opcode + Stmt<F32> left + Stmt<F32> right
@@ -894,7 +890,7 @@ AstReader.prototype._readExprF32 = function() {
             case Op.Mul:
             case Op.Div:
                 s.emit();
-                s.expect(STATE.EXPR_F32, STATE.EXPR_F32);
+                s.expect(State.EXPR_F32, State.EXPR_F32);
                 break;
 
             default:
@@ -922,10 +918,8 @@ AstReader.prototype._readExprF32 = function() {
 
 AstReader.prototype._readExprF64 = function() {
     var s = this.readState;
-
+    var State = AstReader.State;
     var code = s.code(types.RType.F64);
-    var STATE = AstReader.STATE;
-
     var temp, i;
     if (code.imm === null) {
         if (verbose >= 1)
@@ -957,37 +951,37 @@ AstReader.prototype._readExprF64 = function() {
             // opcode + local variable index + Stmt<F64> value
             case Op.SetLoc:
                 s.emit(s.local(s.varint()));
-                s.expect(STATE.EXPR_F64);
+                s.expect(State.EXPR_F64);
                 break;
 
             // opcode + global variable index + Stmt<F64> value
             case Op.SetGlo:
                 s.emit(s.global(s.varint()));
-                s.expect(STATE.EXPR_F64);
+                s.expect(State.EXPR_F64);
                 break;
 
             // opcode + Stmt<I32> heap index
             case Op.Load:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + offset + Stmt<I32> heap index
             case Op.LoadOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<I32> heap index + Stmt<F64> value
             case Op.Store:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F64);
+                s.expect(State.EXPR_I32, State.EXPR_F64);
                 break;
 
             // opcode + offset + Stmt<I32> heap index + Stmt<F64> value
             case Op.StoreOff:
                 s.emit(s.varint());
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F64);
+                s.expect(State.EXPR_I32, State.EXPR_F64);
                 break;
 
             // opcode + internal function index + argument list as Stmt<args[i] type>
@@ -1016,7 +1010,7 @@ AstReader.prototype._readExprF64 = function() {
             case Op.CallInd:
                 temp = s.indirect(s.varint()); // FunctionPointerTable
                 s.emit(temp);
-                expectFromArgs = [STATE.EXPR_I32];
+                expectFromArgs = [State.EXPR_I32];
                 temp.signature.argumentTypes.forEach(function (type) {
                     expectFromArgs.push(stateForType(type));
                 });
@@ -1026,27 +1020,27 @@ AstReader.prototype._readExprF64 = function() {
             // opcode + Stmt<I32> condition + Stmt<F64> then + Stmt<F64> else
             case Op.Cond:
                 s.emit();
-                s.expect(STATE.EXPR_I32, STATE.EXPR_F64, STATE.EXPR_F64);
+                s.expect(State.EXPR_I32, State.EXPR_F64, State.EXPR_F64);
                 break;
 
             // opcode + U8 RType + Stmt<previous RType> left + Stmt<F64> right
             case Op.Comma:
                 temp = s.u8();
                 s.emit();
-                s.expect(stateForType(temp, true), STATE.EXPR_F64);
+                s.expect(stateForType(temp, true), State.EXPR_F64);
                 break;
 
             // opcode + Stmt<I32> value
             case Op.FromS32:
             case Op.FromU32:
                 s.emit();
-                s.expect(STATE.EXPR_I32);
+                s.expect(State.EXPR_I32);
                 break;
 
             // opcode + Stmt<F32> value
             case Op.FromF32:
                 s.emit();
-                s.expect(STATE.EXPR_F32);
+                s.expect(State.EXPR_F32);
                 break;
 
             // opcode + Stmt<F64> value
@@ -1064,7 +1058,7 @@ AstReader.prototype._readExprF64 = function() {
             case Op.Exp:
             case Op.Ln:
                 s.emit();
-                s.expect(STATE.EXPR_F64);
+                s.expect(State.EXPR_F64);
                 break;
 
             // opcode + Stmt<F64> left + Stmt<F64> right
@@ -1080,7 +1074,7 @@ AstReader.prototype._readExprF64 = function() {
             // opcode + Stmt<F64> base + Stmt<F64> exponent
             case Op.Pow:
                 s.emit();
-                s.expect(STATE.EXPR_F64, STATE.EXPR_F64);
+                s.expect(State.EXPR_F64, State.EXPR_F64);
                 break;
 
             // opcode + num args + num args * Stmt<F64>
@@ -1090,7 +1084,7 @@ AstReader.prototype._readExprF64 = function() {
                 s.emit();
                 var expectFromCount = [];
                 for (i = 0; i < temp; ++i)
-                    expectFromCount.push(STATE.EXPR_F64);
+                    expectFromCount.push(State.EXPR_F64);
                 s.expect(expectFromCount);
                 break;
 
@@ -1122,9 +1116,8 @@ AstReader.prototype._readExprF64 = function() {
 
 AstReader.prototype._readExprVoid = function() {
     var s = this.readState;
-
+    var State = AstReader.State;
     var code = s.code_u8();
-    var STATE = AstReader.STATE;
 
     if (verbose >= 1)
         console.log("processing Void:" + types.VoidNames[code]);
@@ -1159,7 +1152,7 @@ AstReader.prototype._readExprVoid = function() {
         case types.Void.CallInd:
             temp = s.indirect(s.varint()); // FunctionPointerTable
             s.emit(temp);
-            var expectFromArgs = [STATE.EXPR_I32];
+            var expectFromArgs = [State.EXPR_I32];
             temp.signature.argumentTypes.forEach(function(type) {
                 expectFromArgs.push(stateForType(type));
             });

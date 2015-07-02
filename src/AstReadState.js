@@ -123,7 +123,7 @@ var AstReadState = module.exports = function(reader, popState) {
             return;
         if (stmt && !reader.skipAhead) {
             reader.stack.push(stmt);
-            args.push(/* AstReader.STATE.POP */ popState);
+            args.push(popState);
         }
         for (var i=args.length-1; i>=0; --i)
             reader.state.push(args[i]);

@@ -35,7 +35,7 @@ var Behavior = module.exports = function(description, read, write) {
 };
 
 var AstReader = require("../AstReader"), // cyclic
-    STATE = AstReader.STATE,
+    State = AstReader.State,
     stateForType = AstReader.stateForType;
 
 /**
@@ -81,7 +81,7 @@ Behavior.SetGlo = new Behavior("global variable index + Expr<global variable typ
 
 Behavior.IStore = new Behavior("Expr<I32> heap index + Expr<I32> value", function(s) {
     s.emit();
-    s.expect(STATE.EXPR_I32, STATE.EXPR_I32);
+    s.expect(State.EXPR_I32, State.EXPR_I32);
 }, function(s, stmt) {
     s.emit(stmt.code);
     s.continue(stmt.operands[0], stmt.operands[1]);
