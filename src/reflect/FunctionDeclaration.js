@@ -1,26 +1,29 @@
 var types = require("../types"),
     util = require("../util");
 
-var FunctionSignature = require("./FunctionSignature");
+var FunctionSignature = require("./FunctionSignature"),
+    BaseOperand = require("../stmt/BaseOperand");
 
 /**
  * A function declaration.
  * @constructor
- * @param {!Assembly} assembly
- * @param {number|!FunctionSignature} signature
+ * @param {!reflect.Assembly} assembly
+ * @param {number|!reflect.FunctionSignature} signature
+ * @extends stmt.BaseOperand
  * @exports reflect.FunctionDeclaration
  */
 function FunctionDeclaration(assembly, signature) {
+    BaseOperand.call(this);
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 
     /**
      * Signature reference.
-     * @type {!FunctionSignature}
+     * @type {!reflect.FunctionSignature}
      */
     this.signature = signature instanceof FunctionSignature
         ? signature
@@ -28,16 +31,19 @@ function FunctionDeclaration(assembly, signature) {
 
     /**
      * Function definition.
-     * @type {!FunctionDefinition}
+     * @type {reflect.FunctionDefinition}
      */
-    this.definition; // Assigned later on
+    this.definition = null; // Assigned later on
 }
 
 module.exports = FunctionDeclaration;
 
+// Extends BaseOperand
+FunctionDeclaration.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Function declaration index.
- * @name FunctionDeclaration#index
+ * @name reflect.FunctionDeclaration#index
  * @type {number}
  */
 Object.defineProperty(FunctionDeclaration.prototype, "index", {
@@ -48,7 +54,7 @@ Object.defineProperty(FunctionDeclaration.prototype, "index", {
 
 /**
  * Indexed name.
- * @name FunctionDeclaration#name
+ * @name reflect.FunctionDeclaration#name
  * @type {string}
  */
 Object.defineProperty(FunctionDeclaration.prototype, "name", {

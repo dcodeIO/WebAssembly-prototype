@@ -16,8 +16,7 @@
 var stream = require("stream"),
     util   = require("./util"),
     types  = require("./types"),
-    BufferQueue = require("../lib/BufferQueue"),
-    AstReader = require("./AstReader"),
+    AstReader = require("./ast/Reader"),
     StmtList = require("./stmt/StmtList");
 
 var Assembly = require("./reflect/Assembly");
@@ -40,9 +39,9 @@ function Reader(options) {
 
     /**
      * Buffer queue.
-     * @type {!BufferQueue}
+     * @type {!util.BufferQueue}
      */
-    this.bufferQueue = new BufferQueue();
+    this.bufferQueue = new util.BufferQueue();
 
     /**
      * Read sequence of the current operation.
@@ -52,13 +51,13 @@ function Reader(options) {
 
     /**
      * Assembly to populate.
-     * @type {Assembly}
+     * @type {reflect.Assembly}
      */
     this.assembly = null;
 
     /**
      * AstReader instance, if currently reading an AST.
-     * @type {AstReader}
+     * @type {ast.Reader}
      */
     this.astReader = null;
 
@@ -202,7 +201,7 @@ Reader.prototype._process = function() {
                     throw Error("illegal state: " + this.state);
             }
         } catch (err) {
-            if (err === BufferQueue.E_MORE)
+            if (err === util.BufferQueue.E_MORE)
                 return; // Wait for more
             this.emit("error", err);
             this.state = Reader.State.ERROR;

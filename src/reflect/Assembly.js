@@ -39,68 +39,68 @@ function Assembly(precomputedSize, options) {
 
     /**
      * I32 constants.
-     * @type {!Array.<!Constant>}
+     * @type {!Array.<!reflect.Constant>}
      */
     this.constantsI32 = [];
 
     /**
      * F32 constants.
-     * @type {!Array.<!Constant>}
+     * @type {!Array.<!reflect.Constant>}
      */
     this.constantsF32 = [];
 
     /**
      * F64 constants.
-     * @type {!Array.<!Constant>}
+     * @type {!Array.<!reflect.Constant>}
      */
     this.constantsF64 = [];
 
     /**
      * Function signatures.
-     * @type {!Array.<!FunctionSignature>}
+     * @type {!Array.<!reflect.FunctionSignature>}
      */
     this.functionSignatures = [];
 
     /**
      * Function imports.
-     * @type {!Array.<!FunctionImport>}
+     * @type {!Array.<!reflect.FunctionImport>}
      */
     this.functionImports = [];
 
     /**
      * Function import signatures.
-     * @type {!Array<!FunctionSignature>}
+     * @type {!Array<!reflect.FunctionSignature>}
      */
     this.functionImportSignatures = [];
 
     /**
      * Global variables.
-     * @type {!Array.<!GlobalVariable>}
+     * @type {!Array.<!reflect.GlobalVariable>}
      */
     this.globalVariables = [];
 
     /**
      * Function declarations including their respective definition.
-     * @type {!Array.<!FunctionDeclaration>}
+     * @type {!Array.<!reflect.FunctionDeclaration>}
      */
     this.functionDeclarations = [];
 
     /**
      * Function pointer tables.
-     * @type {!Array.<!FunctionPointerTable>}
+     * @type {!Array.<!reflect.FunctionPointerTable>}
      */
     this.functionPointerTables = [];
 
     /**
      * Export definition.
-     * @type {BaseExport}
+     * @type {reflect.BaseExport}
      */
     this.export = null;
 
     /**
-     * Naming style. Defaults to {@link Assembly.NamingStyle.ASM}.
+     * Naming style. Defaults to {@link reflect.Assembly.NamingStyle.ASM}.
      * @type {number}
-     * @see {@link Assembly.NamingStyle}
+     * @see {@link reflect.Assembly.NamingStyle}
      */
     this.namingStyle = options && util.values(Assembly.NamingStyle).indexOf(options.namingStyle) >= 0
         ? options.namingStyle
@@ -169,7 +169,7 @@ Assembly.prototype.getConstantPoolSizes = function() {
 /**
  * Gets the constants of the specified type.
  * @param {number} type
- * @returns {!Array.<!Constant>}
+ * @returns {!Array.<!reflect.Constant>}
  */
 Assembly.prototype.getConstantPool = function(type) {
     assertInteger("type", type);
@@ -190,7 +190,7 @@ Assembly.prototype.getConstantPool = function(type) {
  * @param {number} type
  * @param {number} index
  * @param {number} value
- * @returns {!Constant}
+ * @returns {!reflect.Constant}
  */
 Assembly.prototype.setConstant = function(type, index, value) {
     assertInteger("type", type);
@@ -212,7 +212,7 @@ Assembly.prototype.setConstant = function(type, index, value) {
  * Gets the constant of the specified type.
  * @param {number} type
  * @param {number} index
- * @returns {!Constant}
+ * @returns {!reflect.Constant}
  */
 Assembly.prototype.getConstant = function(type, index) {
     assertInteger("type", type);
@@ -297,7 +297,7 @@ Assembly.prototype.setFunctionSignature = function(index, returnType, argumentTy
 /**
  * Gets the function signature at the specified index.
  * @param {number} index
- * @returns {!FunctionSignature}
+ * @returns {!reflect.FunctionSignature}
  */
 Assembly.prototype.getFunctionSignature = function(index) {
     var size = this.getFunctionSignaturePoolSize();
@@ -307,8 +307,8 @@ Assembly.prototype.getFunctionSignature = function(index) {
 
 /**
  * Validates a function signature.
- * @param {!Assembly} assembly
- * @param {!FunctionSignature} signature
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.FunctionSignature} signature
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -399,7 +399,7 @@ Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
 /**
  * Gets the function import at the specified index.
  * @param {number} index
- * @returns {!FunctionImport}
+ * @returns {!reflect.FunctionImport}
  */
 Assembly.prototype.getFunctionImport = function(index) {
     var size = this.getFunctionImportPoolSize();
@@ -410,7 +410,7 @@ Assembly.prototype.getFunctionImport = function(index) {
 /**
  * Gets the function import signature at the specified index.
  * @param {number} index
- * @returns {!FunctionImportSignature}
+ * @returns {!reflect.FunctionImportSignature}
  */
 Assembly.prototype.getFunctionImportSignature = function(index) {
     var size = this.getFunctionImportSignaturePoolSize();
@@ -421,8 +421,8 @@ Assembly.prototype.getFunctionImportSignature = function(index) {
 /**
  * Validates a function import signature.
  * Does not inspect the function import signature pool for proper order.
- * @param {!Assembly} assembly
- * @param {!FunctionImportSignature} signature
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.FunctionImportSignature} signature
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -438,8 +438,8 @@ Assembly.validateFunctionImportSignature = function(assembly, signature, index) 
  * Validates a function import.
  * Does not inspect other function imports for proper order of function import signatures. Does not inspect enclosed
  * function import signatures in every detail (type and back-reference only).
- * @param {!Assembly} assembly
- * @param {!FunctionImport} import_
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.FunctionImport} import_
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -535,7 +535,7 @@ Assembly.prototype.getGlobalVariablePoolSize = function() {
  * @param {number} index
  * @param {number} type
  * @param {string=} importName
- * @returns {!GlobalVariable}
+ * @returns {!reflect.GlobalVariable}
  */
 Assembly.prototype.setGlobalVariable = function(index, type, importName) {
     var size = this.getGlobalVariablePoolSize();
@@ -549,7 +549,7 @@ Assembly.prototype.setGlobalVariable = function(index, type, importName) {
 /**
  * Gets the global variable at the specified index.
  * @param {number} index
- * @returns {!GlobalVariable}
+ * @returns {!reflect.GlobalVariable}
  */
 Assembly.prototype.getGlobalVariable = function(index) {
     var size = this.getGlobalVariablePoolSize();
@@ -560,8 +560,8 @@ Assembly.prototype.getGlobalVariable = function(index) {
 /**
  * Validates a global variable.
  * Does not inspect the global variable pool for proper order.
- * @param {!Assembly} assembly
- * @param {!GlobalVariable} variable
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.GlobalVariable} variable
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -622,7 +622,7 @@ Assembly.prototype.getFunctionDeclarationPoolSize = function() {
  * Sets the function declaration at the specified index.
  * @param {number} index
  * @param {number} signatureIndex
- * @returns {!FunctionDeclaration}
+ * @returns {!reflect.FunctionDeclaration}
  */
 Assembly.prototype.setFunctionDeclaration = function(index, signatureIndex) {
     var size = this.getFunctionDeclarationPoolSize();
@@ -635,7 +635,7 @@ Assembly.prototype.setFunctionDeclaration = function(index, signatureIndex) {
 /**
  * Gets the function declaration at the specified index.
  * @param {number} index
- * @returns {!FunctionDeclaration}
+ * @returns {!reflect.FunctionDeclaration}
  */
 Assembly.prototype.getFunctionDeclaration = function(index) {
     var size = this.getFunctionDeclarationPoolSize();
@@ -645,8 +645,8 @@ Assembly.prototype.getFunctionDeclaration = function(index) {
 
 /**
  * Validates a function declaration including its enclosed function definition.
- * @param {!Assembly} assembly
- * @param {!FunctionDeclaration} declaration
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.FunctionDeclaration} declaration
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -710,7 +710,7 @@ Assembly.prototype.getFunctionPointerTablePoolSize = function() {
  * @param {number} index
  * @param {number} signatureIndex
  * @param {!Array.<number>=} elements
- * @returns {FunctionPointerTable}
+ * @returns {!reflect.FunctionPointerTable}
  */
 Assembly.prototype.setFunctionPointerTable = function(index, signatureIndex, elements) {
     var size = this.getFunctionPointerTablePoolSize();
@@ -723,7 +723,7 @@ Assembly.prototype.setFunctionPointerTable = function(index, signatureIndex, ele
 /**
  * Gets the function pointer table at the specified index.
  * @param {number} index
- * @returns {!FunctionPointerTable}
+ * @returns {!reflect.FunctionPointerTable}
  */
 Assembly.prototype.getFunctionPointerTable = function(index) {
     var size = this.getFunctionPointerTablePoolSize();
@@ -733,8 +733,8 @@ Assembly.prototype.getFunctionPointerTable = function(index) {
 
 /**
  * Validate a function pointer table.
- * @param {!Assembly} assembly
- * @param {!FunctionPointerTable} table
+ * @param {!reflect.Assembly} assembly
+ * @param {!reflect.FunctionPointerTable} table
  * @param {number} index
  * @throws {assert.AssertionError}
  */
@@ -775,7 +775,7 @@ Assembly.prototype.validateFunctionPointerTables = function() {
  * @param {number} nF64vars
  * @param {number} byteOffset
  * @param {number=} byteLength
- * @returns {!FunctionDefinition}
+ * @returns {!reflect.FunctionDefinition}
  */
 Assembly.prototype.setFunctionDefinition = function(index, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
     var size = this.getFunctionDeclarationPoolSize();
@@ -787,7 +787,7 @@ Assembly.prototype.setFunctionDefinition = function(index, nI32vars, nF32vars, n
 /**
  * Gets the function definition at the specified index.
  * @param {number} index
- * @returns {!FunctionDefinition}
+ * @returns {!reflect.FunctionDefinition}
  */
 Assembly.prototype.getFunctionDefinition = function(index) {
     var size = this.getFunctionDeclarationPoolSize();
@@ -801,7 +801,7 @@ Assembly.prototype.getFunctionDefinition = function(index) {
 /**
  * Sets the export defined in default format.
  * @param {number} functionIndex
- * @returns {!DefaultExport}
+ * @returns {!reflect.DefaultExport}
  */
 Assembly.prototype.setDefaultExport = function(functionIndex) {
     var size = this.getFunctionDeclarationPoolSize();
@@ -812,7 +812,7 @@ Assembly.prototype.setDefaultExport = function(functionIndex) {
 /**
  * Sets the export defined in record format.
  * @param {!Object.<string,number>} functionIndexes
- * @returns {!RecordExport}
+ * @returns {!reflect.RecordExport}
  */
 Assembly.prototype.setRecordExport = function(functionIndexes) {
     var size = this.getFunctionDeclarationPoolSize();

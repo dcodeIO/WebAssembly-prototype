@@ -1,14 +1,18 @@
 var types = require("../types");
 
+var BaseOperand = require("../stmt/BaseOperand");
+
 /**
  * A global constant.
  * @constructor
  * @param {!Assembly} assembly
  * @param {number} type
  * @param {number} value
+ * @extends stmt.BaseOperand
  * @exports reflect.Constant
  */
 function Constant(assembly, type, value) {
+    BaseOperand.call(this);
 
     /**
      * Assembly reference.
@@ -31,9 +35,12 @@ function Constant(assembly, type, value) {
 
 module.exports = Constant;
 
+// Extends BaseOperand
+Constant.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Constant index in the constant pool of its respective type.
- * @name GlobalConstant#index
+ * @name reflect.Constant#index
  * @type {number}
  */
 Object.defineProperty(Constant.prototype, "index", {

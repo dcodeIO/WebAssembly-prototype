@@ -4,9 +4,9 @@ var BaseExport = require("./BaseExport"),
 /**
  * A record export.
  * @constructor
- * @param {!Assembly} assembly
- * @param {!Object.<string,number|!FunctionDeclaration>=} functions
- * @extends BaseExport
+ * @param {!reflect.Assembly} assembly
+ * @param {!Object.<string,number|!reflect.FunctionDeclaration>=} functions
+ * @extends reflect.BaseExport
  * @exports reflect.RecordExport
  */
 function RecordExport(assembly, functions) {
@@ -14,7 +14,7 @@ function RecordExport(assembly, functions) {
 
     /**
      * Internal function indexes by exported name.
-     * @type {!Object.<string,!FunctionDeclaration>}
+     * @type {!Object.<string,!reflect.FunctionDeclaration>}
      */
     this.functions = {};
     Object.keys(functions).forEach(function(name) {

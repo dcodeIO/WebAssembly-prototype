@@ -5,7 +5,7 @@ var types = require("../types"),
  * An I32 expression.
  * @constructor
  * @param {number} code
- * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
+ * @param {(!Array.<number|!stmt.BaseOperand>|number|!stmt.BaseOperand)=} operands
  * @constructor
  * @extends BaseStmt
  * @exports stmt.I32Stmt

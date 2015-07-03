@@ -21,6 +21,7 @@
  * convenience of relative read operations and occasionally performed rollbacks.
  *
  * @constructor
+ * @exports util.BufferQueue
  */
 var BufferQueue = module.exports = function() {
 

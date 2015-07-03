@@ -1,7 +1,7 @@
 /**
  * A function pointer element.
  * @constructor
- * @param {!FunctionPointerTable} table
+ * @param {!reflect.FunctionPointerTable} table
  * @param {number} value
  * @exports reflect.FunctionPointerElement
  */
@@ -9,7 +9,7 @@ function FunctionPointerElement(table, value) {
 
     /**
      * Function pointer table reference.
-     * @type {!FunctionPointerTable}
+     * @type {!reflect.FunctionPointerTable}
      */
     this.table = table;
 

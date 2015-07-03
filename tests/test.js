@@ -5,7 +5,7 @@ var fs = require("fs"),
 var webassembly = require("../"),
     types = webassembly.types,
     Reader = webassembly.Reader,
-    AstReader = webassembly.AstReader,
+    AstReader = webassembly.ast.Reader,
     Writer = webassembly.Writer,
     Assembly = webassembly.reflect.Assembly;
 
@@ -15,14 +15,14 @@ var file = path.join(__dirname, "AngryBots.wasm"),
 console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
-    // skipAhead: true
+    skipAhead: true
 });
 
-/* reader.on("switchState", function (prevState, newState, offset) {
+reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
 });
 
-reader.on("header", function (size) {
+/* reader.on("header", function (size) {
     console.log("Precomputed size: " + size);
 });
 
@@ -113,9 +113,11 @@ reader.on("export", function(exprt) {
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
-    // reader.assembly.validate();
     console.log("Complete: "+reader.assembly.toString());
-    // validateAstOffsets();
+    console.log("Validating assembly ...");
+    reader.assembly.validate();
+    console.log("Success");
+    validateAstOffsets();
 });
 
 console.log("Reading assembly ...");
@@ -161,6 +163,9 @@ function write(assembly) {
     var contents = fs.readFileSync(file),
         offset = 0;
     var writer = new Writer(assembly);
+    writer.on("switchState", function(state, previousState, offset) {
+        console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
+    });
     writer.on("data", function(chunk) {
         for (var i=0; i<chunk.length; ++i) {
             if (contents[offset+i] !== chunk[i]) {
@@ -171,7 +176,5 @@ function write(assembly) {
         }
         offset += chunk.length;
     });
-    writer.on("switchState", function(state, previousState, offset) {
-        console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
-    });
+    writer.resume();
 }

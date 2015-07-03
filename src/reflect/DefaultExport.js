@@ -14,7 +14,7 @@ function DefaultExport(assembly, function_) {
 
     /**
      * Exported function.
-     * @type {!FunctionDeclaration}
+     * @type {!reflect.FunctionDeclaration}
      */
     this.function = function_ instanceof FunctionDeclaration
         ? function_

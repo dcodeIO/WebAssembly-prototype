@@ -1,26 +1,24 @@
-var types = require("./types"),
-    util = require("./util");
+var types = require("../types"),
+    util = require("../util");
 
-var BufferQueue = require("../lib/BufferQueue");
-
-var Stmt = require("./stmt/Stmt"),
-    ExprI32 = require("./stmt/ExprI32"),
-    ExprF32 = require("./stmt/ExprF32"),
-    ExprF64 = require("./stmt/ExprF64"),
-    ExprVoid = require("./stmt/ExprVoid");
+var Stmt = require("../stmt/Stmt"),
+    ExprI32 = require("../stmt/ExprI32"),
+    ExprF32 = require("../stmt/ExprF32"),
+    ExprF64 = require("../stmt/ExprF64"),
+    ExprVoid = require("../stmt/ExprVoid");
 
 /**
  * AST read state.
  * @constructor
- * @param {!AstReader} reader
+ * @param {!ast.Reader} reader
  * @param {number} popState
- * @exports AstReadState
+ * @exports ast.ReadState
  */
-function AstReadState(reader, popState) {
+function ReadState(reader, popState) {
 
     /**
      * AstReader reference.
-     * @type {!AstReader}
+     * @type {!ast.Reader}
      */
     this.reader = reader;
 
@@ -44,18 +42,18 @@ function AstReadState(reader, popState) {
 
     /**
      * Current statement.
-     * @type {!BaseStmt|undefined}
+     * @type {!stmt.BaseStmt|undefined}
      */
     this._stmt = undefined;
 }
 
-module.exports = AstReadState;
+module.exports = ReadState;
 
 /**
  * Gets the current function's return type.
  * @returns {number}
  */
-AstReadState.prototype.rtype = function() {
+ReadState.prototype.rtype = function() {
     return this.reader.signature.returnType;
 };
 
@@ -64,7 +62,7 @@ AstReadState.prototype.rtype = function() {
  * @param {number} type
  * @returns {!{op: number, imm: number|null}}
  */
-AstReadState.prototype.code = function(type) {
+ReadState.prototype.code = function(type) {
     this._type = type;
     return this._code = util.unpackCode(this.reader.bufferQueue.readUInt8());
 };
@@ -73,7 +71,7 @@ AstReadState.prototype.code = function(type) {
  * Reads the next single-byte opcode.
  * @returns {number}
  */
-AstReadState.prototype.code_u8 = function() {
+ReadState.prototype.code_u8 = function() {
     this._type = types.RType.Void;
     return this.reader.bufferQueue.readUInt8();
 };
@@ -82,7 +80,7 @@ AstReadState.prototype.code_u8 = function() {
  * Reads the next varint.
  * @returns {number}
  */
-AstReadState.prototype.varint = function() {
+ReadState.prototype.varint = function() {
     return this.reader.bufferQueue.readVarint();
 };
 
@@ -90,7 +88,7 @@ AstReadState.prototype.varint = function() {
  * Reads the next unsigned 8bit integer.
  * @returns {number}
  */
-AstReadState.prototype.u8 = function() {
+ReadState.prototype.u8 = function() {
     return this.reader.bufferQueue.readUInt8();
 };
 
@@ -98,7 +96,7 @@ AstReadState.prototype.u8 = function() {
  * Reads the next 32bit float.
  * @returns {number}
  */
-AstReadState.prototype.f32 = function() {
+ReadState.prototype.f32 = function() {
     return this.reader.bufferQueue.readFloatLE();
 };
 
@@ -106,30 +104,30 @@ AstReadState.prototype.f32 = function() {
  * Reads the next 64bit double.
  * @returns {number}
  */
-AstReadState.prototype.f64 = function() {
+ReadState.prototype.f64 = function() {
     return this.reader.bufferQueue.readDoubleLE();
 };
 
 /**
  * Advances the backing buffer queue by the amount of bytes previously read.
  */
-AstReadState.prototype.advance = function() {
+ReadState.prototype.advance = function() {
     this.reader.bufferQueue.advance();
 };
 
 /**
  * Resets the backing buffer queue to the previous index and offset.
  */
-AstReadState.prototype.reset = function() {
+ReadState.prototype.reset = function() {
     this.reader.bufferQueue.reset();
 };
 
 /**
  * Gets the constant of matching type at the specified index.
  * @param {number} index
- * @returns {!Constant}
+ * @returns {!reflect.Constant}
  */
-AstReadState.prototype.const = function(index) {
+ReadState.prototype.const = function(index) {
     switch (this._type) {
         case types.Type.I32:
             return this.reader.assembly.constantsI32[index];
@@ -143,45 +141,45 @@ AstReadState.prototype.const = function(index) {
 /**
  * Gets the local variable at the specified index.
  * @param {number} index
- * @returns {!LocalVariable}
+ * @returns {!reflect.LocalVariable}
  */
-AstReadState.prototype.local = function(index) {
+ReadState.prototype.local = function(index) {
     return this.reader.definition.variables[index];
 };
 
 /**
  * Gets the global variable at the specified index.
  * @param {number} index
- * @returns {!GlobalVariable}
+ * @returns {!reflect.GlobalVariable}
  */
-AstReadState.prototype.global = function(index) {
+ReadState.prototype.global = function(index) {
     return this.reader.assembly.globalVariables[index];
 };
 
 /**
  * Gets the function declaration at the specified index.
  * @param {number} index
- * @returns {!FunctionDeclaration}
+ * @returns {!reflect.FunctionDeclaration}
  */
-AstReadState.prototype.internal = function(index) {
+ReadState.prototype.internal = function(index) {
     return this.reader.assembly.functionDeclarations[index];
 };
 
 /**
  * Gets the function pointer table at the specified index.
  * @param {number} index
- * @returns {!FunctionPointerTable}
+ * @returns {!reflect.FunctionPointerTable}
  */
-AstReadState.prototype.indirect = function(index) {
+ReadState.prototype.indirect = function(index) {
     return this.reader.assembly.functionPointerTables[index];
 };
 
 /**
  * Gets the function import signature at the specified index.
  * @param {number} index
- * @returns {!FunctionSignature}
+ * @returns {!reflect.FunctionSignature}
  */
-AstReadState.prototype.import = function(index) {
+ReadState.prototype.import = function(index) {
     return this.reader.assembly.functionImportSignatures[index];
 };
 
@@ -189,7 +187,7 @@ AstReadState.prototype.import = function(index) {
  * Pushes a state or a list of state to the state queue.
  * @param {number|!Array.<number>} states
  */
-AstReadState.prototype.expect = function(states) {
+ReadState.prototype.expect = function(states) {
     if (typeof states === 'number') {
         if (this._stmt && !this.reader.skipAhead) {
             this.reader.stack.push(this._stmt);
@@ -212,9 +210,9 @@ AstReadState.prototype.expect = function(states) {
  * Emits a specific opcode.
  * @param {number} code
  * @param {(number|!Array.<number>)=} operands
- * @returns {!BaseStmt|undefined}
+ * @returns {!stmt.BaseStmt|undefined}
  */
-AstReadState.prototype.emit_code = function(code, operands) {
+ReadState.prototype.emit_code = function(code, operands) {
     if (this.reader.skipAhead) {
         this.reader.bufferQueue.advance();
         return;
@@ -246,15 +244,15 @@ AstReadState.prototype.emit_code = function(code, operands) {
 /**
  * Emits the matching opcode for the previous read operation.
  * @param {(number|!Array.<number>)=} operands
- * @returns {!BaseStmt|undefined}
+ * @returns {!stmt.BaseStmt|undefined}
  */
-AstReadState.prototype.emit = function(operands) {
+ReadState.prototype.emit = function(operands) {
     return this.emit_code(typeof this._code === 'number' ? this._code : this._code.op, operands);
 };
 
 /**
  * Finishes the read state.
  */
-AstReadState.prototype.finish = function() {
+ReadState.prototype.finish = function() {
     this.reader = this._type = this._code = this._stmt = null;
 };

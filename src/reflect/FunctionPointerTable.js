@@ -1,28 +1,31 @@
 var util = require("../util");
 
 var FunctionSignature = require("./FunctionSignature"),
-    FunctionPointerElement = require("./FunctionPointerElement");
+    FunctionPointerElement = require("./FunctionPointerElement"),
+    BaseOperand = require("../stmt/BaseOperand");
 
 /**
  * A function pointer table.
  * @constructor
- * @param {!Assembly} assembly
+ * @param {!reflect.Assembly} assembly
  * @param {number} index
- * @param {number|!FunctionSignature} signature
- * @param {!Array.<number|!FunctionPointerElement>} elements
+ * @param {number|!reflect.FunctionSignature} signature
+ * @param {!Array.<number|!reflect.FunctionPointerElement>} elements
+ * @extends stmt.BaseOperand
  * @exports reflect.FunctionPointerTable
  */
 function FunctionPointerTable(assembly, signature, elements) {
+    BaseOperand.call(this);
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 
     /**
      * Signature.
-     * @type {!FunctionSignature}
+     * @type {!reflect.FunctionSignature}
      */
     this.signature = signature instanceof FunctionSignature
         ? signature
@@ -30,7 +33,7 @@ function FunctionPointerTable(assembly, signature, elements) {
 
     /**
      * Elements.
-     * @type {!Array.<!FunctionPointerElement>}
+     * @type {!Array.<!reflect.FunctionPointerElement>}
      */
     this.elements = [];
     elements.forEach(function(element) {
@@ -44,9 +47,12 @@ function FunctionPointerTable(assembly, signature, elements) {
 
 module.exports = FunctionPointerTable;
 
+// Extends BaseOperand
+FunctionPointerTable.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Function pointer table index.
- * @name FunctionPointerTable#index
+ * @name reflect.FunctionPointerTable#index
  * @type {number}
  */
 Object.defineProperty(FunctionPointerTable.prototype, "index", {
@@ -55,6 +61,11 @@ Object.defineProperty(FunctionPointerTable.prototype, "index", {
     }
 });
 
+/**
+ * Indexed name.
+ * @name reflect.FunctionPointerTable#name
+ * @type {string}
+ */
 Object.defineProperty(FunctionPointerTable.prototype, "name", {
     get: function() {
         var func_name_base = this.assembly.functionImports.length + this.assembly.globalVariables.length;

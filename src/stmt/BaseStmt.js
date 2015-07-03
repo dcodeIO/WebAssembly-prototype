@@ -1,14 +1,18 @@
 var types = require("../types");
 
+var BaseOperand = require("./BaseOperand");
+
 /**
  * Abstract base class of all statements.
  * @constructor
  * @param {number} code
- * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
+ * @param {!Array.<number|stmt.!BaseOperand>|number|!stmt.BaseOperand} operands
  * @abstract
+ * @extends stmt.BaseOperand
  * @exports stmt.BaseStmt
  */
 function BaseStmt(code, operands) {
+    BaseOperand.call(this);
 
     /**
      * Opcode.
@@ -18,7 +22,7 @@ function BaseStmt(code, operands) {
 
     /**
      * Operands.
-     * @type {!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>}
+     * @type {!Array.<number|!stmt.BaseOperand>}
      */
     this.operands = Array.isArray(operands)
         ? operands
@@ -29,15 +33,18 @@ function BaseStmt(code, operands) {
 
 module.exports = BaseStmt;
 
+// Extends BaseOperand
+BaseStmt.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Statement type.
- * @name BaseStmt#type
+ * @name stmt.BaseStmt#type
  * @type {number|undefined}
  */
 
 /**
  * Gets the literal opcode name.
- * @name BaseStmt#name
+ * @name stmt.BaseStmt#name
  * @type {string|undefined}
  */
 Object.defineProperty(BaseStmt.prototype, "name", {
@@ -61,7 +68,7 @@ Object.defineProperty(BaseStmt.prototype, "name", {
 
 /**
  * Adds another operand.
- * @param {number|!BaseStmt} operand
+ * @param {number|!stmt.BaseOperand} operand
  */
 BaseStmt.prototype.add = function(operand) {
     this.operands.push(operand);

@@ -10,6 +10,10 @@ var DefaultExport = require("./reflect/DefaultExport");
 
 /**
  * A WebAssembly writer implemented as a readable stream.
+ *
+ * The writer is created in paused mode. Call {@link Writer#resume) to
+ * begin writing the assembly.
+ *
  * @constructor
  * @param {!Assembly} assembly
  * @param {!Object.<string,*>=} options
@@ -48,6 +52,8 @@ function Writer(assembly, options) {
      * @type {boolean}
      */
     this.started = false;
+
+    this.pause();
 }
 
 module.exports = Writer;
@@ -83,11 +89,6 @@ Writer.State = {
 };
 
 Writer.prototype._read = function(size) {
-    if (!this.started) { // Wait a tick for more event listeners after binding 'data'
-        this.started = true;
-        util.nextTick(Writer.prototype._read.bind(this, size));
-        return;
-    }
     while (size > 0) {
         var initialState = this.state,
             len = 0;

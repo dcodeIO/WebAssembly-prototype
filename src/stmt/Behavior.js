@@ -9,7 +9,7 @@ var Stmt = require("./Stmt"),
  * Behaviors defining how a statement is read and written.
  * @constructor
  * @param {string} description
- * @param {function(!AstReadState,number=)} read
+ * @param {function(!ReadState,number=)} read
  * @param {function(!AstWriteState,!BaseStmt)} write
  * @exports stmt.Behavior
  */
@@ -23,7 +23,7 @@ function Behavior(description, read, write) {
 
     /**
      * A function capable of reading a statement with this behaviour.
-     * @type {function(!AstReadState,number=)}
+     * @type {function(!ReadState,number=)}
      */
     this.read = read;
 
@@ -36,7 +36,7 @@ function Behavior(description, read, write) {
 
 module.exports = Behavior;
 
-var AstReader = require("../AstReader"), // cyclic
+var AstReader = require("../ast/Reader"), // cyclic
     State = AstReader.State,
     stateForType = AstReader.stateForType;
 

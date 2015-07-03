@@ -1,18 +1,22 @@
 var types = require("../types"),
     util = require("../util");
 
+var BaseOperand = require("../stmt/BaseOperand");
+
 /**
  * A local variable.
  * @constructor
- * @param {number|!FunctionDefinition} functionDefinition
+ * @param {number|!reflect.FunctionDefinition} functionDefinition
  * @param {number} type
+ * @extends stmt.BaseOperand
  * @exports reflect.LocalVariable
  */
 function LocalVariable(functionDefinition, type) {
+    BaseOperand.call(this);
 
     /**
      * Function definition reference.
-     * @type {!FunctionDefinition}
+     * @type {!reflect.FunctionDefinition}
      */
     this.functionDefinition = functionDefinition instanceof FunctionDefinition
         ? functionDefinition
@@ -29,9 +33,12 @@ module.exports = LocalVariable;
 
 var FunctionDefinition = require("./FunctionDefinition"); // cyclic
 
+// Extends BaseOperand
+LocalVariable.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Local variable index.
- * @name LocalVariable#index
+ * @name reflect.LocalVariable#index
  * @type {number}
  */
 Object.defineProperty(LocalVariable.prototype, "index", {
@@ -42,7 +49,7 @@ Object.defineProperty(LocalVariable.prototype, "index", {
 
 /**
  * Whether this local variable is a function argument or not.
- * @name LocalVariable#isArgument
+ * @name reflect.LocalVariable#isArgument
  * @type {boolean}
  */
 Object.defineProperty(LocalVariable.prototype, "isArgument", {
@@ -53,7 +60,7 @@ Object.defineProperty(LocalVariable.prototype, "isArgument", {
 
 /**
  * Indexed name.
- * @name LocalVariable#name
+ * @name reflect.LocalVariable#name
  * @type {string}
  */
 Object.defineProperty(LocalVariable.prototype, "name", {

@@ -1,24 +1,26 @@
-var FunctionSignature = require("./FunctionSignature");
+var FunctionSignature = require("./FunctionSignature"),
+    BaseOperand = require("../stmt/BaseOperand");
 
 /**
  * A function import signature.
  * @constructor
- * @param {!Assembly} assembly
- * @param {number|!FunctionImport} functionImport
- * @param {number|!FunctionSignature} signature
+ * @param {!reflect.Assembly} assembly
+ * @param {number|!reflect.FunctionImport} functionImport
+ * @param {number|!reflect.FunctionSignature} signature
+ * @extends stmt.BaseOperand
  * @exports reflect.FunctionImportSignature
  */
 function FunctionImportSignature(assembly, functionImport, signature) {
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 
     /**
      * Function import.
-     * @type {!FunctionImport}
+     * @type {!reflect.FunctionImport}
      */
     this.import = functionImport instanceof FunctionImport
         ? functionImport
@@ -26,7 +28,7 @@ function FunctionImportSignature(assembly, functionImport, signature) {
 
     /**
      * Function signature.
-     * @type {!FunctionSignature}
+     * @type {!reflect.FunctionSignature}
      */
     this.signature = signature instanceof FunctionSignature
         ? signature
@@ -37,9 +39,12 @@ module.exports = FunctionImportSignature;
 
 var FunctionImport = require("./FunctionImport"); // cyclic
 
+// Extends BaseOperand
+FunctionImportSignature.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Function import signature index.
- * @name FunctionImportSignature#index
+ * @name reflect.FunctionImportSignature#index
  * @type {number}
  */
 Object.defineProperty(FunctionImportSignature.prototype, "index", {

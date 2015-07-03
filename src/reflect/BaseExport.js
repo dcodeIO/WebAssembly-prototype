@@ -8,7 +8,7 @@ function BaseExport(assembly) {
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 }

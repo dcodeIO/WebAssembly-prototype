@@ -6,7 +6,7 @@ var FunctionSignature = require("./FunctionSignature");
 /**
  * A function definition.
  * @constructor
- * @param {!FunctionDeclaration} declaration
+ * @param {!reflect.FunctionDeclaration} declaration
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
@@ -18,13 +18,13 @@ function FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, byteOffse
 
     /**
      * Function declaration reference.
-     * @type {!FunctionDeclaration}
+     * @type {!reflect.FunctionDeclaration}
      */
     this.declaration = declaration;
 
     /**
      * Local variables.
-     * @type {!Array.<!LocalVariable>}
+     * @type {!Array.<!reflect.LocalVariable>}
      */
     this.variables = new Array(declaration.signature.argumentTypes.length + nI32vars + nF32vars + nF64vars);
     var index = 0;
@@ -52,7 +52,7 @@ function FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, byteOffse
 
     /**
      * Abstract syntax tree.
-     * @type {StmtList}
+     * @type {stmt.StmtList}
      */
     this.ast = null;
 }
@@ -63,7 +63,7 @@ var LocalVariable = require("./LocalVariable"); // cyclic
 
 /**
  * Indexed internal function name.
- * @name FunctionDefinition#name
+ * @name reflect.FunctionDefinition#name
  * @type {string}
  */
 Object.defineProperty(FunctionDefinition.prototype, "name", {

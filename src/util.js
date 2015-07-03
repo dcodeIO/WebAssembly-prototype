@@ -8,6 +8,13 @@ var types = require("./types"),
  */
 var util = module.exports = {};
 
+/**
+ * @alias util.BufferQueue
+ */
+util.BufferQueue = require("./util/BufferQueue");
+
+// ----- protocol -----
+
 util.unpackWithImm = function(b) {
     if ((b & types.ImmFlag) === 0)
         return false;
@@ -27,6 +34,26 @@ util.unpackCode = function(b) {
         op: b,
         imm: null
     };
+};
+
+util.calculateVarint = function(value) {
+    value = value >>> 0;
+    if (value < 1 << 7 ) return 1;
+    else if (value < 1 << 14) return 2;
+    else if (value < 1 << 21) return 3;
+    else if (value < 1 << 28) return 4;
+    else                      return 5;
+};
+
+util.writeVarint = function(buffer, u32, offset) {
+    var c = 1;
+    u32 >>>= 0;
+    while (u32 >= 1 << 7)
+        buffer[offset++] = (u32 & 0x7f) | 0x80,
+            u32 >>>= 7,
+            ++c;
+    buffer[offset] = u32;
+    return c;
 };
 
 /* util.readIfI32Lit = function(buffer, offset) {
@@ -75,6 +102,8 @@ util.unpackCode = function(b) {
     }
     return false;
 }; */
+
+// ----- asm.js naming -----
 
 // Identifier characters
 var IdenChars = [
@@ -155,24 +184,6 @@ util.variablePrefix = function(variableType) {
     }
 };
 
-util.combine = function(target, var_args) {
-    target = target || {};
-    Array.prototype.slice.call(arguments, 1).forEach(function(arg) {
-        for (var i in arg)
-            if (arg.hasOwnProperty(i))
-                target[i] = arg[i];
-    });
-    return target;
-};
-
-util.values = function(obj) {
-    var values = [];
-    for (var i in obj)
-        if (obj.hasOwnProperty(i))
-            values.push(obj[i]);
-    return values;
-};
-
 var FNAME_RE = /^[a-zA-Z_\$][a-zA-Z0-9_\$]*$/; // FIXME
 
 util.isValidFName = function(value) {
@@ -207,6 +218,16 @@ util.assertType = function(name, value) {
 util.assertFName = function(name, value) {
     if (!util.isValidFName(value))
         assert.fail(value, "function name", name+" must be a valid function name", "===");
+};
+
+// ----- general -----
+
+util.values = function(obj) {
+    var values = [];
+    for (var i in obj)
+        if (obj.hasOwnProperty(i))
+            values.push(obj[i]);
+    return values;
 };
 
 util.nextTick = function(callback) {

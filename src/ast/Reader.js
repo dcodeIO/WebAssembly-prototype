@@ -14,21 +14,20 @@
  limitations under the License.
  */
 var stream = require("stream"),
-    util   = require("./util"),
-    types  = require("./types"),
-    stmt   = require("./stmt/");
+    util   = require("../util"),
+    types  = require("../types"),
+    stmt   = require("../stmt/");
 
-var BufferQueue = require("../lib/BufferQueue"),
-    AstReadState = require("./AstReadState");
+var ReadState = require("./ReadState");
 
-var Constant = require("./reflect/Constant"),
-    GlobalVariable = require("./reflect/GlobalVariable"),
-    FunctionSignature = require("./reflect/FunctionSignature"),
-    FunctionDeclaration = require("./reflect/FunctionDeclaration"),
-    FunctionImport = require("./reflect/FunctionImport"),
-    FunctionImportSignature = require("./reflect/FunctionImportSignature"),
-    FunctionPointerTable = require("./reflect/FunctionPointerTable"),
-    LocalVariable = require("./reflect/LocalVariable");
+var Constant = require("../reflect/Constant"),
+    GlobalVariable = require("../reflect/GlobalVariable"),
+    FunctionSignature = require("../reflect/FunctionSignature"),
+    FunctionDeclaration = require("../reflect/FunctionDeclaration"),
+    FunctionImport = require("../reflect/FunctionImport"),
+    FunctionImportSignature = require("../reflect/FunctionImportSignature"),
+    FunctionPointerTable = require("../reflect/FunctionPointerTable"),
+    LocalVariable = require("../reflect/LocalVariable");
 
 var BaseStmt = stmt.BaseStmt,
     StmtList = stmt.StmtList,
@@ -39,66 +38,66 @@ var verbose = 0; // For debugging
 /**
  * An abstract syntax tree reader.
  * @constructor
- * @param {!FunctionDefinition} functionDefinition
- * @param {!BufferQueue=} bufferQueue
+ * @param {!reflect.FunctionDefinition} functionDefinition
+ * @param {!util.BufferQueue=} bufferQueue
  * @param {!Object.<string,*>=} options
- * @exports AstReader
+ * @exports ast.Reader
  */
-function AstReader(functionDefinition, bufferQueue, options) {
+function Reader(functionDefinition, bufferQueue, options) {
     stream.Writable.call(this, options);
 
-    if (!(bufferQueue instanceof BufferQueue)) {
+    if (!(bufferQueue instanceof util.BufferQueue)) {
         options = bufferQueue;
         bufferQueue = undefined;
     }
 
     /**
      * Function definition.
-     * @type {!FunctionDefinition}
+     * @type {!reflect.FunctionDefinition}
      */
     this.definition = functionDefinition;
 
     /**
      * Function declaration.
-     * @type {!FunctionDeclaration}
+     * @type {!reflect.FunctionDeclaration}
      */
     this.declaration = functionDefinition.declaration;
 
     /**
      * Function signature.
-     * @type {!FunctionSignature}
+     * @type {!reflect.FunctionSignature}
      */
     this.signature = this.declaration.signature;
 
     /**
      * Assembly.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = this.declaration.assembly;
 
     /**
      * Read buffer queue.
-     * @type {!BufferQueue}
+     * @type {!util.BufferQueue}
      */
-    this.bufferQueue = bufferQueue || new BufferQueue();
+    this.bufferQueue = bufferQueue || new util.BufferQueue();
 
     /**
      * State stack.
      * @type {!Array.<number>}
      */
-    this.state = [AstReader.State.STMT_LIST];
+    this.state = [Reader.State.STMT_LIST];
 
     /**
      * Processing stack.
-     * @type {Array.<!StmtList|!BaseStmt>}
+     * @type {Array.<!stmt.StmtList|!stmt.BaseStmt>}
      */
     this.stack = []; // Expected to contain the root StmtList only when finished
 
     /**
      * Read state closure.
-     * @type {!AstReadState}
+     * @type {!ast.ReadState}
      */
-    this.readState = new AstReadState(this, AstReader.State.POP);
+    this.readState = new ReadState(this, Reader.State.POP);
 
     /**
      * Whether to skip ahead, not parsing the AST in detail.
@@ -107,17 +106,17 @@ function AstReader(functionDefinition, bufferQueue, options) {
     this.skipAhead = !!(options && options.skipAhead);
 }
 
-module.exports = AstReader;
+module.exports = Reader;
 
 // Extends stream.Writable
-AstReader.prototype = Object.create(stream.Writable.prototype);
+Reader.prototype = Object.create(stream.Writable.prototype);
 
 /**
  * Global offset.
- * @name AstReader#offset
+ * @name ast.Reader#offset
  * @type {number}
  */
-Object.defineProperty(AstReader.prototype, "offset", {
+Object.defineProperty(Reader.prototype, "offset", {
     get: function() {
         return this.bufferQueue.offset;
     }
@@ -128,7 +127,7 @@ Object.defineProperty(AstReader.prototype, "offset", {
  * @type {!Object.<string,number>}
  * @const
  */
-AstReader.State = {
+Reader.State = {
     STMT_LIST: 0,
     STMT: 1,
     EXPR_I32: 2,
@@ -142,32 +141,32 @@ AstReader.State = {
 /**
  * Returns the reader state suitable for the specified statement type.
  * @function
- * @name AstReader.stateForType
+ * @name ast.Reader.stateForType
  * @param {number} type
  * @param {boolean=} exprVoid
  * @returns {number}
  */
-var stateForType = AstReader.stateForType = function(type) {
+var stateForType = Reader.stateForType = function(type) {
     switch (type) {
         case types.RType.I32:
-            return AstReader.State.EXPR_I32;
+            return Reader.State.EXPR_I32;
             break;
         case types.RType.F32:
-            return AstReader.State.EXPR_F32;
+            return Reader.State.EXPR_F32;
             break;
         case types.RType.F64:
-            return AstReader.State.EXPR_F64;
+            return Reader.State.EXPR_F64;
             break;
         case types.RType.Void:
-            return AstReader.State.EXPR_VOID;
+            return Reader.State.EXPR_VOID;
         default:
             throw Error("illegal type: "+type);
     }
 };
 
-var Behavior = require("./stmt/Behavior"); // cyclic
+var Behavior = require("../stmt/Behavior"); // cyclic
 
-AstReader.prototype._write = function (chunk, encoding, callback) {
+Reader.prototype._write = function (chunk, encoding, callback) {
     if (this.state.length === 0) { // Already done or failed
         callback(Error("already ended"));
         return;
@@ -183,7 +182,7 @@ AstReader.prototype._write = function (chunk, encoding, callback) {
     callback();
 };
 
-AstReader.prototype._process = function() {
+Reader.prototype._process = function() {
     if (this.state.length === 0)
         return;
     do {
@@ -209,35 +208,35 @@ AstReader.prototype._process = function() {
         var state = this.state.pop();
         try {
             switch (state) {
-                case AstReader.State.STMT_LIST:
+                case Reader.State.STMT_LIST:
                     this._readStmtList();
                     break;
-                case AstReader.State.STMT:
+                case Reader.State.STMT:
                     this._readStmt();
                     break;
-                case AstReader.State.EXPR_I32:
+                case Reader.State.EXPR_I32:
                     this._readExprI32();
                     break;
-                case AstReader.State.EXPR_F32:
+                case Reader.State.EXPR_F32:
                     this._readExprF32();
                     break;
-                case AstReader.State.EXPR_F64:
+                case Reader.State.EXPR_F64:
                     this._readExprF64();
                     break;
-                case AstReader.State.EXPR_VOID:
+                case Reader.State.EXPR_VOID:
                     this._readExprVoid();
                     break;
-                case AstReader.State.SWITCH:
+                case Reader.State.SWITCH:
                     this._readSwitch();
                     break;
-                case AstReader.State.POP:
+                case Reader.State.POP:
                     this.stack.pop();
                     break;
                 default:
                     throw Error("illegal state: " + this.state);
             }
         } catch (err) {
-            if (err === BufferQueue.E_MORE) {
+            if (err === util.BufferQueue.E_MORE) {
                 this.state.push(state); // Wait for more
                 return;
             }
@@ -250,7 +249,7 @@ AstReader.prototype._process = function() {
     } while (true);
 };
 
-AstReader.prototype._readStmtList = function() {
+Reader.prototype._readStmtList = function() {
     var s = this.readState;
 
     var size = s.varint();
@@ -259,14 +258,14 @@ AstReader.prototype._readStmtList = function() {
     if (!this.skipAhead)
         this.stack.push(new StmtList(size));
     for (var i=0; i<size; ++i)
-        this.state.push(AstReader.State.STMT);
+        this.state.push(Reader.State.STMT);
 };
 
-AstReader.prototype._readStmt = function() {
+Reader.prototype._readStmt = function() {
     var s = this.readState;
 
     var code = s.code();
-    var State = AstReader.State;
+    var State = Reader.State;
     var temp, i;
 
     if (code.imm === null) {
@@ -466,12 +465,12 @@ AstReader.prototype._readStmt = function() {
     }
 };
 
-AstReader.prototype._readSwitch = function() {
+Reader.prototype._readSwitch = function() {
     var sw = this.stack[this.stack.length-1];
     if (!this.skipAhead && sw.code !== types.Stmt.Switch)
         throw Error("illegal state: not a switch statement: "+sw);
 
-    var State = AstReader.State;
+    var State = Reader.State;
     var s = this.readState;
     var switchType = s.u8();
     var switchOperands = [switchType];
@@ -516,9 +515,9 @@ AstReader.prototype._readSwitch = function() {
         s.expect(expectWithinSwitch);
 };
 
-AstReader.prototype._readExprI32 = function() {
+Reader.prototype._readExprI32 = function() {
     var s = this.readState;
-    var State = AstReader.State;
+    var State = Reader.State;
     var code = s.code(types.RType.I32);
     var temp, i;
     if (code.imm === null) {
@@ -759,9 +758,9 @@ AstReader.prototype._readExprI32 = function() {
     }
 };
 
-AstReader.prototype._readExprF32 = function() {
+Reader.prototype._readExprF32 = function() {
     var s = this.readState;
-    var State = AstReader.State;
+    var State = Reader.State;
     var code = s.code(types.RType.F32);
 
     if (verbose >= 1)
@@ -918,9 +917,9 @@ AstReader.prototype._readExprF32 = function() {
     }
 };
 
-AstReader.prototype._readExprF64 = function() {
+Reader.prototype._readExprF64 = function() {
     var s = this.readState;
-    var State = AstReader.State;
+    var State = Reader.State;
     var code = s.code(types.RType.F64);
     var temp, i;
     if (code.imm === null) {
@@ -1116,9 +1115,9 @@ AstReader.prototype._readExprF64 = function() {
     }
 };
 
-AstReader.prototype._readExprVoid = function() {
+Reader.prototype._readExprVoid = function() {
     var s = this.readState;
-    var State = AstReader.State;
+    var State = Reader.State;
     var code = s.code_u8();
 
     if (verbose >= 1)
@@ -1168,7 +1167,7 @@ AstReader.prototype._readExprVoid = function() {
 
 /**
  * Inspects a statement structure.
- * @param {!BaseStmt|!StmtList|number} stmt
+ * @param {!stmt.BaseStmt|!stmt.StmtList|number} stmt
  * @param {number=} depth
  * @returns {string}
  * @inner
@@ -1209,7 +1208,7 @@ function inspect(stmt, depth) {
  * Returns a string representation of this AST reader's state.
  * @returns {string}
  */
-AstReader.prototype.inspect = function() {
+Reader.prototype.inspect = function() {
     var sb = [];
     sb.push("AstReader debug\n---------------\n");
     sb.push("Global offset: ", this.definition.byteOffset.toString(16), "\n");
@@ -1230,7 +1229,7 @@ AstReader.prototype.inspect = function() {
  * @param {*} c
  * @override
  */
-AstReader.prototype.emit = function(type, a, b, c) {
+Reader.prototype.emit = function(type, a, b, c) {
     var handler = this._events[type];
     if (typeof handler === 'undefined')
         return;

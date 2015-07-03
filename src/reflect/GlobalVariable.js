@@ -1,19 +1,23 @@
 var types = require("../types"),
     util = require("../util");
 
+var BaseOperand = require("../stmt/BaseOperand");
+
 /**
  * A global variable.
  * @constructor
- * @param {!Assembly} assembly
+ * @param {!reflect.Assembly} assembly
  * @param {number} type
- * @param {string=} name
+ * @param {string=} importName
+ * @extends stmt.BaseOperand
  * @exports reflect.GlobalVariable
  */
 function GlobalVariable(assembly,  type, importName) {
+    BaseOperand.call(this);
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 
@@ -32,9 +36,12 @@ function GlobalVariable(assembly,  type, importName) {
 
 module.exports = GlobalVariable;
 
+// Extends BaseOperand
+GlobalVariable.prototype = Object.create(BaseOperand.prototype);
+
 /**
  * Global variable index.
- * @name GlobalVariable#index
+ * @name reflect.GlobalVariable#index
  * @type {number}
  */
 Object.defineProperty(GlobalVariable.prototype, "index", {
@@ -45,7 +52,7 @@ Object.defineProperty(GlobalVariable.prototype, "index", {
 
 /**
  * Indexed name.
- * @name GlobalVariable#name
+ * @name reflect.GlobalVariable#name
  * @type {string}
  */
 Object.defineProperty(GlobalVariable.prototype, "name", {

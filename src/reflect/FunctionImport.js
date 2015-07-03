@@ -1,16 +1,16 @@
 /**
  * A function import.
  * @constructor
- * @param {!Assembly} assembly
+ * @param {!reflect.Assembly} assembly
  * @param {string} name
- * @param {!Array.<number|!FunctionImportSignature>} importSignatureIndexes
+ * @param {!Array.<number|!reflect.FunctionImportSignature>} importSignatures
  * @exports reflect.FunctionImport
  */
 function FunctionImport(assembly, name, importSignatures) {
 
     /**
      * Assembly reference.
-     * @type {!Assembly}
+     * @type {!reflect.Assembly}
      */
     this.assembly = assembly;
 
@@ -22,7 +22,7 @@ function FunctionImport(assembly, name, importSignatures) {
 
     /**
      * Function import signatures.
-     * @type {!Array.<!FunctionImportSignature>}
+     * @type {!Array.<!reflect.FunctionImportSignature>}
      */
     this.signatures = [];
     importSignatures.forEach(function(signature) {
@@ -40,7 +40,7 @@ var FunctionImportSignature = require("./FunctionImportSignature"); // cyclic
 
 /**
  * Function import index.
- * @name FunctionImport#index
+ * @name reflect.FunctionImport#index
  * @type {number}
  */
 Object.defineProperty(FunctionImport.prototype, "index", {

@@ -1,4 +1,5 @@
 exports.BaseStmt = require("./BaseStmt");
+exports.BaseOperand = require("./BaseOperand");
 
 exports.Stmt = require("./Stmt");
 exports.StmtList = require("./StmtList");
