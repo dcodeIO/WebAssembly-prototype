@@ -16,6 +16,7 @@
 var stream = require("stream"),
     util   = require("./util"),
     types  = require("./types"),
+    BufferQueue = require("../lib/BufferQueue"),
     AstReader = require("./AstReader"),
     StmtList = require("./stmt/StmtList");
 
@@ -27,7 +28,7 @@ var Assembly = require("./reflect/Assembly");
  * @param {!Object.<string,*>=} options 'skipAhead' skips parsing ASTs in detail
  * @exports Reader
  */
-var Reader = module.exports = function (options) {
+function Reader(options) {
     stream.Writable.call(this, options);
 
     /**
@@ -38,22 +39,10 @@ var Reader = module.exports = function (options) {
     this.state = Reader.State.HEADER;
 
     /**
-     * Read buffer.
-     * @type {Buffer}
+     * Buffer queue.
+     * @type {!BufferQueue}
      */
-    this.buffer = null;
-
-    /**
-     * Read buffer queue.
-     * @type {!Array.<!Buffer>}
-     */
-    this.queue = []; // Used to minimize calls to Buffer.concat
-
-    /**
-     * Read offset since start.
-     * @type {number}
-     */
-    this.offset = 0;
+    this.bufferQueue = new BufferQueue();
 
     /**
      * Read sequence of the current operation.
@@ -78,10 +67,23 @@ var Reader = module.exports = function (options) {
      * @type {!Object.<string,*>}
      */
     this.options = options || {};
-};
+}
+
+module.exports = Reader;
 
 // Extends stream.Writable
 Reader.prototype = Object.create(stream.Writable.prototype);
+
+/**
+ * Global offset.
+ * @name Reader#offset
+ * @type {number}
+ */
+Object.defineProperty(Reader.prototype, "offset", {
+    get: function() {
+        return this.bufferQueue.offset
+    }
+});
 
 /**
  * States.
@@ -111,16 +113,28 @@ Reader.State = {
 };
 
 Reader.prototype._write = function (chunk, encoding, callback) {
+    if (this.state === Reader.State.END) {
+        callback(new Error("already ended"));
+        return;
+    }
     if (this.astReader !== null) {
         this.astReader.write(chunk, encoding, callback);
         return;
     }
     if (encoding)
         chunk = new Buffer(chunk, encoding);
-    if (this.buffer === null || this.buffer.length === 0)
-        this.buffer = chunk;
-    else
-        this.queue.push(chunk);
+    if (chunk.length === 0) {
+        callback();
+        return;
+    }
+    this.bufferQueue.push(chunk);
+    this._process();
+    callback();
+};
+
+Reader.prototype._process = function() {
+    if (this.state === Reader.State.END)
+        return;
     do {
         var initialState = this.state;
         try {
@@ -171,17 +185,15 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                     this._readFunctionPointerTables();
                     break;
                 case Reader.State.FUNCTION_DEFINITIONS:
-                    if (this._readFunctionDefinitions()) {
-                        callback();
+                    if (this._readFunctionDefinitions())
                         return; // controlled by AstReader
-                    }
                     break;
                 case Reader.State.EXPORT:
                     this._readExport();
                     break;
                 case Reader.State.END:
-                    if (this.buffer.length > 0)
-                        throw Error("illegal trailing data: " + this.buffer.length);
+                    if (this.bufferQueue.remaining > 0)
+                        throw Error("illegal trailing data: " + this.bufferQueue.remaining);
                     this.emit("end", this.assembly);
                     return;
                 case Reader.State.ERROR:
@@ -190,68 +202,49 @@ Reader.prototype._write = function (chunk, encoding, callback) {
                     throw Error("illegal state: " + this.state);
             }
         } catch (err) {
-            if (err === util.E_MORE) {
-                if (this.queue.length > 0) {
-                    this.queue.unshift(this.buffer);
-                    this.buffer = Buffer.concat(this.queue);
-                    this.queue = [];
-                    continue; // Try again
-                }
-                callback();
+            if (err === BufferQueue.E_MORE)
                 return; // Wait for more
-            }
             this.emit("error", err);
             this.state = Reader.State.ERROR;
+            return;
+        } finally {
+            this.bufferQueue.reset();
         }
         if (this.state !== initialState)
             this.emit("switchState", initialState, this.state, this.offset);
     } while (true);
 };
 
-Reader.prototype._advance = function (nBytes) {
-    this.buffer = this.buffer.slice(nBytes);
-    this.offset += nBytes;
-};
-
 Reader.prototype._readHeader = function () {
-    if (this.buffer.length < 8)
-        throw util.E_MORE;
-    var off = 0;
-    var magic = this.buffer.readUInt32LE(off);
-    off += 4;
+    var magic = this.bufferQueue.readUInt32LE(),
+        size = this.bufferQueue.readUInt32LE();
     if (magic !== types.MagicNumber)
         throw Error("wrong magic number");
-    var size = this.buffer.readUInt32LE(off);
-    off += 4;
-    this._advance(off);
+    this.bufferQueue.advance();
     this.assembly = new Assembly(size, this.options);
     this.state = Reader.State.CONSTANTS_COUNT;
     this.emit("header", size);
 };
 
 Reader.prototype._readConstantsCount = function () {
-    var off = 0, vi;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nI32 = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF32 = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF64 = vi.value;
-    this._advance(off);
-    this.assembly.initConstantPools(nI32, nF32, nF64);
+    var countI32 = this.bufferQueue.readVarint(),
+        countF32 = this.bufferQueue.readVarint(),
+        countF64 = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
+    this.assembly.initConstantPools(countI32, countF32, countF64);
     this.sequence = 0;
     this.state = Reader.State.CONSTANTS_I32;
-    this.emit("constants", nI32, nF32, nF64);
+    this.emit("constants", countI32, countF32, countF64);
 };
 
 Reader.prototype._readConstantsI32 = function () {
     var size = this.assembly.getConstantPoolSize(types.Type.I32);
     while (this.sequence < size) {
-        var vi = util.readVarint(this.buffer, 0);
-        this._advance(vi.length);
-        var index = this.sequence++;
-        this.assembly.setConstant(types.Type.I32, index, vi.value);
-        this.emit("constant", types.Type.I32, vi.value, index);
+        var value = this.bufferQueue.readVarint(),
+            index = this.sequence++;
+        this.bufferQueue.advance();
+        var constant = this.assembly.setConstant(types.Type.I32, index, value);
+        this.emit("constant", constant, index);
     }
     this.sequence = 0;
     this.state = Reader.State.CONSTANTS_F32;
@@ -260,13 +253,11 @@ Reader.prototype._readConstantsI32 = function () {
 Reader.prototype._readConstantsF32 = function () {
     var size = this.assembly.getConstantPoolSize(types.Type.F32);
     while (this.sequence < size) {
-        if (this.buffer.length < 4)
-            throw util.E_MORE;
-        var value = this.buffer.readFloatLE(0);
-        this._advance(4);
-        var index = this.sequence++;
-        this.assembly.setConstant(types.Type.F32, index, value);
-        this.emit("constant", types.Type.F32, value, index);
+        var value = this.bufferQueue.readFloatLE(),
+            index = this.sequence++;
+        this.bufferQueue.advance();
+        var constant = this.assembly.setConstant(types.Type.F32, index, value);
+        this.emit("constant", constant, index);
     }
     this.sequence = 0;
     this.state = Reader.State.CONSTANTS_F64;
@@ -275,11 +266,9 @@ Reader.prototype._readConstantsF32 = function () {
 Reader.prototype._readConstantsF64 = function () {
     var size = this.assembly.getConstantPoolSize(types.Type.F64);
     while (this.sequence < size) {
-        if (this.buffer.length < 8)
-            throw util.E_MORE;
-        var value = this.buffer.readDoubleLE(0);
-        this._advance(8);
-        var index = this.sequence++;
+        var value = this.bufferQueue.readDoubleLE(),
+            index = this.sequence++;
+        this.bufferQueue.advance();
         var constant = this.assembly.setConstant(types.Type.F64, index, value);
         this.emit("constant", constant, index);
     }
@@ -288,33 +277,26 @@ Reader.prototype._readConstantsF64 = function () {
 };
 
 Reader.prototype._readSignaturesCount = function () {
-    var off = 0;
-    var vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nSigs = vi.value;
-    this._advance(off);
-    this.assembly.initFunctionSignaturePool(nSigs);
+    var count = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
+    this.assembly.initFunctionSignaturePool(count);
     this.sequence = 0;
     this.state = Reader.State.SIGNATURES;
-    this.emit("functionSignatures", nSigs);
+    this.emit("functionSignatures", count);
 };
 
 Reader.prototype._readSignatures = function () {
     var size = this.assembly.getFunctionSignaturePoolSize();
     while (this.sequence < size) {
-        if (this.buffer.length < 2) // RTYPE+VARINT
-            throw util.E_MORE;
-        var off = 0;
-        var rtype = this.buffer[off++];
-        var vi = util.readVarint(this.buffer, off); off += vi.length;
-        var nArgs = vi.value;
-        if (this.buffer.length < off + nArgs)
-            throw util.E_MORE;
-        var args = new Array(nArgs);
-        for (var i = 0; i < nArgs; ++i)
-            args[i] = this.buffer[off++];
-        this._advance(off);
+        var returnType = this.bufferQueue.readUInt8(),
+            argumentCount = this.bufferQueue.readVarint();
+        this.bufferQueue.ensure(argumentCount);
+        var args = new Array(argumentCount);
+        for (var i = 0; i < argumentCount; ++i)
+            args[i] = this.bufferQueue.readUInt8();
+        this.bufferQueue.advance();
         var index = this.sequence++;
-        var sig = this.assembly.setFunctionSignature(index, rtype, args);
+        var sig = this.assembly.setFunctionSignature(index, returnType, args);
         this.emit("functionSignature", sig, index);
     }
     this.emit("functionSignaturesEnd");
@@ -322,12 +304,9 @@ Reader.prototype._readSignatures = function () {
 };
 
 Reader.prototype._readFunctionImportsCount = function () {
-    var off = 0, vi;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var count = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var signatureCount = vi.value;
-    this._advance(off);
+    var count = this.bufferQueue.readVarint(),
+        signatureCount = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
     this.assembly.initFunctionImportPool(count, signatureCount);
     this.sequence = 0;
     this.state = Reader.State.FUNCTION_IMPORTS;
@@ -337,21 +316,14 @@ Reader.prototype._readFunctionImportsCount = function () {
 Reader.prototype._readFunctionImports = function () {
     var size = this.assembly.getFunctionImportPoolSize();
     while (this.sequence < size) {
-        var off = 0;
-        var cs = util.readCString(this.buffer, off); off += cs.length;
-        var fname = cs.value;
-        var vi = util.readVarint(this.buffer, off); off += vi.length;
-        var nSigs = vi.value;
-        var sigs = new Array(nSigs);
-        for (var i = 0; i < nSigs; ++i) {
-            vi = util.readVarint(this.buffer, off); off += vi.length;
-            if (vi.value >= this.assembly.getFunctionSignaturePoolSize())
-                throw Error("illegal signature reference: "+vi.value);
-            sigs[i] = vi.value;
-        }
-        this._advance(off);
+        var importName = this.bufferQueue.readCString(),
+            signatureCount = this.bufferQueue.readVarint();
+        var signatureIndexes = new Array(signatureCount);
+        for (var i = 0; i < signatureCount; ++i)
+            signatureIndexes[i] = this.bufferQueue.readVarint();
+        this.bufferQueue.advance();
         var index = this.sequence++;
-        var imp = this.assembly.setFunctionImport(index, fname, sigs);
+        var imp = this.assembly.setFunctionImport(index, importName, signatureIndexes);
         this.emit("functionImport", imp, index);
     }
     this.emit("functionImportsEnd");
@@ -359,23 +331,16 @@ Reader.prototype._readFunctionImports = function () {
 };
 
 Reader.prototype._readGlobalVariablesCount = function () {
-    var off = 0, vi;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nI32zero = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF32zero = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF64zero = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nI32import = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF32import = vi.value;
-    vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nF64import = vi.value;
-    this._advance(off);
-    this.sequence = this.assembly.initGlobalVariablePool(nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import);
+    var countI32Zero = this.bufferQueue.readVarint(),
+        countF32Zero = this.bufferQueue.readVarint(),
+        countF64Zero = this.bufferQueue.readVarint(),
+        countI32Import = this.bufferQueue.readVarint(),
+        countF32Import = this.bufferQueue.readVarint(),
+        countF64Import = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
+    this.sequence = this.assembly.initGlobalVariablePool(countI32Zero, countF32Zero, countF64Zero, countI32Import, countF32Import, countF64Import);
     this.state = Reader.State.GLOBAL_VARIABLES;
-    this.emit("globalVariables", nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import);
+    this.emit("globalVariables", countI32Zero, countF32Zero, countF64Zero, countI32Import, countF32Import, countF64Import);
     for (var i=0; i<this.sequence; ++i)
         this.emit("globalVariable", this.assembly.globalVariables[i]);
 };
@@ -383,13 +348,11 @@ Reader.prototype._readGlobalVariablesCount = function () {
 Reader.prototype._readGlobalVariables = function () {
     var size = this.assembly.getGlobalVariablePoolSize();
     while (this.sequence < size) {
-        var off = 0;
-        var cs = util.readCString(this.buffer, off);
-        var fname = cs.value;
-        this._advance(cs.length);
+        var importName = this.bufferQueue.readCString();
+        this.bufferQueue.advance();
         var index = this.sequence++;
         var global = this.assembly.getGlobalVariable(index);
-        global.importName = fname;
+        global.importName = importName;
         this.emit("globalVariable", global, index);
     }
     this.emit("globalVariablesEnd");
@@ -397,58 +360,46 @@ Reader.prototype._readGlobalVariables = function () {
 };
 
 Reader.prototype._readFunctionDeclarationsCount = function () {
-    var off = 0;
-    var vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nDecls = vi.value;
-    this._advance(off);
-    this.assembly.initFunctionDeclarationPool(nDecls);
+    var count = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
+    this.assembly.initFunctionDeclarationPool(count);
     this.sequence = 0;
     this.state = Reader.State.FUNCTION_DECLARATIONS;
-    this.emit("functionDeclarations", nDecls);
+    this.emit("functionDeclarations", count);
 };
 
 Reader.prototype._readFunctionDeclarations = function () {
     var size = this.assembly.getFunctionDeclarationPoolSize();
     while (this.sequence < size) {
-        var off = 0;
-        var vi = util.readVarint(this.buffer, off); off += vi.length;
-        this._advance(off);
-        var index = this.sequence++;
-        var decl = this.assembly.setFunctionDeclaration(index, vi.value);
-        this.emit("functionDeclaration", decl, index);
+        var signatureIndex = this.bufferQueue.readVarint(),
+            index = this.sequence++;
+        this.bufferQueue.advance();
+        this.emit("functionDeclaration", this.assembly.setFunctionDeclaration(index, signatureIndex), index);
     }
     this.emit("functionDeclarationsEnd");
     this.state = Reader.State.FUNCTION_POINTER_TABLES_COUNT;
 };
 
 Reader.prototype._readFunctionPointerTablesCount = function () {
-    var off = 0;
-    var vi = util.readVarint(this.buffer, off); off += vi.length;
-    var nTables = vi.value;
-    this._advance(off);
-    this.assembly.initFunctionPointerTablePool(nTables);
+    var count = this.bufferQueue.readVarint();
+    this.bufferQueue.advance();
+    this.assembly.initFunctionPointerTablePool(count);
     this.sequence = 0;
     this.state = Reader.State.FUNCTION_POINTER_TABLES;
-    this.emit("functionPointerTables", nTables);
+    this.emit("functionPointerTables", count);
 };
 
 Reader.prototype._readFunctionPointerTables = function () {
     var size = this.assembly.getFunctionPointerTablePoolSize();
     while (this.sequence < size) {
-        var off = 0;
-        var vi = util.readVarint(this.buffer, off); off += vi.length;
-        var sig = vi.value;
-        vi = util.readVarint(this.buffer, off); off += vi.length;
-        var nElems = vi.value;
-        var elems = new Array(nElems);
-        for (var i = 0; i < nElems; ++i) {
-            vi = util.readVarint(this.buffer, off); off += vi.length;
-            elems[i] = vi.value;
-        }
-        this._advance(off);
+        var signatureIndex = this.bufferQueue.readVarint(),
+            countElements = this.bufferQueue.readVarint();
+        var elements = new Array(countElements);
+        for (var i = 0; i < countElements; ++i)
+            elements[i] = this.bufferQueue.readVarint();
+        this.bufferQueue.advance();
         var index = this.sequence++;
-        var table = this.assembly.setFunctionPointerTable(index, sig, elems);
-        this.emit("functionPointerTable", table, index);
+        this.emit("functionPointerTable", this.assembly.setFunctionPointerTable(index, signatureIndex, elements), index);
     }
     this.emit("functionPointerTablesEnd");
     this.state = Reader.State.FUNCTION_DEFINITIONS;
@@ -459,60 +410,43 @@ Reader.prototype._readFunctionPointerTables = function () {
 Reader.prototype._readFunctionDefinitions = function() {
     var size = this.assembly.getFunctionDeclarationPoolSize();
     if (this.sequence < size) {
-        var off = 0;
         var nI32Vars = 0,
             nF32Vars = 0,
             nF64Vars = 0;
-        var code = util.readCode(this.buffer, off++);
-        var vi;
+        var code = util.unpackCode(this.bufferQueue.readUInt8());
         if (code.imm === null) {
-            if ((code.op & types.VarType.I32) === types.VarType.I32) {
-                vi = util.readVarint(this.buffer, off); off += vi.length;
-                nI32Vars = vi.value;
-            }
-            if ((code.op & types.VarType.F32) === types.VarType.F32) {
-                vi = util.readVarint(this.buffer, off); off += vi.length;
-                nF32Vars = vi.value;
-            }
-            if ((code.op & types.VarType.F64) === types.VarType.F64) {
-                vi = util.readVarint(this.buffer, off); off += vi.length;
-                nF64Vars = vi.value;
-            }
-        } else {
+            if ((code.op & types.VarType.I32) === types.VarType.I32)
+                nI32Vars = this.bufferQueue.readVarint();
+            if ((code.op & types.VarType.F32) === types.VarType.F32)
+                nF32Vars = this.bufferQueue.readVarint();
+            if ((code.op & types.VarType.F64) === types.VarType.F64)
+                nF64Vars = this.bufferQueue.readVarint();
+        } else
             nI32Vars = code.imm;
-        }
-        this._advance(off);
+        this.bufferQueue.advance();
         var index = this.sequence;
-        var def = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.offset);
-        this.emit("functionDefinitionPre", def, index);
+        var definition = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.bufferQueue.offset);
+        this.emit("functionDefinitionPre", definition, index);
 
         // Read the AST
-        this.astReader = new AstReader(def, this.options);
+        this.astReader = new AstReader(definition, this.bufferQueue, this.options);
         this.astReader.on("end", function() {
-            def.byteLength = this.astReader.offset;
-            this.offset += def.byteLength;
+            definition.byteLength = this.bufferQueue.offset - definition.byteOffset;
             if (!this.options.skipAhead)
-                def.ast = this.astReader.stack[0];
-            this.emit("functionDefinition", def, index);
-            var remainingBuffer = this.astReader.buffer;
+                definition.ast = this.astReader.stack[0];
+            this.emit("functionDefinition", definition, index);
             this.astReader.removeAllListeners();
             this.astReader = null;
             this.state = Reader.State.FUNCTION_DEFINITIONS;
             ++this.sequence;
-            this.write(remainingBuffer);
+            setImmediate(Reader.prototype._process.bind(this));
         }.bind(this));
         this.astReader.on("error", function(err) {
             this.emit("error", err);
         }.bind(this));
-        if (this.queue.length > 0) {
-            this.queue.unshift(this.buffer);
-            this.buffer = Buffer.concat(this.queue);
-            this.queue = [];
-        }
-        this.astReader.write(this.buffer);
-        this.buffer = null;
+        this.astReader.bufferQueue = this.bufferQueue;
+        this.astReader._process();
         return true;
-
     }
     this.emit("functionDefinitionsEnd");
     this.state = Reader.State.EXPORT;
@@ -520,29 +454,23 @@ Reader.prototype._readFunctionDefinitions = function() {
 };
 
 Reader.prototype._readExport = function() {
-    if (this.buffer.length < 2) // format + fn/num
-        throw util.E_MORE;
-    var off = 0;
-    var format = this.buffer[off++];
-    var vi;
-    var exprt;
+    var format = this.bufferQueue.readUInt8(),
+        exprt;
     switch (format) {
         case types.ExportFormat.Default:
-            vi = util.readVarint(this.buffer, off); off += vi.length;
-            this._advance(off);
-            exprt = this.assembly.setDefaultExport(vi.value);
+            var functionIndex = this.bufferQueue.readVarint();
+            this.bufferQueue.advance();
+            exprt = this.assembly.setDefaultExport(functionIndex);
             break;
         case types.ExportFormat.Record:
-            vi = util.readVarint(this.buffer, off); off += vi.length;
-            var nExports = vi.value;
-            var indexes = {};
-            for (var i=0; i<nExports; ++i) {
-                var cs = util.readCString(this.buffer, off); off += cs.length;
-                vi = util.readVarint(this.buffer, off); off += vi.length;
-                indexes[cs.value] = vi.value;
+            var count = this.bufferQueue.readVarint(),
+                functionIndexes = {};
+            for (var i=0; i<count; ++i) {
+                var name = this.bufferQueue.readCString();
+                functionIndexes[name] = this.bufferQueue.readVarint();
             }
-            this._advance(off);
-            exprt = this.assembly.setRecordExport(indexes);
+            this.bufferQueue.advance();
+            exprt = this.assembly.setRecordExport(functionIndexes);
             break;
         default:
             throw Error("illegal export format: "+format);

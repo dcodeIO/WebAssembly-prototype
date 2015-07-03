@@ -29,7 +29,7 @@ var StmtList = require("../stmt/StmtList");
  * @param {!Object.<string,*>=} options
  * @exports reflect.Assembly
  */
-var Assembly = module.exports = function(precomputedSize, options) {
+function Assembly(precomputedSize, options) {
 
     /**
      * Precomputed size.
@@ -105,7 +105,9 @@ var Assembly = module.exports = function(precomputedSize, options) {
     this.namingStyle = options && util.values(Assembly.NamingStyle).indexOf(options.namingStyle) >= 0
         ? options.namingStyle
         : Assembly.NamingStyle.ASM;
-};
+}
+
+module.exports = Assembly;
 
 /**
  * Naming styles.
@@ -375,7 +377,7 @@ Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
     assertFName("name", name);
     var ssize = this.getFunctionSignaturePoolSize();
     signatureIndexes.forEach(function(index, i) {
-        assertInteger("signatureIndexes["+i+"]", index, 0, ssize);
+        assertInteger("signatureIndexes["+i+"]", index, 0, ssize - 1);
     });
     var isize = this.getFunctionImportSignaturePoolSize();
     if (typeof this.functionImportSignatures.offset === 'undefined')

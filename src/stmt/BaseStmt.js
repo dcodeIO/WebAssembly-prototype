@@ -8,15 +8,7 @@ var types = require("../types");
  * @abstract
  * @exports stmt.BaseStmt
  */
-var BaseStmt = module.exports = function(type, code, operands) {
-    if (type !== undefined && !types.isValidRType(type))
-        throw TypeError("illegal statement type: "+type);
-
-    /**
-     * Statement type.
-     * @type {number|undefined}
-     */
-    this.type = type;
+function BaseStmt(code, operands) {
 
     /**
      * Opcode.
@@ -33,7 +25,15 @@ var BaseStmt = module.exports = function(type, code, operands) {
         : typeof operands !== 'undefined'
             ? [operands]
             : [];
-};
+}
+
+module.exports = BaseStmt;
+
+/**
+ * Statement type.
+ * @name BaseStmt#type
+ * @type {number|undefined}
+ */
 
 /**
  * Gets the literal opcode name.

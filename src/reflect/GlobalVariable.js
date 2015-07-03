@@ -9,7 +9,7 @@ var types = require("../types"),
  * @param {string=} name
  * @exports reflect.GlobalVariable
  */
-var GlobalVariable = module.exports = function(assembly,  type, importName) {
+function GlobalVariable(assembly,  type, importName) {
 
     /**
      * Assembly reference.
@@ -28,7 +28,9 @@ var GlobalVariable = module.exports = function(assembly,  type, importName) {
      * @type {?string}
      */
     this.importName = importName || null;
-};
+}
+
+module.exports = GlobalVariable;
 
 /**
  * Global variable index.

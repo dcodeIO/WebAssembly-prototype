@@ -15,7 +15,7 @@ var file = path.join(__dirname, "AngryBots.wasm"),
 console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
-    skipAhead: true
+    // skipAhead: true
 });
 
 /* reader.on("switchState", function (prevState, newState, offset) {
@@ -113,9 +113,9 @@ reader.on("export", function(exprt) {
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
-    reader.assembly.validate();
+    // reader.assembly.validate();
     console.log("Complete: "+reader.assembly.toString());
-    validateAstOffsets();
+    // validateAstOffsets();
 });
 
 console.log("Reading assembly ...");
@@ -166,7 +166,7 @@ function write(assembly) {
             if (contents[offset+i] !== chunk[i]) {
                 console.log("Reader", contents.slice(offset+i, offset+i+16));
                 console.log("Writer", chunk.slice(i, i+16));
-                throw Error("difference at offset "+(offset+i)+": "+contents[offset+i].toString(16)+" != "+chunk[i].toString(16));
+                throw Error("difference at offset "+(offset+i).toString(16)+": "+contents[offset+i].toString(16)+" != "+chunk[i].toString(16));
             }
         }
         offset += chunk.length;

@@ -6,7 +6,7 @@ var types = require("./types"),
 
 var Reader = require("./Reader");
 
-var verbose = 1; // For debugging
+var DefaultExport = require("./reflect/DefaultExport");
 
 /**
  * A WebAssembly writer implemented as a readable stream.
@@ -16,7 +16,7 @@ var verbose = 1; // For debugging
  * @extends stream.Readable
  * @exports Writer
  */
-var Writer = module.exports = function(assembly, options) {
+function Writer(assembly, options) {
     stream.Readable.call(this, options);
 
     /**
@@ -48,7 +48,9 @@ var Writer = module.exports = function(assembly, options) {
      * @type {boolean}
      */
     this.started = false;
-};
+}
+
+module.exports = Writer;
 
 // Extends stream.Readable
 Writer.prototype = Object.create(stream.Readable.prototype);
@@ -83,7 +85,7 @@ Writer.State = {
 Writer.prototype._read = function(size) {
     if (!this.started) { // Wait a tick for more event listeners after binding 'data'
         this.started = true;
-        process.nextTick(Writer.prototype._read.bind(this, size));
+        util.nextTick(Writer.prototype._read.bind(this, size));
         return;
     }
     while (size > 0) {
@@ -428,9 +430,30 @@ Writer.prototype._writeFunctionPointerTables = function() {
 };
 
 Writer.prototype._writeFunctionDefinitions = function() {
-    throw Error("not implemented");
+    throw Error("not implemented (yet)");
 };
 
 Writer.prototype._writeExport = function() {
-    throw Error("not implemented");
+    var exprt = this.assembly.export,
+        buf, offset = 0;
+    if (exprt instanceof DefaultExport) {
+        buf = new Buffer(util.calculateVarint(exprt.function.index));
+        offset = util.writeVarint(buf, exprt.function.index, offset);
+    } else  {
+        var size = util.calculateVarint(Object.keys(exprt.functions).length);
+        Object.keys(exprt.functions).forEach(function(name) {
+            size += Buffer.byteLength(name) + 1 +util.calculateVarint(exprt.functions[name]);
+        }, this);
+        buf = new Buffer(size);
+        offset += util.writeVarint(buf, Object.keys(exprt.functions).length, offset);
+        Object.keys(exprt.functions).forEach(function(name) {
+            offset += buf.write(name, offset, "utf8");
+            buf[offset++] = 0;
+            offset += util.writeVarint(buf, exprt.functions[name], offset);
+        }, this);
+    }
+    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.state = Writer.State.END;
+    this.push(buf);
+    return buf.length;
 };

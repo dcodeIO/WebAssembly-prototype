@@ -8,7 +8,7 @@ var types = require("../types");
  * @param {!Array.<number>=} argumentTypes
  * @exports reflect.FunctionSignature
  */
-var FunctionSignature = module.exports = function(assembly, returnType, argumentTypes) {
+function FunctionSignature(assembly, returnType, argumentTypes) {
 
     /**
      * Assembly reference.
@@ -27,7 +27,9 @@ var FunctionSignature = module.exports = function(assembly, returnType, argument
      * @type {!Array.<number>}
      */
     this.argumentTypes = argumentTypes || [];
-};
+}
+
+module.exports = FunctionSignature;
 
 /**
  * Function signature index.

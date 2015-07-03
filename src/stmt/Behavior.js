@@ -1,9 +1,9 @@
 var types = require("../types");
 
 var Stmt = require("./Stmt"),
-    I32Stmt = require("./I32Stmt"),
-    F32Stmt = require("./F32Stmt"),
-    F64Stmt = require("./F64Stmt");
+    ExprI32 = require("./ExprI32"),
+    ExprF32 = require("./ExprF32"),
+    ExprF64 = require("./ExprF64");
 
 /**
  * Behaviors defining how a statement is read and written.
@@ -13,7 +13,7 @@ var Stmt = require("./Stmt"),
  * @param {function(!AstWriteState,!BaseStmt)} write
  * @exports stmt.Behavior
  */
-var Behavior = module.exports = function(description, read, write) {
+function Behavior(description, read, write) {
 
     /**
      * Textual description.
@@ -32,7 +32,9 @@ var Behavior = module.exports = function(description, read, write) {
      * @type {function(!AstWriteState,!BaseStmt)}
      */
     this.write = write;
-};
+}
+
+module.exports = Behavior;
 
 var AstReader = require("../AstReader"), // cyclic
     State = AstReader.State,

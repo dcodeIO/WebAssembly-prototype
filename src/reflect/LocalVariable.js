@@ -8,7 +8,7 @@ var types = require("../types"),
  * @param {number} type
  * @exports reflect.LocalVariable
  */
-var LocalVariable = module.exports = function(functionDefinition, type) {
+function LocalVariable(functionDefinition, type) {
 
     /**
      * Function definition reference.
@@ -23,7 +23,9 @@ var LocalVariable = module.exports = function(functionDefinition, type) {
      * @type {number}
      */
     this.type = type;
-};
+}
+
+module.exports = LocalVariable;
 
 var FunctionDefinition = require("./FunctionDefinition"); // cyclic
 

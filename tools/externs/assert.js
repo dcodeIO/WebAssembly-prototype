@@ -66,7 +66,7 @@ assert.fail = function(actual, expected, message, operator) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.equal = function(actual, expected, message) {};
@@ -74,7 +74,7 @@ assert.equal = function(actual, expected, message) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.notEqual = function(actual, expected, message) {};
@@ -82,7 +82,7 @@ assert.notEqual = function(actual, expected, message) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.deepEqual = function(actual, expected, message) {};
@@ -90,7 +90,7 @@ assert.deepEqual = function(actual, expected, message) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.notDeepEqual = function(actual, expected, message) {};
@@ -98,7 +98,7 @@ assert.notDeepEqual = function(actual, expected, message) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.strictEqual = function(actual, expected, message) {};
@@ -106,7 +106,7 @@ assert.strictEqual = function(actual, expected, message) {};
 /**
  * @param {*} actual
  * @param {*} expected
- * @param {string} message
+ * @param {string=} message
  * @throws {assert.AssertionError}
  */
 assert.notStrictEqual = function(actual, expected, message) {};

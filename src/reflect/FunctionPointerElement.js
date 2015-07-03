@@ -5,7 +5,7 @@
  * @param {number} value
  * @exports reflect.FunctionPointerElement
  */
-var FunctionPointerElement = module.exports = function(table, value) {
+function FunctionPointerElement(table, value) {
 
     /**
      * Function pointer table reference.
@@ -18,7 +18,9 @@ var FunctionPointerElement = module.exports = function(table, value) {
      * @type {number}
      */
     this.value = value;
-};
+}
+
+module.exports = FunctionPointerElement;
 
 /**
  * Returns a string representation of this function pointer element.

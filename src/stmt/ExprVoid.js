@@ -2,16 +2,24 @@ var types = require("../types"),
     BaseStmt = require("./BaseStmt");
 
 /**
- * A typed F32 statement.
+ * A void expression.
  * @constructor
  * @param {number} code
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
- * @exports stmt.F32Stmt
+ * @exports stmt.VoidStmt
  */
-var F32Stmt = module.exports = function(code, operands) {
-    BaseStmt.call(this, types.RType.F32, code, operands);
-};
+function ExprVoid(code, operands) {
+    BaseStmt.call(this, code, operands);
+}
 
-F32Stmt.prototype = Object.create(BaseStmt.prototype);
+module.exports = ExprVoid;
+
+ExprVoid.prototype = Object.create(BaseStmt.prototype);
+
+Object.defineProperty(ExprVoid.prototype, "type", {
+    get: function() {
+        return this.types.RType.Void;
+    }
+});

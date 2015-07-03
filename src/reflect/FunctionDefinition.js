@@ -14,7 +14,7 @@ var FunctionSignature = require("./FunctionSignature");
  * @param {number=} byteLength
  * @exports reflect.FunctionDefinition
  */
-var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
+function FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, byteOffset, byteLength) {
 
     /**
      * Function declaration reference.
@@ -28,14 +28,14 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
      */
     this.variables = new Array(declaration.signature.argumentTypes.length + nI32vars + nF32vars + nF64vars);
     var index = 0;
-    declaration.signature.argumentTypes.forEach(function(type) {
+    declaration.signature.argumentTypes.forEach(function (type) {
         this.variables[index++] = new LocalVariable(this, type);
     }, this);
-    for (var i=0; i<nI32vars; ++i, ++index)
+    for (var i = 0; i < nI32vars; ++i, ++index)
         this.variables[index] = new LocalVariable(this, types.Type.I32);
-    for (i=0; i<nF32vars; ++i, ++index)
+    for (i = 0; i < nF32vars; ++i, ++index)
         this.variables[index] = new LocalVariable(this, types.Type.F32);
-    for (i=0; i<nF64vars; ++i, ++index)
+    for (i = 0; i < nF64vars; ++i, ++index)
         this.variables[index] = new LocalVariable(this, types.Type.F64);
 
     /**
@@ -55,7 +55,9 @@ var FunctionDefinition = module.exports = function(declaration, nI32vars, nF32va
      * @type {StmtList}
      */
     this.ast = null;
-};
+}
+
+module.exports = FunctionDefinition;
 
 var LocalVariable = require("./LocalVariable"); // cyclic
 

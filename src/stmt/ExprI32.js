@@ -2,16 +2,24 @@ var types = require("../types"),
     BaseStmt = require("./BaseStmt");
 
 /**
- * An explicit void expression.
+ * An I32 expression.
  * @constructor
  * @param {number} code
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
- * @exports stmt.VoidStmt
+ * @exports stmt.I32Stmt
  */
-var VoidStmt = module.exports = function(code, operands) {
-    BaseStmt.call(this, types.RType.Void, code, operands);
-};
+function ExprI32(code, operands) {
+    BaseStmt.call(this, code, operands);
+}
 
-VoidStmt.prototype = Object.create(BaseStmt.prototype);
+module.exports = ExprI32;
+
+ExprI32.prototype = Object.create(BaseStmt.prototype);
+
+Object.defineProperty(ExprI32.prototype, "type", {
+    get: function() {
+        return this.types.RType.I32;
+    }
+});

@@ -8,96 +8,6 @@ var types = require("./types"),
  */
 var util = module.exports = {};
 
-// Special error indicating that more data is required to proceed
-var E_MORE = util.E_MORE = Error("more");
-
-/**
- * Reads a varint.
- * @param {!Buffer} buffer
- * @param {number} offset
- * @returns {!{value: number, length: number}} Value and number of bytes read
- * @throws E_MORE
- */
-util.readVarint = function(buffer, offset) {
-    if (offset >= buffer.length)
-        throw E_MORE;
-    var u32 = buffer[offset++];
-    if (u32 < 0x80)
-        return {
-            value: u32,
-            length: 1
-        };
-    u32 &= 0x7f;
-    var c = 1;
-    for (var shift = 7; true; shift += 7) {
-        if (offset >= buffer.length)
-            throw E_MORE;
-        ++c;
-        var b = buffer[offset++];
-        if (b < 0x80)
-            return {
-                value: (u32 | (b << shift)) >>> 0,
-                length: c
-            };
-        u32 |= (b & 0x7f) << shift;
-        if (c >= 5)
-            throw Error("illegal varint32: >5 bytes");
-    }
-};
-
-/**
- * Writes a varint.
- * @param {!Buffer} buffer
- * @param {number} u32
- * @param {number} offset
- * @returns {number} Bytes written
- */
-util.writeVarint = function(buffer, u32, offset) {
-    var c = 1;
-    u32 >>>= 0;
-    while (u32 >= 1 << 7)
-        buffer[offset++] = (u32 & 0x7f) | 0x80,
-        u32 >>>= 7,
-        ++c;
-    buffer[offset] = u32;
-    return c;
-};
-
-/**
- * Calculates the number of bytes required to store the specified value as a varint.
- * @param {number} value
- * @returns {number}
- */
-util.calculateVarint = function(value) {
-    value = value >>> 0;
-         if (value < 1 << 7 ) return 1;
-    else if (value < 1 << 14) return 2;
-    else if (value < 1 << 21) return 3;
-    else if (value < 1 << 28) return 4;
-    else                      return 5;
-};
-
-/**
- * Reads a CString.
- * @param {!Buffer} buffer
- * @param {number} offset
- * @returns {!{value: string, length: number}} Value and number of bytes read
- * @throws E_MORE
- */
-util.readCString = function(buffer, offset) {
-    var chars = [];
-    while (offset < buffer.length) {
-        var c = buffer[offset++];
-        if (c === 0)
-            return {
-                value: String.fromCharCode.apply(String, chars),
-                length: chars.length + 1
-            };
-        chars.push(c); // TODO: Is this always ASCII?
-    }
-    throw E_MORE;
-};
-
 util.unpackWithImm = function(b) {
     if ((b & types.ImmFlag) === 0)
         return false;
@@ -109,17 +19,8 @@ util.unpackWithImm = function(b) {
     };
 };
 
-/**
- * Reads an opcode. Always one byte.
- * @param {!Buffer} buffer
- * @param {number} offset
- * @returns {!{op: number, imm: ?number}}
- */
-util.readCode = function(buffer, offset) {
-    if (offset >= buffer.length)
-        throw E_MORE;
-    var b = buffer[offset],
-        res;
+util.unpackCode = function(b) {
+    var res;
     if (res = util.unpackWithImm(b))
         return res;
     return {
@@ -306,4 +207,11 @@ util.assertType = function(name, value) {
 util.assertFName = function(name, value) {
     if (!util.isValidFName(value))
         assert.fail(value, "function name", name+" must be a valid function name", "===");
+};
+
+util.nextTick = function(callback) {
+    if (typeof process === 'object' && process && typeof process.nextTick === 'function')
+        process.nextTick(callback);
+    else
+        setTimeout(callback, 0);
 };

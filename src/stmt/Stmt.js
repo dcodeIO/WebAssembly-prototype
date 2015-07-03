@@ -2,7 +2,7 @@ var types = require("../types"),
     BaseStmt = require("./BaseStmt");
 
 /**
- * A (non-typed) statement.
+ * A statement.
  * @constructor
  * @param {number} code
  * @param {(number|!BaseStmt|!Array<number|!BaseStmt>)=} operands
@@ -10,8 +10,16 @@ var types = require("../types"),
  * @extends BaseStmt
  * @exports stmt.Stmt
  */
-var Stmt = module.exports = function(code, operands) {
-    BaseStmt.call(this, undefined, code, operands);
-};
+function Stmt(code, operands) {
+    BaseStmt.call(this, code, operands);
+}
+
+module.exports = Stmt;
 
 Stmt.prototype = Object.create(BaseStmt.prototype);
+
+Object.defineProperty(Stmt.prototype, "type", {
+    get: function() {
+        return undefined;
+    }
+});

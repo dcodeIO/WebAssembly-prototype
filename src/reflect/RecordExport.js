@@ -5,11 +5,11 @@ var BaseExport = require("./BaseExport"),
  * A record export.
  * @constructor
  * @param {!Assembly} assembly
- * @param {!Object.<string,number|!FunctionDeclaration>=}
+ * @param {!Object.<string,number|!FunctionDeclaration>=} functions
  * @extends BaseExport
  * @exports reflect.RecordExport
  */
-var RecordExport = module.exports = function(assembly, functions) {
+function RecordExport(assembly, functions) {
     BaseExport.call(this, assembly);
 
     /**
@@ -22,8 +22,11 @@ var RecordExport = module.exports = function(assembly, functions) {
             ? functions[name]
             : this.assembly.getFunctionDeclaration(functions[name]);
     }, this);
-};
+}
 
+module.exports = RecordExport;
+
+// Extends BaseExport
 RecordExport.prototype = Object.create(BaseExport.prototype);
 
 /**

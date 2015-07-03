@@ -12,7 +12,7 @@ var FunctionSignature = require("./FunctionSignature"),
  * @param {!Array.<number|!FunctionPointerElement>} elements
  * @exports reflect.FunctionPointerTable
  */
-var FunctionPointerTable = module.exports = function(assembly, signature, elements) {
+function FunctionPointerTable(assembly, signature, elements) {
 
     /**
      * Assembly reference.
@@ -40,7 +40,9 @@ var FunctionPointerTable = module.exports = function(assembly, signature, elemen
                 : new FunctionPointerElement(this, element)
         );
     }, this);
-};
+}
+
+module.exports = FunctionPointerTable;
 
 /**
  * Function pointer table index.

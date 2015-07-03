@@ -2,16 +2,24 @@ var types = require("../types"),
     BaseStmt = require("./BaseStmt");
 
 /**
- * A typed I32 statement.
+ * A F32 expression.
  * @constructor
  * @param {number} code
  * @param {(!Array.<number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable>|number|!BaseStmt|!Constant|!LocalVariable|!GlobalVariable|!FunctionDeclaration|!FunctionImportSignature|!FunctionPointerTable)=} operands
  * @constructor
  * @extends BaseStmt
- * @exports stmt.I32Stmt
+ * @exports stmt.F32Stmt
  */
-var I32Stmt = module.exports = function(code, operands) {
-    BaseStmt.call(this, types.RType.I32, code, operands);
-};
+function ExprF32(code, operands) {
+    BaseStmt.call(this, code, operands);
+}
 
-I32Stmt.prototype = Object.create(BaseStmt.prototype);
+module.exports = ExprF32;
+
+ExprF32.prototype = Object.create(BaseStmt.prototype);
+
+Object.defineProperty(ExprF32.prototype, "type", {
+    get: function() {
+        return this.types.RType.F32;
+    }
+});

@@ -4,11 +4,13 @@
  * @param {!Assembly} assembly
  * @exports reflect.BaseExport
  */
-var BaseExport = module.exports = function(assembly) {
+function BaseExport(assembly) {
 
     /**
      * Assembly reference.
      * @type {!Assembly}
      */
     this.assembly = assembly;
-};
+}
+
+module.exports = BaseExport;

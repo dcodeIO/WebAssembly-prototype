@@ -1,173 +1,177 @@
 var types = require("./types"),
     util = require("./util");
 
+var BufferQueue = require("../lib/BufferQueue");
+
 var Stmt = require("./stmt/Stmt"),
-    I32Stmt = require("./stmt/I32Stmt"),
-    F32Stmt = require("./stmt/F32Stmt"),
-    F64Stmt = require("./stmt/F64Stmt"),
-    VoidStmt = require("./stmt/VoidStmt");
+    ExprI32 = require("./stmt/ExprI32"),
+    ExprF32 = require("./stmt/ExprF32"),
+    ExprF64 = require("./stmt/ExprF64"),
+    ExprVoid = require("./stmt/ExprVoid");
 
 /**
- * A closure holding state of and providing utility for the current read operation.
- * @function
+ * AST read state.
+ * @constructor
  * @param {!AstReader} reader
+ * @param {number} popState
  * @exports AstReadState
  */
-var AstReadState = module.exports = function(reader, popState) {
+function AstReadState(reader, popState) {
 
-    // Previous offset
-    var previousOffset = 0;
+    /**
+     * AstReader reference.
+     * @type {!AstReader}
+     */
+    this.reader = reader;
 
-    // Current working offset
-    var offset = previousOffset;
+    /**
+     * Pop state.
+     * @type {number}
+     */
+    this.popState = popState;
 
-    // Current type
-    var type;
+    /**
+     * Current type.
+     * @type {number|undefined}
+     */
+    this._type = undefined;
 
-    // Current code
-    var code;
+    /**
+     * Current code.
+     * @type {number|!{op: number, imm: number}|undefined}
+     */
+    this._code = undefined;
 
-    // Current statement
-    var stmt;
+    /**
+     * Current statement.
+     * @type {!BaseStmt|undefined}
+     */
+    this._stmt = undefined;
+}
 
-    var s = {};
+module.exports = AstReadState;
 
-    s.rtype = reader.signature.returnType;
+AstReadState.prototype.rtype = function() {
+    return this.reader.signature.returnType;
+};
 
-    s.code = function(type_) {
-        type = type_;
-        return code = util.readCode(reader.buffer, offset++);
-    };
+AstReadState.prototype.code = function(type) {
+    this._type = type;
+    return this._code = util.unpackCode(this.reader.bufferQueue.readUInt8());
+};
 
-    s.code_u8 = function() {
-        type = types.RType.Void;
-        if (offset >= reader.buffer.length)
-            throw util.E_MORE;
-        return code = reader.buffer[offset++];
-    };
+AstReadState.prototype.code_u8 = function() {
+    this._type = types.RType.Void;
+    return this.reader.bufferQueue.readUInt8();
+};
 
-    s.varint = function() {
-        var vi = util.readVarint(reader.buffer, offset);
-        offset += vi.length;
-        return vi.value;
-    };
+AstReadState.prototype.varint = function() {
+    return this.reader.bufferQueue.readVarint();
+};
 
-    s.u8 = function() {
-        if (offset >= reader.buffer.length)
-            throw util.E_MORE;
-        return reader.buffer[offset++];
-    };
+AstReadState.prototype.u8 = function() {
+    return this.reader.bufferQueue.readUInt8();
+};
 
-    s.f32 = function() {
-        if (offset >= reader.buffer.length - 4)
-            throw util.E_MORE;
-        var value = reader.buffer.readFloatLE(offset);
-        offset += 4;
-        return value;
-    };
+AstReadState.prototype.f32 = function() {
+    return this.reader.bufferQueue.readFloatLE();
+};
 
-    s.f64 = function() {
-        if (offset >= reader.buffer.length - 8)
-            throw util.E_MORE;
-        var value = reader.buffer.readDoubleLE(offset);
-        offset += 8;
-        return value;
-    };
+AstReadState.prototype.f64 = function() {
+    return this.reader.bufferQueue.readDoubleLE();
+};
 
-    s.advance = function() {
-        reader.offset += offset - previousOffset;
-        previousOffset = offset;
-    };
+AstReadState.prototype.advance = function() {
+    this.reader.bufferQueue.advance();
+};
 
-    s.reset = function() {
-        offset = previousOffset;
-        type = code = stmt = undefined;
-    };
+AstReadState.prototype.reset = function() {
+    this.reader.bufferQueue.reset();
+};
 
-    s.const = function(index) {
-        switch (type) {
-            case types.Type.I32:
-                return reader.assembly.constantsI32[index];
-            case types.Type.F32:
-                return reader.assembly.constantsF32[index];
-            case types.Type.F64:
-                return reader.assembly.constantsF64[index];
+AstReadState.prototype.const = function(index) {
+    switch (this._type) {
+        case types.Type.I32:
+            return this.reader.assembly.constantsI32[index];
+        case types.Type.F32:
+            return this.reader.assembly.constantsF32[index];
+        case types.Type.F64:
+            return this.reader.assembly.constantsF64[index];
+    }
+};
+
+AstReadState.prototype.local = function(index) {
+    return this.reader.definition.variables[index];
+};
+
+AstReadState.prototype.global = function(index) {
+    return this.reader.assembly.globalVariables[index];
+};
+
+AstReadState.prototype.internal = function(index) {
+    return this.reader.assembly.functionDeclarations[index];
+};
+
+AstReadState.prototype.indirect = function(index) {
+    return this.reader.assembly.functionPointerTables[index];
+};
+
+AstReadState.prototype.import = function(index) {
+    return this.reader.assembly.functionImportSignatures[index];
+};
+
+AstReadState.prototype.expect = function(states) {
+    if (typeof states === 'number') {
+        if (this._stmt && !this.reader.skipAhead) {
+            this.reader.stack.push(this._stmt);
+            this.reader.state.push(this.popState);
         }
-    };
-
-    s.local = function(index) {
-        return reader.definition.variables[index];
-    };
-
-    s.global = function(index) {
-        return reader.assembly.globalVariables[index];
-    };
-
-    s.internal = function(index) {
-        return reader.assembly.functionDeclarations[index];
-    };
-
-    s.indirect = function(index) {
-        return reader.assembly.functionPointerTables[index];
-    };
-
-    s.import = function(index) {
-        return reader.assembly.functionImportSignatures[index];
-    };
-
-    s.expect = function(state) {
-        var args = Array.isArray(state)
-            ? state
-            : Array.prototype.slice.call(arguments);
-        if (args.length === 0)
+        this.reader.state.push(states);
+    } else {
+        if (states.length === 0)
             return;
-        if (stmt && !reader.skipAhead) {
-            reader.stack.push(stmt);
-            args.push(popState);
+        if (this._stmt && !this.reader.skipAhead) {
+            this.reader.stack.push(this._stmt);
+            this.reader.state.push(this.popState);
         }
-        for (var i=args.length-1; i>=0; --i)
-            reader.state.push(args[i]);
-    };
+        for (var i=states.length-1; i>=0; --i)
+            this.reader.state.push(states[i]);
+    }
+};
 
-    s.emit_code = function(code, operands) {
-        if (reader.skipAhead) {
-            s.advance();
-            return;
-        }
-        var ctor;
-        switch (type) {
-            case undefined:
-                ctor = Stmt;
-                break;
+AstReadState.prototype.emit_code = function(code, operands) {
+    if (this.reader.skipAhead) {
+        this.reader.bufferQueue.advance();
+        return;
+    }
+    if (typeof this._type === 'number')
+        switch (this._type) {
             case types.RType.I32:
-                ctor = I32Stmt;
+                this._stmt = new ExprI32(code, operands);
                 break;
             case types.RType.F32:
-                ctor = F32Stmt;
+                this._stmt = new ExprF32(code, operands);
                 break;
             case types.RType.F64:
-                ctor = F64Stmt;
+                this._stmt = new ExprF64(code, operands);
                 break;
             case types.RType.Void:
-                ctor = VoidStmt;
+                this._stmt = new ExprVoid(code, operands);
                 break;
             default:
-                throw Error("illegal type: "+type);
+                throw Error("illegal type: "+this._type);
         }
-        stmt = new ctor(code, operands);
-        reader.stack[reader.stack.length-1].add(stmt);
-        s.advance();
-        return stmt;
-    };
+    else
+        this._stmt = new Stmt(code, operands);
+    this.reader.stack[this.reader.stack.length-1].add(this._stmt);
+    this.reader.bufferQueue.advance();
+    return this._stmt;
+};
 
-    s.emit = function(operands) {
-        return s.emit_code(typeof code === 'number' ? code : code.op, operands);
-    };
+AstReadState.prototype.emit = function(operands) {
+    return this.emit_code(typeof this._code === 'number' ? this._code : this._code.op, operands);
+};
 
-    s.finish = function() {
-        reader.buffer = reader.buffer.slice(offset);
-        offset = previousOffset = 0;
-    };
-
-    return s;
+AstReadState.prototype.finish = function() {
+    this.reader = this._type = this._code = this._stmt = null;
 };

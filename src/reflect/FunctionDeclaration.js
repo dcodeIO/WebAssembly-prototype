@@ -10,7 +10,7 @@ var FunctionSignature = require("./FunctionSignature");
  * @param {number|!FunctionSignature} signature
  * @exports reflect.FunctionDeclaration
  */
-var FunctionDeclaration = module.exports = function(assembly, signature) {
+function FunctionDeclaration(assembly, signature) {
 
     /**
      * Assembly reference.
@@ -31,7 +31,9 @@ var FunctionDeclaration = module.exports = function(assembly, signature) {
      * @type {!FunctionDefinition}
      */
     this.definition; // Assigned later on
-};
+}
+
+module.exports = FunctionDeclaration;
 
 /**
  * Function declaration index.

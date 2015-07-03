@@ -8,7 +8,7 @@ var FunctionSignature = require("./FunctionSignature");
  * @param {number|!FunctionSignature} signature
  * @exports reflect.FunctionImportSignature
  */
-var FunctionImportSignature = module.exports = function(assembly, functionImport, signature) {
+function FunctionImportSignature(assembly, functionImport, signature) {
 
     /**
      * Assembly reference.
@@ -31,7 +31,9 @@ var FunctionImportSignature = module.exports = function(assembly, functionImport
     this.signature = signature instanceof FunctionSignature
         ? signature
         : assembly.getFunctionSignature(signature);
-};
+}
+
+module.exports = FunctionImportSignature;
 
 var FunctionImport = require("./FunctionImport"); // cyclic
 

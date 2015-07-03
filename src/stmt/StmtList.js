@@ -5,7 +5,7 @@
  * @extends Array
  * @exports stmt.StmtList
  */
-var StmtList = module.exports = function(size) {
+function StmtList(size) {
     Array.call(this, size);
     if (typeof size !== 'undefined')
         this.length = size;
@@ -15,7 +15,11 @@ var StmtList = module.exports = function(size) {
      * @type {number}
      */
     this.offset = 0;
-};
+}
+
+module.exports = StmtList;
+
+// Extends Array
 StmtList.prototype = Object.create(Array.prototype);
 
 /**

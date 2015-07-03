@@ -9,7 +9,7 @@ var BaseExport = require("./BaseExport"),
  * @extends BaseExport
  * @exports reflect.DefaultExport
  */
-var DefaultExport = module.exports = function(assembly, function_) {
+function DefaultExport(assembly, function_) {
     BaseExport.call(this, assembly);
 
     /**
@@ -19,8 +19,11 @@ var DefaultExport = module.exports = function(assembly, function_) {
     this.function = function_ instanceof FunctionDeclaration
         ? function_
         : this.assembly.getFunctionDeclaration(function_);
-};
+}
 
+module.exports = DefaultExport;
+
+// Extends BaseExport
 DefaultExport.prototype = Object.create(BaseExport.prototype);
 
 /**

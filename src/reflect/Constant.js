@@ -8,7 +8,7 @@ var types = require("../types");
  * @param {number} value
  * @exports reflect.Constant
  */
-var Constant = module.exports = function(assembly, type, value) {
+function Constant(assembly, type, value) {
 
     /**
      * Assembly reference.
@@ -27,7 +27,9 @@ var Constant = module.exports = function(assembly, type, value) {
      * @type {number}
      */
     this.value = value;
-};
+}
+
+module.exports = Constant;
 
 /**
  * Constant index in the constant pool of its respective type.
