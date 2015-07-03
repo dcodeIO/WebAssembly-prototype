@@ -16,12 +16,12 @@ Contents
   Classes to represent the different sections of a WASM binary.
 
 * **[Statement types](https://github.com/dcodeIO/WebAssembly/tree/master/src/stmt)**<br />
-  Classes to represent the different statement types.
+  Classes to represent the different statement and expression types.
 
 * **[Reader](https://github.com/dcodeIO/WebAssembly/blob/master/src/Reader.js)**<br />
   A streaming reader for dissecting a WASM binary into its reflection structure.
 
-* **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/src/AstReader.js)**<br />
+* **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/src/ast/Reader.js)**<br />
   A streaming reader for parsing function bodies, returning their respective AST.
 
 Compatibility
@@ -68,7 +68,7 @@ require("fs").createReadStream("wasmBinaryFile.wasm").pipe(reader);
 ```js
 var webassembly = require("webassembly"),
     Reader = webassembly.Reader,
-    AstReader = webassembly.AstReader;
+    AstReader = webassembly.ast.Reader;
 
 var reader = new Reader({
     skipAhead: true // Tells the AstReader not to generate statements, skipping ahead
