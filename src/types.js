@@ -7,8 +7,8 @@ var types = module.exports = {};
 
 /**
  * Swaps an object's keys and values, returning an array that may contain undefined elements.
- * @param {!Object} obj
- * @returns {!Array}
+ * @param {!Object.<!string,number>} obj
+ * @returns {!Array.<string|undefined>}
  * @inner
  */
 function swap(obj) {
@@ -17,6 +17,33 @@ function swap(obj) {
         swp[obj[key]] = key;
     });
     return swp;
+}
+
+/**
+ * Creates a map with integer keys.
+ * @param {!Array.<number>} keys
+ * @param {!Array.<*>} values
+ * @returns {!Array.<*>}
+ */
+function imap(keys, values) {
+    var map = [];
+    for (var i=0; i<keys.length; ++i)
+        map[keys[i]] = values[i];
+    return map;
+}
+
+/**
+ * Inverts an array.
+ * @param {!Array.<number|undefined>} arr
+ * @returns {!Array.<number|undefined>}
+ */
+function inv(arr) {
+    var inv = [];
+    arr.forEach(function(value, index) {
+        if (typeof value !== 'undefined')
+            inv[value] = index;
+    });
+    return inv;
 }
 
 types.MagicNumber = 0x6d736177; // "wasm" LE
@@ -30,6 +57,57 @@ types.OpWithImmMax = types.OpWithImmLimit-1; // 0x3
 types.ImmBits = 5;
 types.ImmLimit = 1 << types.ImmBits; // 32
 types.ImmMax = types.ImmLimit - 1; // 0x1F
+
+// ----- types -----
+
+types.Type = {
+    I32: 0,
+    F32: 1,
+    F64: 2
+};
+
+types.TypeNames = swap(types.Type);
+
+types.isValidType = function(type) {
+    return type === 0 || type === 1 || type === 2;
+};
+
+types.VarType = {
+    I32: 0x1,
+    F32: 0x2,
+    F64: 0x4
+};
+
+types.VarTypeNames = swap(types.VarType);
+
+types.VarTypeWithImm = {
+    OnlyI32: 0,
+    Reserved0: 1,
+    Reserved1: 2,
+    Reserved2: 3
+};
+
+types.VarTypeWithImmNames = swap(types.VarTypeWithImm);
+
+types.RType = {
+    I32: types.Type.I32,
+    F32: types.Type.F32,
+    F64: types.Type.F64,
+    Void: 3
+};
+
+types.RTypeNames = swap(types.RType);
+
+types.isValidRType = function(type) {
+    return type === 0 || type === 1 || type === 2 || type === 3;
+};
+
+types.ExportFormat = {
+    Default: 0,
+    Record: 1
+};
+
+types.ExportFormatNames = swap(types.ExportFormat);
 
 // ----- statements and expressions -----
 
@@ -73,6 +151,22 @@ types.StmtWithImm = {
 };
 
 types.StmtWithImmNames = swap(types.StmtWithImm);
+
+types.StmtToStmtWithImm = imap([
+    types.Stmt.SetLoc,
+    types.Stmt.SetGlo
+], [
+    types.StmtWithImm.SetLoc,
+    types.StmtWithImm.SetGlo
+]);
+
+types.StmtWithImmToStmt = imap([
+    types.StmtWithImm.SetLoc,
+    types.StmtWithImm.SetGlo
+], [
+    types.Stmt.SetLoc,
+    types.Stmt.SetGlo
+]);
 
 types.SwitchCase = {
     Case0: 0,
@@ -172,6 +266,18 @@ types.I32WithImm = {
 
 types.I32WithImmNames = swap(types.I32WithImm);
 
+types.I32ToI32WithImm = imap([
+    types.I32.LitPool,
+    types.I32.LitImm,
+    types.I32.GetLoc
+], [
+    types.I32WithImm.LitPool,
+    types.I32WithImm.LitImm,
+    types.I32WithImm.GetLoc
+]);
+
+types.I32WithImmToI32 = inv(types.I32ToI32WithImm);
+
 types.F32 = {
     LitPool: 0,
     LitImm: 1,
@@ -211,6 +317,16 @@ types.F32WithImm = {
 };
 
 types.F32WithImmNames = swap(types.F32WithImm);
+
+types.F32ToF32WithImm = imap([
+    types.F32.LitPool,
+    types.F32.GetLoc
+], [
+    types.F32WithImm.LitPool,
+    types.F32WithImm.GetLoc
+]);
+
+types.F32WithImmToF32 = inv(types.F32ToF32WithImm);
 
 types.F64 = {
     LitPool: 0,
@@ -266,6 +382,16 @@ types.F64WithImm = {
 
 types.F64WithImmNames = swap(types.F64WithImm);
 
+types.F64ToF64WithImm = imap([
+    types.F64.LitPool,
+    types.F64.GetLoc
+], [
+    types.F64WithImm.LitPool,
+    types.F64WithImm.GetLoc
+]);
+
+types.F64WithImmToF64 = inv(types.F64ToF64WithImm);
+
 types.Void = {
     CallInt: 0,
     CallInd: 1,
@@ -273,57 +399,6 @@ types.Void = {
 };
 
 types.VoidNames = swap(types.Void);
-
-// ----- types -----
-
-types.Type = {
-    I32: 0,
-    F32: 1,
-    F64: 2
-};
-
-types.TypeNames = swap(types.Type);
-
-types.isValidType = function(type) {
-    return type === 0 || type === 1 || type === 2;
-};
-
-types.VarType = {
-    I32: 0x1,
-    F32: 0x2,
-    F64: 0x4
-};
-
-types.VarTypeNames = swap(types.VarType);
-
-types.VarTypeWithImm = {
-    OnlyI32: 0,
-    Reserved0: 1,
-    Reserved1: 2,
-    Reserved2: 3
-};
-
-types.VarTypeWithImmNames = swap(types.VarTypeWithImm);
-
-types.RType = {
-    I32: types.Type.I32,
-    F32: types.Type.F32,
-    F64: types.Type.F64,
-    Void: 3
-};
-
-types.RTypeNames = swap(types.RType);
-
-types.isValidRType = function(type) {
-    return type === 0 || type === 1 || type === 2 || type === 3;
-};
-
-types.ExportFormat = {
-    Default: 0,
-    Record: 1
-};
-
-types.ExportFormatNames = swap(types.ExportFormat);
 
 // ----- platform specific standard library -----
 

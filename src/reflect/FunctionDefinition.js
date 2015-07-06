@@ -83,6 +83,16 @@ FunctionDefinition.prototype.toString = function() {
 };
 
 /**
+ * Gets the variable at the specified index.
+ * @param {number} index
+ * @returns {!reflect.LocalVariable}
+ */
+FunctionDefinition.prototype.getVariable = function(index) {
+    util.assertInteger("index", index, 0, this.variables.length-1);
+    return this.variables[index];
+};
+
+/**
  * Builds the function header in JavaScript.
  * @param {bool=} pack
  * @returns {string}

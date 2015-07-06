@@ -21,19 +21,13 @@ util.unpackWithImm = function(b) {
     var op = (b >> types.ImmBits) & types.OpWithImmMax;
     var imm = b & types.ImmMax;
     return {
-        op: op,
+        code: op,
         imm: imm
     };
 };
 
-util.unpackCode = function(b) {
-    var res;
-    if (res = util.unpackWithImm(b))
-        return res;
-    return {
-        op: b,
-        imm: null
-    };
+util.packWithImm = function(code, imm) {
+    return ((code & types.OpWithImmMax) << types.ImmBits) | (imm & types.ImmMax);
 };
 
 util.calculateVarint = function(value) {

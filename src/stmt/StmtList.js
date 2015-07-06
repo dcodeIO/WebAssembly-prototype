@@ -24,11 +24,12 @@ StmtList.prototype = Object.create(Array.prototype);
 
 /**
  * Adds a statement to the list.
- * @param {!BaseStmt} stmt
+ * @param {!stmt.BaseStmt} stmt
  */
 StmtList.prototype.add = function(stmt) {
     if (this.offset >= this.length)
-        throw Error("operand overflow");
+        throw Error("statement list overflow");
+    stmt.parent = this;
     this[this.offset++] = stmt;
 };
 

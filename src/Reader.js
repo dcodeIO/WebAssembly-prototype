@@ -412,16 +412,17 @@ Reader.prototype._readFunctionDefinitions = function() {
         var nI32Vars = 0,
             nF32Vars = 0,
             nF64Vars = 0;
-        var code = util.unpackCode(this.bufferQueue.readUInt8());
-        if (code.imm === null) {
-            if ((code.op & types.VarType.I32) === types.VarType.I32)
+        var code = this.bufferQueue.readUInt8();
+        if ((code & types.ImmFlag) !== 0)
+            nI32Vars = util.unpackWithImm(code).imm;
+        else {
+            if ((code & types.VarType.I32) === types.VarType.I32)
                 nI32Vars = this.bufferQueue.readVarint();
-            if ((code.op & types.VarType.F32) === types.VarType.F32)
+            if ((code & types.VarType.F32) === types.VarType.F32)
                 nF32Vars = this.bufferQueue.readVarint();
-            if ((code.op & types.VarType.F64) === types.VarType.F64)
+            if ((code & types.VarType.F64) === types.VarType.F64)
                 nF64Vars = this.bufferQueue.readVarint();
-        } else
-            nI32Vars = code.imm;
+        }
         this.bufferQueue.advance();
         var index = this.sequence;
         var definition = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.bufferQueue.offset);

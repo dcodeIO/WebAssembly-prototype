@@ -164,8 +164,6 @@ var stateForType = Reader.stateForType = function(type) {
     }
 };
 
-var Behavior = require("../stmt/Behavior"); // cyclic
-
 Reader.prototype._write = function (chunk, encoding, callback) {
     if (this.state.length === 0) { // Already done or failed
         callback(Error("already ended"));
@@ -271,10 +269,10 @@ Reader.prototype._readStmt = function() {
     if (code.imm === null) {
 
         if (verbose >= 1)
-            console.log("processing Stmt:" + types.StmtNames[code.op]);
+            console.log("processing Stmt:" + types.StmtNames[code.code]);
 
         var Op = types.Stmt;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + local variable index + Stmt<local variable type>
             case Op.SetLoc:
@@ -437,18 +435,18 @@ Reader.prototype._readStmt = function() {
                 break;
 
             default:
-                throw Error("illegal Stmt opcode: " + code.op);
+                throw Error("illegal Stmt opcode: " + code.code);
         }
     } else {
         if (verbose >= 1)
-            console.log("processing StmtWithImm:" + types.StmtWithImmNames[code.op]);
+            console.log("processing StmtWithImm:" + types.StmtWithImmNames[code.code]);
         var Op = types.StmtWithImm;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcodeWithImm (imm=local variable index) + Stmt<local variable type>
             case Op.SetLoc:
                 // Behavior.SetLoc.read(s, code.imm);
-                s.emit_code(types.Stmt.SetLoc, temp = s.local(code.imm));
+                s.emit_code(temp = s.local(code.imm));
                 s.expect(stateForType(temp.type));
                 break;
 
@@ -460,7 +458,7 @@ Reader.prototype._readStmt = function() {
                 break;
 
             default:
-                throw Error("illegal StmtWithImm opcode: " + code.op);
+                throw Error("illegal StmtWithImm opcode: " + code.code);
         }
     }
 };
@@ -478,37 +476,32 @@ Reader.prototype._readSwitch = function() {
     var temp, i;
     switch (switchType) {
         case types.SwitchCase.Case0:
-            switchOperands.push(s.varint());
-            s.advance();
+            switchOperands.push(s.varint_s());
             break;
         case types.SwitchCase.Case1:
-            switchOperands.push(s.varint());
+            switchOperands.push(s.varint_s());
             expectWithinSwitch.push(State.STMT);
-            s.advance();
             break;
         case types.SwitchCase.CaseN:
-            switchOperands.push(s.varint());
+            switchOperands.push(s.varint_s());
             temp = s.varint();
-            s.advance();
             for (i=0; i<temp; ++i)
                 expectWithinSwitch.push(State.STMT);
             break;
         case types.SwitchCase.Default0:
-            s.advance();
             break;
         case types.SwitchCase.Default1:
-            s.advance();
             expectWithinSwitch.push(State.STMT);
             break;
         case types.SwitchCase.DefaultN:
             temp = s.varint();
-            s.advance();
             for (i=0; i<temp; ++i)
                 expectWithinSwitch.push(State.STMT);
             break;
         default:
             throw Error("illegal switch case type: " + switchType);
     }
+    s.advance();
     if (!this.skipAhead)
         Array.prototype.push.apply(sw.operands, switchOperands);
     if (expectWithinSwitch.length > 0)
@@ -522,12 +515,14 @@ Reader.prototype._readExprI32 = function() {
     var temp, i;
     if (code.imm === null) {
         if (verbose >= 1)
-            console.log("processing I32:" + types.I32Names[code.op]);
+            console.log("processing I32:" + types.I32Names[code.code]);
         var Op = types.I32;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + value
             case Op.LitImm:
+                s.emit(s.varint()|0);
+                break;
 
             // opcode + I32 constant index
             case Op.LitPool:
@@ -728,18 +723,18 @@ Reader.prototype._readExprI32 = function() {
                 break;
 
             default:
-                throw Error("illegal I32 opcode: "+code.op);
+                throw Error("illegal I32 opcode: "+code.code);
         }
     } else {
         if (verbose >= 1)
-            console.log("processing I32WithImm:" + types.I32WithImmNames[code.op]);
+            console.log("processing I32WithImm:" + types.I32WithImmNames[code.code]);
 
         var Op = types.I32WithImm;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcodeWithImm (imm = value)
             case Op.LitImm:
-                s.emit_code(types.I32.LitImm, s.const(code.imm));
+                s.emit_code(types.I32.LitImm, code.imm|0);
                 break;
 
             // opcodeWithImm (imm = I32 constant index)
@@ -753,7 +748,7 @@ Reader.prototype._readExprI32 = function() {
                 break;
 
             default:
-                throw Error("illegal I32WithImm opcode: "+code.op);
+                throw Error("illegal I32WithImm opcode: "+code.code);
         }
     }
 };
@@ -764,12 +759,12 @@ Reader.prototype._readExprF32 = function() {
     var code = s.code(types.RType.F32);
 
     if (verbose >= 1)
-        console.log("processing F32:" + types.F32Names[code.op]);
+        console.log("processing F32:" + types.F32Names[code.code]);
 
     var temp;
     if (code.imm === null) {
         var Op = types.F32;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + value
             case Op.LitImm:
@@ -895,11 +890,11 @@ Reader.prototype._readExprF32 = function() {
                 break;
 
             default:
-                throw Error("illegal F32 opcode: "+code.op);
+                throw Error("illegal F32 opcode: "+code.code);
         }
     } else {
         var Op = types.F32WithImm;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + F32 constant index
             case Op.LitPool:
@@ -912,7 +907,7 @@ Reader.prototype._readExprF32 = function() {
                 break;
 
             default:
-                throw Error("illegal F32WithImm opcode: "+code.op);
+                throw Error("illegal F32WithImm opcode: "+code.code);
         }
     }
 };
@@ -924,10 +919,10 @@ Reader.prototype._readExprF64 = function() {
     var temp, i;
     if (code.imm === null) {
         if (verbose >= 1)
-            console.log("processing F64:" + types.F64Names[code.op]);
+            console.log("processing F64:" + types.F64Names[code.code]);
 
         var Op = types.F64;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + value
             case Op.LitImm:
@@ -1090,14 +1085,14 @@ Reader.prototype._readExprF64 = function() {
                 break;
 
             default:
-                throw Error("illegal F64 opcode: "+code.op);
+                throw Error("illegal F64 opcode: "+code.code);
         }
     } else {
         if (verbose >= 1)
-            console.log("processing F64WithImm:" + types.F64WithImmNames[code.op]);
+            console.log("processing F64WithImm:" + types.F64WithImmNames[code.code]);
 
         var Op = types.F64WithImm;
-        switch (code.op) {
+        switch (code.code) {
 
             // opcode + F64 constant index
             case Op.LitPool:
@@ -1110,7 +1105,7 @@ Reader.prototype._readExprF64 = function() {
                 break;
 
             default:
-                throw Error("illegal F64WithImm opcode: "+code.op);
+                throw Error("illegal F64WithImm opcode: "+code.code);
         }
     }
 };

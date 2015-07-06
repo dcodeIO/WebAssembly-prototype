@@ -1,5 +1,5 @@
 var types = require("../types"),
-    BaseStmt = require("./BaseStmt");
+    BaseExpr = require("./BaseExpr");
 
 /**
  * A void expression.
@@ -7,19 +7,25 @@ var types = require("../types"),
  * @param {number} code
  * @param {(!Array.<number|!stmt.BaseOperand>|number|!stmt.BaseOperand)=} operands
  * @constructor
- * @extends BaseStmt
+ * @extends BaseExpr
  * @exports stmt.VoidStmt
  */
 function ExprVoid(code, operands) {
-    BaseStmt.call(this, code, operands);
+    BaseExpr.call(this, code, operands);
 }
 
 module.exports = ExprVoid;
 
-ExprVoid.prototype = Object.create(BaseStmt.prototype);
+ExprVoid.prototype = Object.create(BaseExpr.prototype);
 
 Object.defineProperty(ExprVoid.prototype, "type", {
     get: function() {
         return this.types.RType.Void;
+    }
+});
+
+Object.defineProperty(ExprVoid.prototype, "codeWithImm", {
+    get: function() {
+        return -1;
     }
 });

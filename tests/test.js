@@ -15,7 +15,7 @@ var file = path.join(__dirname, "AngryBots.wasm"),
 console.log("Testing "+file+" ...\n");
 
 var reader = new Reader({
-    skipAhead: true
+    // skipAhead: true
 });
 
 reader.on("switchState", function (prevState, newState, offset) {
@@ -115,7 +115,19 @@ reader.on("end", function() {
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
     console.log("Complete: "+reader.assembly.toString());
     console.log("Validating assembly ...");
-    reader.assembly.validate();
+
+    write(reader.assembly);
+    return;
+
+    try {
+        reader.assembly.validate();
+    } catch (err) {
+        if (err instanceof assert.AssertionError) {
+            console.log("actual: "+err.actual);
+            console.log("expected: "+err.expected);
+        }
+        throw err;
+    }
     console.log("Success");
     validateAstOffsets();
 });

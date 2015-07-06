@@ -17,7 +17,7 @@ var Stmt = require("../stmt/Stmt"),
 function ReadState(reader, popState) {
 
     /**
-     * AstReader reference.
+     * Reader reference.
      * @type {!ast.Reader}
      */
     this.reader = reader;
@@ -36,7 +36,7 @@ function ReadState(reader, popState) {
 
     /**
      * Current code.
-     * @type {number|!{op: number, imm: number}|undefined}
+     * @type {number|!{code: number, imm: number|null}|undefined}
      */
     this._code = undefined;
 
@@ -49,6 +49,8 @@ function ReadState(reader, popState) {
 
 module.exports = ReadState;
 
+var Reader = require("./Reader"); // cyclic
+
 /**
  * Gets the current function's return type.
  * @returns {number}
@@ -58,13 +60,27 @@ ReadState.prototype.rtype = function() {
 };
 
 /**
+ * Gets the matching state for the specified type.
+ * @function
+ * @param {number} type
+ * @returns {number}
+ */
+ReadState.prototype.state = Reader.stateForType;
+
+/**
  * Reads the next opcode.
  * @param {number} type
- * @returns {!{op: number, imm: number|null}}
+ * @returns {!{code: number, imm: number|null}}
  */
 ReadState.prototype.code = function(type) {
     this._type = type;
-    return this._code = util.unpackCode(this.reader.bufferQueue.readUInt8());
+    var b = this.reader.bufferQueue.readUInt8();
+    return this._code = (b & types.ImmFlag)
+        ? util.unpackWithImm(b)
+        : {
+            code: b,
+            imm: null
+        };
 };
 
 /**
@@ -77,11 +93,19 @@ ReadState.prototype.code_u8 = function() {
 };
 
 /**
- * Reads the next varint.
+ * Reads the next unsigned varint.
  * @returns {number}
  */
 ReadState.prototype.varint = function() {
     return this.reader.bufferQueue.readVarint();
+};
+
+/**
+ * Reads the next signed varint.
+ * @returns {number}
+ */
+ReadState.prototype.varint_s = function() {
+    return this.reader.bufferQueue.readVarintSigned();
 };
 
 /**
@@ -128,14 +152,7 @@ ReadState.prototype.reset = function() {
  * @returns {!reflect.Constant}
  */
 ReadState.prototype.const = function(index) {
-    switch (this._type) {
-        case types.Type.I32:
-            return this.reader.assembly.constantsI32[index];
-        case types.Type.F32:
-            return this.reader.assembly.constantsF32[index];
-        case types.Type.F64:
-            return this.reader.assembly.constantsF64[index];
-    }
+    return this.reader.assembly.getConstant(this._type, index);
 };
 
 /**
@@ -144,7 +161,7 @@ ReadState.prototype.const = function(index) {
  * @returns {!reflect.LocalVariable}
  */
 ReadState.prototype.local = function(index) {
-    return this.reader.definition.variables[index];
+    return this.reader.definition.getVariable(index);
 };
 
 /**
@@ -153,7 +170,7 @@ ReadState.prototype.local = function(index) {
  * @returns {!reflect.GlobalVariable}
  */
 ReadState.prototype.global = function(index) {
-    return this.reader.assembly.globalVariables[index];
+    return this.reader.assembly.getGlobalVariable(index);
 };
 
 /**
@@ -162,7 +179,7 @@ ReadState.prototype.global = function(index) {
  * @returns {!reflect.FunctionDeclaration}
  */
 ReadState.prototype.internal = function(index) {
-    return this.reader.assembly.functionDeclarations[index];
+    return this.reader.assembly.getFunctionDeclaration(index);
 };
 
 /**
@@ -171,16 +188,16 @@ ReadState.prototype.internal = function(index) {
  * @returns {!reflect.FunctionPointerTable}
  */
 ReadState.prototype.indirect = function(index) {
-    return this.reader.assembly.functionPointerTables[index];
+    return this.reader.assembly.getFunctionPointerTable(index);
 };
 
 /**
  * Gets the function import signature at the specified index.
  * @param {number} index
- * @returns {!reflect.FunctionSignature}
+ * @returns {!reflect.FunctionImportSignature}
  */
 ReadState.prototype.import = function(index) {
-    return this.reader.assembly.functionImportSignatures[index];
+    return this.reader.assembly.getFunctionImportSignature(index);
 };
 
 /**
@@ -207,9 +224,67 @@ ReadState.prototype.expect = function(states) {
 };
 
 /**
+ * Converts the specified opcode without imm to its counterpart with imm.
+ * @param {number} code
+ * @returns {number}
+ */
+ReadState.prototype.without_imm = function(code) {
+    var other;
+    if (typeof this._type === 'number') {
+        switch (this._type) {
+            case types.RType.I32:
+                if (typeof (other = types.I32WithImmToI32[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F32:
+                if (typeof (other = types.F32WithImmToF32[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F64:
+                if (typeof (other = types.F64WithImmToF64[code]) !== 'undefined')
+                    return other;
+                break;
+            default:
+                throw Error("illegal type: " + this._type);
+        }
+    } else if (typeof (other = types.StmtWithImmToStmt[code]) !== 'undefined')
+        return other;
+    throw Error("code "+code+" has no counterpart without imm");
+};
+
+/**
+ * Converts the specified opcode with imm to its counterpart without imm.
+ * @param {number} code
+ * @returns {number}
+ */
+ReadState.prototype.with_imm = function(code) {
+    var other;
+    if (typeof this._type === 'number') {
+        switch (this._type) {
+            case types.RType.I32:
+                if (typeof (other = types.I32ToI32WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F32:
+                if (typeof (other = types.F32ToF32WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F64:
+                if (typeof (other = types.F64ToF64WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            default:
+                throw Error("illegal type: " + this._type);
+        }
+    } else if (typeof (other = types.StmtToStmtWithImm[code]) !== 'undefined')
+        return other;
+    throw Error("code "+code+" has no counterpart with imm");
+};
+
+/**
  * Emits a specific opcode.
  * @param {number} code
- * @param {(number|!Array.<number>)=} operands
+ * @param {(!Array.<number|!stmt.BaseOperand>|number|!stmt.BaseOperand)=} operands
  * @returns {!stmt.BaseStmt|undefined}
  */
 ReadState.prototype.emit_code = function(code, operands) {
@@ -236,7 +311,8 @@ ReadState.prototype.emit_code = function(code, operands) {
         }
     else
         this._stmt = new Stmt(code, operands);
-    this.reader.stack[this.reader.stack.length-1].add(this._stmt);
+    var parent = this.reader.stack[this.reader.stack.length-1];
+    parent.add(this._stmt);
     this.reader.bufferQueue.advance();
     return this._stmt;
 };
@@ -247,7 +323,12 @@ ReadState.prototype.emit_code = function(code, operands) {
  * @returns {!stmt.BaseStmt|undefined}
  */
 ReadState.prototype.emit = function(operands) {
-    return this.emit_code(typeof this._code === 'number' ? this._code : this._code.op, operands);
+    if (typeof this._code === 'number')
+        this.emit_code(this._code, operands);
+    else if (this._code.imm === null)
+        this.emit_code(this._code.code, operands);
+    else
+        this.emit_code(this.without_imm(this._code.code), operands);
 };
 
 /**

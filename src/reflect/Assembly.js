@@ -150,7 +150,7 @@ Assembly.prototype.getConstantPoolSize = function(type) {
         case types.Type.F64:
             return this.constantsF64.length;
         default:
-            throw RangeError("illegal type: "+type);
+            throw Error("illegal type: "+type);
     }
 };
 
@@ -181,7 +181,7 @@ Assembly.prototype.getConstantPool = function(type) {
         case types.Type.F64:
             return this.constantsF64;
         default:
-            throw RangeError("illegal type: "+type);
+            throw Error("illegal type: "+type);
     }
 };
 
@@ -194,7 +194,7 @@ Assembly.prototype.getConstantPool = function(type) {
  */
 Assembly.prototype.setConstant = function(type, index, value) {
     assertInteger("type", type);
-    var size = this.getConstantPoolSize(type);
+    var size = this.getConstantPoolSize(type); // *
     assertInteger("index", index, 0, size-1);
     switch (type) {
         case types.Type.I32:
@@ -204,7 +204,7 @@ Assembly.prototype.setConstant = function(type, index, value) {
         case types.Type.F64:
             return this.constantsF64[index] = new Constant(this, type, value);
         default:
-            throw RangeError("illegal type: "+type);
+            throw Error("unreachable"); // *
     }
 };
 
@@ -226,7 +226,7 @@ Assembly.prototype.getConstant = function(type, index) {
         case types.Type.F64:
             return this.constantsF64[index];
         default:
-            throw RangeError("illegal type: "+type);
+            throw Error("illegal type: "+type);
     }
 };
 
@@ -255,7 +255,7 @@ Assembly.prototype.validateConstantPools = function() {
         assert(constant instanceof Constant, "F64 constant "+index+" must be a Constant");
         assert.strictEqual(constant.assembly, this, "F64 constant "+index+" must reference this assembly");
         assert.strictEqual(constant.type, types.Type.F64, "F64 constant "+index+" type must be F64");
-        assert.strictEqual(typeof constant.value, "number", "F63 constant "+index+" value must be a number");
+        assert.strictEqual(typeof constant.value, "number", "F64 constant "+index+" value must be a number");
     }, this);
 };
 

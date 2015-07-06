@@ -15,6 +15,12 @@ function BaseStmt(code, operands) {
     BaseOperand.call(this);
 
     /**
+     * Parent statement or list.
+     * @type {!stmt.BaseStmt|!stmt.StmtList|null}
+     */
+    this.parent = null;
+
+    /**
      * Opcode.
      * @type {number}
      */
@@ -25,7 +31,7 @@ function BaseStmt(code, operands) {
      * @type {!Array.<number|!stmt.BaseOperand>}
      */
     this.operands = Array.isArray(operands)
-        ? operands
+        ? operands.slice()
         : typeof operands !== 'undefined'
             ? [operands]
             : [];
@@ -37,9 +43,9 @@ module.exports = BaseStmt;
 BaseStmt.prototype = Object.create(BaseOperand.prototype);
 
 /**
- * Statement type.
- * @name stmt.BaseStmt#type
- * @type {number|undefined}
+ * Opcode with imm, if any.
+ * @name stmt.BaseStmt#codeWithImm
+ * @type {number} -1 if there is no counterpart
  */
 
 /**
@@ -71,6 +77,8 @@ Object.defineProperty(BaseStmt.prototype, "name", {
  * @param {number|!stmt.BaseOperand} operand
  */
 BaseStmt.prototype.add = function(operand) {
+    if (operand instanceof BaseStmt)
+        operand.parent = this;
     this.operands.push(operand);
 };
 

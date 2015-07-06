@@ -36,10 +36,10 @@ function Writer(assembly, options) {
     this.state = Writer.State.HEADER;
 
     /**
-     * Global write offset.
-     * @type {number}
+     * Buffer queue.
+     * @type {!util.BufferQueue}
      */
-    this.offset = 0;
+    this.bufferQueue = new util.BufferQueue();
 
     /**
      * Write sequence of the current operation.
@@ -48,10 +48,10 @@ function Writer(assembly, options) {
     this.sequence = 0;
 
     /**
-     * Whether the writer has already started to emit data.
-     * @type {boolean}
+     * Write sub sequence of the current operation.
+     * @type {number}
      */
-    this.started = false;
+    this.subSequence = 0;
 
     this.pause();
 }
@@ -60,6 +60,17 @@ module.exports = Writer;
 
 // Extends stream.Readable
 Writer.prototype = Object.create(stream.Readable.prototype);
+
+/**
+ * Global offset.
+ * @name Writer#offset
+ * @type {number}
+ */
+Object.defineProperty(Writer.prototype, "offset", {
+    get: function() {
+        return this.bufferQueue.offset;
+    }
+});
 
 /**
  * States.
@@ -82,219 +93,205 @@ Writer.State = {
     FUNCTION_DECLARATIONS: 12,
     FUNCTION_POINTER_TABLES_COUNT: 13,
     FUNCTION_POINTER_TABLES: 14,
-    FUNCTION_DEFINITIONS: 15,
-    EXPORT: 16,
-    END: 17,
-    ERROR: 18
+    FUNCTION_POINTER_ELEMENTS: 15,
+    FUNCTION_DEFINITIONS: 16,
+    EXPORT: 17,
+    END: 18,
+    ERROR: 19
 };
 
 Writer.prototype._read = function(size) {
-    while (size > 0) {
-        var initialState = this.state,
-            len = 0;
+    if (size <= 0)
+        return;
+    this.bufferQueue.push(new Buffer(size));
+    while (true) {
+        var initialState = this.state;
         try {
             switch (this.state) {
                 case Writer.State.HEADER:
-                    len += this._writeHeader();
+                    this._writeHeader();
                     break;
                 case Writer.State.CONSTANTS_COUNT:
-                    len += this._writeConstantsCount();
+                    this._writeConstantsCount();
                     break;
                 case Writer.State.CONSTANTS_I32:
-                    len += this._writeConstantsI32();
+                    this._writeConstantsI32();
                     break;
                 case Writer.State.CONSTANTS_F32:
-                    len += this._writeConstantsF32();
+                    this._writeConstantsF32();
                     break;
                 case Writer.State.CONSTANTS_F64:
-                    len += this._writeConstantsF64();
+                    this._writeConstantsF64();
                     break;
                 case Writer.State.SIGNATURES_COUNT:
-                    len += this._writeSignaturesCount();
+                    this._writeSignaturesCount();
                     break;
                 case Writer.State.SIGNATURES:
-                    len += this._writeSignatures();
+                    this._writeSignatures();
                     break;
                 case Writer.State.FUNCTION_IMPORTS_COUNT:
-                    len += this._writeFunctionImportsCount();
+                    this._writeFunctionImportsCount();
                     break;
                 case Writer.State.FUNCTION_IMPORTS:
-                    len += this._writeFunctionImports();
+                    this._writeFunctionImports();
                     break;
                 case Writer.State.GLOBAL_VARIABLES_COUNT:
-                    len += this._writeGlobalVariablesCount();
+                    this._writeGlobalVariablesCount();
                     break;
                 case Writer.State.GLOBAL_VARIABLES:
-                    len += this._writeGlobalVariables();
+                    this._writeGlobalVariables();
                     break;
                 case Writer.State.FUNCTION_DECLARATIONS_COUNT:
-                    len += this._writeFunctionDeclarationsCount();
+                    this._writeFunctionDeclarationsCount();
                     break;
                 case Writer.State.FUNCTION_DECLARATIONS:
-                    len += this._writeFunctionDeclarations();
+                    this._writeFunctionDeclarations();
                     break;
                 case Writer.State.FUNCTION_POINTER_TABLES_COUNT:
-                    len += this._writeFunctionPointerTablesCount();
+                    this._writeFunctionPointerTablesCount();
                     break;
                 case Writer.State.FUNCTION_POINTER_TABLES:
-                    len += this._writeFunctionPointerTables();
+                    this._writeFunctionPointerTables();
+                    break;
+                case Writer.State.FUNCTION_POINTER_ELEMENTS:
+                    this._writeFunctionPointerElements();
                     break;
                 case Writer.State.FUNCTION_DEFINITIONS:
-                    len += this._writeFunctionDefinitions();
+                    this._writeFunctionDefinitions();
                     break;
                 case Writer.State.EXPORT:
-                    len += this._writeExport();
+                    this._writeExport();
                     break;
                 case Writer.State.END:
                 case Writer.State.ERROR:
+                    this.push(this.bufferQueue.toBuffer());
+                    this.bufferQueue.clear(true);
                     this.push(null);
                     return;
                 default:
                     throw Error("illegal state: " + this.state);
             }
-            this.offset += len;
-            size -= len;
+            if (this.state !== initialState)
+                this.emit("switchState", this.state, initialState, this.offset);
         } catch (err) {
+            if (this.state !== initialState)
+                this.emit("switchState", this.state, initialState, this.offset);
+            if (err === util.BufferQueue.E_MORE) {
+                var buf = this.bufferQueue.reset().toBuffer();
+                this.push(buf);
+                if (buf.length > 0)
+                    this.bufferQueue.clear();
+                return; // Wait for next read
+            }
             this.emit("error", err);
             this.state = Writer.State.ERROR;
         }
-        if (this.state !== initialState)
-            this.emit("switchState", this.state, initialState, this.offset);
     }
 };
 
 Writer.prototype._writeHeader = function() {
-    var buf = new Buffer(8);
-    buf.writeUInt32LE(types.MagicNumber, 0);
-    buf.writeUInt32LE(this.assembly.precomputedSize, 4);
+    this.bufferQueue
+        .writeUInt32LE(types.MagicNumber)
+        .writeUInt32LE(this.assembly.precomputedSize)
+        .commit();
     this.state = Writer.State.CONSTANTS_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeConstantsCount = function() {
-    var nI32 = this.assembly.constantsI32.length,
-        nF32 = this.assembly.constantsF32.length,
-        nF64 = this.assembly.constantsF64.length;
-    var buf = new Buffer(util.calculateVarint(nI32) + util.calculateVarint(nF32) + util.calculateVarint(nF64)),
-        offset = 0;
-    offset += util.writeVarint(buf, nI32, offset);
-    offset += util.writeVarint(buf, nF32, offset);
-    offset += util.writeVarint(buf, nF64, offset);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(this.assembly.getConstantPoolSize(types.Type.I32))
+        .writeVarint(this.assembly.getConstantPoolSize(types.Type.F32))
+        .writeVarint(this.assembly.getConstantPoolSize(types.Type.F64))
+        .commit();
     this.state = Writer.State.CONSTANTS_I32;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeConstantsI32 = function() {
-    var size = 0;
-    this.assembly.constantsI32.forEach(function(constant) {
-        size += util.calculateVarint(constant.value);
-    }, this);
-    var buf = new Buffer(size),
-        offset = 0;
-    this.assembly.constantsI32.forEach(function(constant) {
-        offset += util.writeVarint(buf, constant.value, offset);
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    var size = this.assembly.getConstantPoolSize(types.Type.I32);
+    while (this.sequence < size) {
+        var constant = this.assembly.getConstant(types.Type.I32, this.sequence);
+        this.bufferQueue
+            .writeVarint(constant.value)
+            .commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.CONSTANTS_F32;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeConstantsF32 = function() {
-    var buf = new Buffer(this.assembly.constantsF32.length * 4),
-        offset = 0;
-    this.assembly.constantsF32.forEach(function(constant) {
-        buf.writeFloatLE(constant.value, offset);
-        offset += 4;
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    var size = this.assembly.getConstantPoolSize(types.Type.F32);
+    while (this.sequence < size) {
+        var constant = this.assembly.getConstant(types.Type.F32, this.sequence);
+        this.bufferQueue
+            .writeFloatLE(constant.value)
+            .commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.CONSTANTS_F64;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeConstantsF64 = function() {
-    var buf = new Buffer(this.assembly.constantsF64.length * 8),
-        offset = 0;
-    this.assembly.constantsF64.forEach(function(constant) {
-        buf.writeDoubleLE(constant.value, offset);
-        offset += 8;
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    var size = this.assembly.getConstantPoolSize(types.Type.F64);
+    while (this.sequence < size) {
+        var constant = this.assembly.getConstant(types.Type.F64, this.sequence);
+        this.bufferQueue
+            .writeDoubleLE(constant.value)
+            .commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.SIGNATURES_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeSignaturesCount = function() {
-    var count = this.assembly.functionSignatures.length,
-        buf = new Buffer(util.calculateVarint(count));
-    var offset = util.writeVarint(buf, count, 0);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(this.assembly.getFunctionSignaturePoolSize())
+        .commit();
     this.state = Writer.State.SIGNATURES;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeSignatures = function() {
-    var size = 0;
-    this.assembly.functionSignatures.forEach(function(signature) {
-        size += 1 + util.calculateVarint(signature.argumentTypes.length) + signature.argumentTypes.length;
-    }, this);
-    var buf = new Buffer(size),
-        offset = 0;
-    this.assembly.functionSignatures.forEach(function(signature) {
-        buf[offset++] = signature.returnType;
-        offset += util.writeVarint(buf, signature.argumentTypes.length, offset);
-        signature.argumentTypes.forEach(function(type, i) {
-            buf[offset++] = type;
+    var size = this.assembly.getFunctionSignaturePoolSize();
+    while (this.sequence < size) {
+        var signature = this.assembly.getFunctionSignature(this.sequence);
+        this.bufferQueue
+            .writeUInt8(signature.returnType)
+            .writeVarint(signature.argumentTypes.length);
+        signature.argumentTypes.forEach(function(type) {
+            this.bufferQueue.writeUInt8(type);
         }, this);
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+        this.bufferQueue.commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.FUNCTION_IMPORTS_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeFunctionImportsCount = function() {
-    var nImps = this.assembly.functionImports.length,
-        nImpSigs =  this.assembly.functionImportSignatures.length;
-    var len = util.calculateVarint(nImps) + util.calculateVarint(nImpSigs),
-        buf = new Buffer(len),
-        offset;
-    offset  = util.writeVarint(buf, nImps, 0);
-    offset += util.writeVarint(buf, nImpSigs, offset);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(this.assembly.getFunctionImportPoolSize())
+        .writeVarint(this.assembly.getFunctionImportSignaturePoolSize())
+        .commit();
     this.state = Writer.State.FUNCTION_IMPORTS;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeFunctionImports = function() {
-    var size = 0;
-    this.assembly.functionImports.forEach(function(imprt) {
-        size += Buffer.byteLength(imprt.name, "utf8") + 1 + util.calculateVarint(imprt.signatures.length);
+    var size = this.assembly.getFunctionImportPoolSize();
+    while (this.sequence < size) {
+        var imprt = this.assembly.getFunctionImport(this.sequence);
+        this.bufferQueue
+            .writeCString(imprt.name)
+            .writeVarint(imprt.signatures.length);
         imprt.signatures.forEach(function(signature) {
-            size += util.calculateVarint(signature.signature.index);
+            this.bufferQueue.writeVarint(signature.signature.index);
         }, this);
-    }, this);
-    var buf = new Buffer(size),
-        offset = 0;
-    this.assembly.functionImports.forEach(function(imprt) {
-        offset += buf.write(imprt.name, offset, "utf8");
-        buf[offset++] = 0;
-        offset += util.writeVarint(buf, imprt.signatures.length, offset);
-        imprt.signatures.forEach(function(signature) {
-            offset += util.writeVarint(buf, signature.signature.index, offset);
-        }, this);
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+        this.bufferQueue.commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.GLOBAL_VARIABLES_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeGlobalVariablesCount = function() {
@@ -311,123 +308,108 @@ Writer.prototype._writeGlobalVariablesCount = function() {
         nI32zero++;
         current++;
     }
-    size += util.calculateVarint(nI32zero);
+    this.bufferQueue.writeVarint(nI32zero);
     while (current < vars.length && vars[current].type === types.Type.F32) {
         nF32zero++;
         current++;
     }
-    size += util.calculateVarint(nF32zero);
+    this.bufferQueue.writeVarint(nF32zero);
     while (current < vars.length && vars[current].type === types.Type.F64) {
         nF64zero++;
         current++;
     }
-    size += util.calculateVarint(nF64zero);
+    this.bufferQueue.writeVarint(nF64zero);
     this.sequence = current;
     while (current < vars.length && vars[current].type === types.Type.I32) {
         nI32import++;
         current++;
     }
-    size += util.calculateVarint(nI32import);
+    this.bufferQueue.writeVarint(nI32import);
     while (current < vars.length && vars[current].type === types.Type.F32) {
         nF32import++;
         current++;
     }
-    size += util.calculateVarint(nF32import);
+    this.bufferQueue.writeVarint(nF32import);
     while (current < vars.length && vars[current].type === types.Type.F64) {
         nF64import++;
         current++;
     }
     assert.strictEqual(current, vars.length, "illegal order of global variables");
-    size += util.calculateVarint(nF64import);
-    var buf = new Buffer(size),
-        offset = 0;
-    offset += util.writeVarint(buf, nI32zero, offset);
-    offset += util.writeVarint(buf, nF32zero, offset);
-    offset += util.writeVarint(buf, nF64zero, offset);
-    offset += util.writeVarint(buf, nI32import, offset);
-    offset += util.writeVarint(buf, nF32import, offset);
-    offset += util.writeVarint(buf, nF64import, offset);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(nF64import)
+        .commit();
     this.state = Writer.State.GLOBAL_VARIABLES;
-    this.push(buf);
-    return buf.length;
+    // sequence set halfway
 };
 
 Writer.prototype._writeGlobalVariables = function() {
-    var vars = this.assembly.globalVariables,
-        size = 0;
-    for (var i=this.sequence; i<vars.length; ++i)
-        size += Buffer.byteLength(vars[i].importName, "utf8") + 1;
-    var buf = new Buffer(size),
-        offset = 0;
-    for (i=this.sequence; i<vars.length; ++i) {
-        offset += buf.write(vars[i].importName, offset, "utf8");
-        buf[offset++] = 0;
+    var size = this.assembly.getGlobalVariablePoolSize();
+    while (this.sequence < size) {
+        var variable = this.assembly.getGlobalVariable(this.sequence);
+        this.bufferQueue
+            .writeCString(variable.importName)
+            .commit();
+        ++this.sequence;
     }
-    assert.strictEqual(offset, buf.length, "offset mismatch");
     this.state = Writer.State.FUNCTION_DECLARATIONS_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeFunctionDeclarationsCount = function() {
-    var count = this.assembly.functionDeclarations.length,
-        buf = new Buffer(util.calculateVarint(count)),
-        offset = util.writeVarint(buf, count, 0);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(this.assembly.getFunctionDeclarationPoolSize())
+        .commit();
     this.state = Writer.State.FUNCTION_DECLARATIONS;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeFunctionDeclarations = function() {
-    var len = 0;
-    this.assembly.functionDeclarations.forEach(function(declaration) {
-        len += util.calculateVarint(declaration.signature.index);
-    }, this);
-    var buf = new Buffer(len),
-        offset = 0;
-    this.assembly.functionDeclarations.forEach(function(declaration) {
-        offset += util.writeVarint(buf, declaration.signature.index, offset);
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    var size = this.assembly.getFunctionDeclarationPoolSize();
+    while (this.sequence < size) {
+        var declaration = this.assembly.getFunctionDeclaration(this.sequence);
+        this.bufferQueue
+            .writeVarint(declaration.signature.index)
+            .commit();
+        ++this.sequence;
+    }
     this.state = Writer.State.FUNCTION_POINTER_TABLES_COUNT;
-    this.push(buf);
-    return buf.length;
 };
 
 Writer.prototype._writeFunctionPointerTablesCount = function() {
-    var count = this.assembly.functionPointerTables.length,
-        buf = new Buffer(util.calculateVarint(count)),
-        offset = util.writeVarint(buf, count, 0);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    this.bufferQueue
+        .writeVarint(this.assembly.getFunctionPointerTablePoolSize())
+        .commit();
     this.state = Writer.State.FUNCTION_POINTER_TABLES;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
 };
 
 Writer.prototype._writeFunctionPointerTables = function() {
-    var size = 0;
-    this.assembly.functionPointerTables.forEach(function(table) {
-        size += util.calculateVarint(table.signature.index);
-        size += util.calculateVarint(table.elements.length);
-        table.elements.forEach(function(element) {
-            size += util.calculateVarint(element.value);
-        }, this);
-    }, this);
-    var buf = new Buffer(size),
-        offset = 0;
-    this.assembly.functionPointerTables.forEach(function(table) {
-        offset += util.writeVarint(buf, table.signature.index, offset);
-        offset += util.writeVarint(buf, table.elements.length, offset);
-        table.elements.forEach(function(element) {
-            offset += util.writeVarint(buf, element.value, offset);
-        }, this);
-    }, this);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
+    var size = this.assembly.getFunctionPointerTablePoolSize();
+    if (this.sequence < size) {
+        var table = this.assembly.getFunctionPointerTable(this.sequence);
+        this.bufferQueue
+            .writeVarint(table.signature.index)
+            .writeVarint(table.elements.length)
+            .commit();
+        // Elements might be rather large (seen 8192), so ...
+        this.state = Writer.State.FUNCTION_POINTER_ELEMENTS;
+        this.subSequence = 0;
+        return;
+    }
     this.state = Writer.State.FUNCTION_DEFINITIONS;
-    this.push(buf);
-    return buf.length;
+    this.sequence = 0;
+};
+
+Writer.prototype._writeFunctionPointerElements = function() {
+    var table = this.assembly.getFunctionPointerTable(this.sequence);
+    while (this.subSequence < table.elements.length) {
+        var element = table.elements[this.subSequence];
+        this.bufferQueue
+            .writeVarint(element.value)
+            .commit();
+        ++this.subSequence;
+    }
+    this.state = Writer.State.FUNCTION_POINTER_TABLES;
+    ++this.sequence;
 };
 
 Writer.prototype._writeFunctionDefinitions = function() {
@@ -435,26 +417,19 @@ Writer.prototype._writeFunctionDefinitions = function() {
 };
 
 Writer.prototype._writeExport = function() {
-    var exprt = this.assembly.export,
-        buf, offset = 0;
+    var exprt = this.assembly.export;
     if (exprt instanceof DefaultExport) {
-        buf = new Buffer(util.calculateVarint(exprt.function.index));
-        offset = util.writeVarint(buf, exprt.function.index, offset);
-    } else  {
-        var size = util.calculateVarint(Object.keys(exprt.functions).length);
+        this.bufferQueue
+            .writeVarint(exprt.function.index)
+            .commit();
+    } else {
+        this.bufferQueue.writeVarint(Object.keys(exprt.functions).length);
         Object.keys(exprt.functions).forEach(function(name) {
-            size += Buffer.byteLength(name) + 1 +util.calculateVarint(exprt.functions[name]);
+            this.bufferQueue
+                .writeCString(name)
+                .writeVarint(exprt.functions[name]);
         }, this);
-        buf = new Buffer(size);
-        offset += util.writeVarint(buf, Object.keys(exprt.functions).length, offset);
-        Object.keys(exprt.functions).forEach(function(name) {
-            offset += buf.write(name, offset, "utf8");
-            buf[offset++] = 0;
-            offset += util.writeVarint(buf, exprt.functions[name], offset);
-        }, this);
+        this.bufferQueue.commit();
     }
-    assert.strictEqual(offset, buf.length, "offset mismatch");
     this.state = Writer.State.END;
-    this.push(buf);
-    return buf.length;
 };

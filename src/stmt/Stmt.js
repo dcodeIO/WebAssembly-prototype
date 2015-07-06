@@ -23,3 +23,16 @@ Object.defineProperty(Stmt.prototype, "type", {
         return undefined;
     }
 });
+
+Object.defineProperty(Stmt.prototype, "codeWithImm", {
+    get: function() {
+        switch (this.code) {
+            case types.Stmt.SetLoc:
+                return types.StmtWithImm.SetLoc;
+            case types.Stmt.SetGlo:
+                return types.StmtWithImm.SetGlo;
+            default:
+                return -1;
+        }
+    }
+});
