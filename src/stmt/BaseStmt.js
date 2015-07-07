@@ -43,15 +43,21 @@ module.exports = BaseStmt;
 BaseStmt.prototype = Object.create(BaseOperand.prototype);
 
 /**
+ * Expression type.
+ * @name stmt.BaseExpr#type
+ * @type {number|null}
+ */
+
+/**
  * Opcode with imm, if any.
  * @name stmt.BaseStmt#codeWithImm
  * @type {number} -1 if there is no counterpart
  */
 
 /**
- * Expression type.
- * @name stmt.BaseExpr#type
- * @type {number|null}
+ * Behavior.
+ * @name stmt.BaseStmt#behavior
+ * @type {!stmt.behavior.Behavior}
  */
 
 /**
