@@ -16,9 +16,3 @@ function BaseExpr(code, operands) {
 module.exports = BaseExpr;
 
 BaseExpr.prototype = Object.create(BaseStmt.prototype);
-
-/**
- * Expression type.
- * @name stmt.BaseExpr#type
- * @type {number}
- */

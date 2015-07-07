@@ -49,13 +49,19 @@ BaseStmt.prototype = Object.create(BaseOperand.prototype);
  */
 
 /**
+ * Expression type.
+ * @name stmt.BaseExpr#type
+ * @type {number|null}
+ */
+
+/**
  * Gets the literal opcode name.
  * @name stmt.BaseStmt#name
- * @type {string|undefined}
+ * @type {string}
  */
 Object.defineProperty(BaseStmt.prototype, "name", {
     get: function() {
-        if (this.type === undefined)
+        if (this.type === null)
             return "Stmt:"+types.StmtNames[this.code];
         switch (this.type) {
             case types.RType.I32:

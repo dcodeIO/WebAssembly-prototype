@@ -5,13 +5,16 @@ var Behavior = require("./Behavior"),
     ExprI32 = require("../ExprI32");
 
 /**
- * Behavior specifying how to process Load expressions.
+ * Load behavior.
+ * @param {string} name
  * @param {string} description
  * @param {number} heapType
  * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.LoadBehavior
  */
-function LoadBehavior(description, heapType) {
-    Behavior.call(this, description);
+function LoadBehavior(name, description, heapType) {
+    Behavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -40,6 +43,6 @@ LoadBehavior.prototype.validate = function(definition, stmt) {
 };
 
 LoadBehavior.prototype.write = function(s, stmt) {
-    s.emit();
-    s.expect(s.state(types.RType.I32));
+    s.code(stmt.code);
+    s.write(stmt.operands[0]);
 };

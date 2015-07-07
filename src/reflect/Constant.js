@@ -52,6 +52,8 @@ Object.defineProperty(Constant.prototype, "index", {
                 return this.assembly.constantsF32.indexOf(this);
             case types.Type.F64:
                 return this.assembly.constantsF64.indexOf(this);
+            default:
+                throw Error("illegal type: "+this.type);
         }
     }
 });

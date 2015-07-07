@@ -5,8 +5,17 @@ var Behavior = require("./Behavior"),
     BaseExpr = require("..//BaseExpr"),
     ExprI32 = require("../ExprI32");
 
-function StoreWithOffsetBehavior(description, heapType) {
-    Behavior.call(this, description);
+/**
+ * StoreWithOffset behavior.
+ * @param {string} name
+ * @param {string} description
+ * @param {number} heapType
+ * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.StoreWithOffsetBehavior
+ */
+function StoreWithOffsetBehavior(name, description, heapType) {
+    Behavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -17,14 +26,16 @@ function StoreWithOffsetBehavior(description, heapType) {
 
 module.exports = StoreWithOffsetBehavior;
 
+// Extends Behavior
 StoreWithOffsetBehavior.prototype = Object.create(Behavior.prototype);
 
-// opcode + Expr<I32> heap index + Expr<heap type> value
+// opcode + varint offset + Expr<I32> heap index + Expr<heap type> value
 // Stmt & Expr<*>, all without imm
 
 StoreWithOffsetBehavior.prototype.read = function(s, code, imm) {
     s.emit(s.varint());
-    s.expect([s.state(types.RType.I32), s.state(this.heapType)]);
+    s.expect(s.state(types.RType.I32));
+    s.expect(s.state(this.heapType));
 };
 
 StoreWithOffsetBehavior.prototype.validate = function(definition, stmt) {
@@ -32,14 +43,15 @@ StoreWithOffsetBehavior.prototype.validate = function(definition, stmt) {
     var offset = stmt.operands[0];
     assert(typeof offset === 'number' && offset%1 === 0 && offset >= 0, "StoreWithOffset offset (operand 0) must be a non-negative integer");
     var index = stmt.operands[1];
-    assert(index instanceof ExprI32, "Store heap index (operand 1) must be an I32 expression");
+    assert(index instanceof ExprI32, "StoreWithOffset heap index (operand 1) must be an I32 expression");
     var value = stmt.operands[2];
-    assert(value instanceof BaseExpr, "Store value (operand 2) must be an expression");
-    assert.strictEqual(value.type, this.heapType, "Store value (operand 1) expression must be "+types.RTypeNames[this.heapType]);
+    assert(value instanceof BaseExpr, "StoreWithOffset value (operand 2) must be an expression");
+    assert.strictEqual(value.type, this.heapType, "StoreWithOffset value (operand 1) expression must be "+types.RTypeNames[this.heapType]);
 };
 
 StoreWithOffsetBehavior.prototype.write = function(s, stmt) {
-    s.emit();
+    s.code(stmt.code);
     s.varint(stmt.operands[0]);
-    s.expect([s.state(types.RType.I32), s.state(this.heapType)]);
+    s.write(stmt.operands[1]);
+    s.write(stmt.operands[2]);
 };

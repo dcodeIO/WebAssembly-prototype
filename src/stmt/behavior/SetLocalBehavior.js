@@ -7,15 +7,16 @@ var Behavior = require("./Behavior"),
     Stmt = require("../Stmt");
 
 /**
- * Behavior specifying how to process SetLoc expressions.
+ * SetLocal behavior.
+ * @param {string} name
  * @param {string} description
  * @param {number} returnType
  * @constructor
- * @extends Behavior
+ * @extends stmt.behavior.Behavior
  * @exports stmt.behavior.SetLocalBehavior
  */
-function SetLocalBehavior(description, returnType) {
-    Behavior.call(this, description);
+function SetLocalBehavior(name, description, returnType) {
+    Behavior.call(this, name, description);
 
     /**
      * Expression return type, if an expression.
@@ -26,9 +27,10 @@ function SetLocalBehavior(description, returnType) {
 
 module.exports = SetLocalBehavior;
 
+// Extends Behavior
 SetLocalBehavior.prototype = Object.create(Behavior.prototype);
 
-// opcode + local variable index + Expr<local variable type> value
+// opcode + varint local variable index + Expr<local variable type> value
 // Stmt & Expr<*>, Stmt with imm
 
 SetLocalBehavior.prototype.read = function(s, op, imm) {
@@ -38,25 +40,25 @@ SetLocalBehavior.prototype.read = function(s, op, imm) {
 };
 
 SetLocalBehavior.prototype.validate = function(definition, stmt) {
-    assert.strictEqual(stmt.operands.length, 2, "SetLoc must have two operands");
+    assert.strictEqual(stmt.operands.length, 2, "SetLocal requires exactly 2 operands");
     var variable = stmt.operands[0];
-    assert(variable instanceof LocalVariable, "SetLoc operand 0 must be a LocalVariable");
-    assert.strictEqual(variable.definition, definition, "SetGlo variable must be part of this definition");
+    assert(variable instanceof LocalVariable, "SetLocal variable (operand 0) must be a LocalVariable");
+    assert.strictEqual(variable.definition, definition, "SetLocal variable (operand 0) must be part of this definition");
     if (this.returnType !== null)
-        assert.strictEqual(variable.type, this.returnType, "SetGlo variable must be "+types.RTypeNames[this.returnType]);
+        assert.strictEqual(variable.type, this.returnType, "SetLocal variable (operand 0) must be "+types.RTypeNames[this.returnType]);
     var expr = stmt.operands[1];
-    assert(expr instanceof BaseExpr, "SetGlo operand 1 must be an expression");
-    assert.strictEqual(expr.type, variable.type, "SetGlo operand 1 expression must be "+types.RTypeNames[variable.type]);
+    assert(expr instanceof BaseExpr, "SetLocal value (operand 1) must be an expression");
+    assert.strictEqual(expr.type, variable.type, "SetLocal value (operand 1) expression must be "+types.RTypeNames[variable.type]);
 };
 
 SetLocalBehavior.prototype.write = function(s, stmt) {
     var variable = stmt.operands[0],
         codeWithImm;
     if (variable.index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
-        s.emit_code(codeWithImm, variable.index);
+        s.code(codeWithImm, variable.index);
     else {
-        s.emit();
+        s.code(stmt.code);
         s.varint(variable.index);
     }
-    s.expect(s.state(variable.type));
+    s.write(stmt.operands[1]);
 };

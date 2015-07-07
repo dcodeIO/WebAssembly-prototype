@@ -20,7 +20,7 @@ Stmt.prototype = Object.create(BaseStmt.prototype);
 
 Object.defineProperty(Stmt.prototype, "type", {
     get: function() {
-        return undefined;
+        return null;
     }
 });
 

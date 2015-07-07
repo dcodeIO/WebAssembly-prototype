@@ -5,13 +5,16 @@ var Behavior = require("./Behavior"),
     ExprI32 = require("../ExprI32");
 
 /**
- * Behavior specifying how to process LoadOff expressions.
+ * LoadWithOffset behavior.
+ * @param {string} name
  * @param {string} description
  * @param {number} heapType
  * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.LoadWithOffsetBehavior
  */
-function LoadWithOffsetBehavior(description, heapType) {
-    Behavior.call(this, description);
+function LoadWithOffsetBehavior(name, description, heapType) {
+    Behavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -25,7 +28,7 @@ module.exports = LoadWithOffsetBehavior;
 // Extends Behavior
 LoadWithOffsetBehavior.prototype = Object.create(Behavior.prototype);
 
-// opcode + offset + Expr<I32> heap index
+// opcode + varint offset + Expr<I32> heap index
 // Expr<*>, all without imm
 
 LoadWithOffsetBehavior.prototype.read = function(s, code, imm) {
@@ -42,7 +45,7 @@ LoadWithOffsetBehavior.prototype.validate = function(definition, stmt) {
 };
 
 LoadWithOffsetBehavior.prototype.write = function(s, stmt) {
-    s.emit();
+    s.code(stmt.code);
     s.varint(stmt.operands[0]);
-    s.expect(s.state(types.RType.I32));
+    s.write(stmt.operands[1]);
 };

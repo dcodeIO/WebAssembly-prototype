@@ -1,12 +1,19 @@
 var types = require("../../types");
 
 /**
- * Behaviors defining how a statement is read, validated and written.
+ * Base class of all behaviors.
  * @constructor
+ * @param {string} name
  * @param {string} description
- * @exports stmt.Behavior
+ * @exports stmt.behavior.Behavior
  */
-function Behavior(description) {
+function Behavior(name, description) {
+
+    /**
+     * Textual name.
+     * @type {string}
+     */
+    this.name = name;
 
     /**
      * Textual description.
@@ -20,10 +27,10 @@ module.exports = Behavior;
 /**
  * A function capable of reading a statement with this behaviour.
  * @param {!ast.ReadState} s
- * @param {number} op
+ * @param {number} code
  * @param {number|null} imm
  */
-Behavior.prototype.read = function(s, op, imm) {
+Behavior.prototype.read = function(s, code, imm) {
     throw Error("not implemented");
 };
 
@@ -39,7 +46,7 @@ Behavior.prototype.validate = function(definition, stmt) {
 /**
  * A function capable of writing a statement with this behavior.
  * @param {!ast.WriteState} s
- * @param {!BaseStmt} stmt
+ * @param {!stmt.BaseStmt} stmt
  */
 Behavior.prototype.write = function(s, stmt) {
     throw Error("not implemented");

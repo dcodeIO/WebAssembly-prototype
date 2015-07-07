@@ -400,6 +400,56 @@ types.Void = {
 
 types.VoidNames = swap(types.Void);
 
+types.codeWithImm = function(type, code) {
+    var other;
+    if (type === null) {
+        if (typeof (other = types.StmtToStmtWithImm[code]) !== 'undefined')
+            return other;
+    } else
+        switch (type) {
+            case types.RType.I32:
+                if (typeof (other = types.I32ToI32WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F32:
+                if (typeof (other = types.F32ToF32WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F64:
+                if (typeof (other = types.F64ToF64WithImm[code]) !== 'undefined')
+                    return other;
+                break;
+            default:
+                throw Error("illegal type: " + type);
+        }
+    return -1;
+};
+
+types.codeWithoutImm = function(type, code) {
+    var other;
+    if (type === null) {
+        if (typeof (other = types.StmtWithImmToStmt[code]) !== 'undefined')
+            return other;
+    } else
+        switch (type) {
+            case types.RType.I32:
+                if (typeof (other = types.I32WithImmToI32[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F32:
+                if (typeof (other = types.F32WithImmToF32[code]) !== 'undefined')
+                    return other;
+                break;
+            case types.RType.F64:
+                if (typeof (other = types.F64WithImmToF64[code]) !== 'undefined')
+                    return other;
+                break;
+            default:
+                throw Error("illegal type: " + type);
+        }
+    return -1;
+};
+
 // ----- platform specific standard library -----
 
 types.HotStdLib = [

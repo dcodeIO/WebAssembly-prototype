@@ -61,7 +61,7 @@ function Reader(functionDefinition, bufferQueue, options) {
      * Function declaration.
      * @type {!reflect.FunctionDeclaration}
      */
-    this.declaration = functionDefinition.declaration;
+    this.declaration = this.definition.declaration;
 
     /**
      * Function signature.
@@ -142,11 +142,13 @@ Reader.State = {
  * Returns the reader state suitable for the specified statement type.
  * @function
  * @name ast.Reader.stateForType
- * @param {number} type
+ * @param {number|null} type
  * @param {boolean=} exprVoid
  * @returns {number}
  */
 var stateForType = Reader.stateForType = function(type) {
+    if (type === null)
+        return Reader.State.STMT;
     switch (type) {
         case types.RType.I32:
             return Reader.State.EXPR_I32;

@@ -7,41 +7,59 @@ var WriteState = require("./WriteState");
 
 /**
  * An abstract syntax tree writer.
- * @param {!reflect.FunctionDefinition} definition
+ * @param {!reflect.FunctionDefinition} functionDefinition
+ * @param {!util.BufferQueue=} bufferQueue
  * @param {!Object.<string,*>=} options
  * @constructor
  * @extends stream.Readable
  * @exports ast.Writer
  */
-function Writer(definition, options) {
-    if (!definition.ast)
+function Writer(functionDefinition, bufferQueue, options) {
+    if (!functionDefinition.ast)
         throw Error("definition does not contain an AST");
 
     stream.Readable.call(this, options);
+
+    if (!(bufferQueue instanceof util.BufferQueue)) {
+        options = bufferQueue;
+        bufferQueue = undefined;
+    }
 
     /**
      * Function definition.
      * @type {!reflect.FunctionDefinition}
      */
-    this.definition = definition;
+    this.definition = functionDefinition;
 
     /**
      * Function declaration.
      * @type {!reflect.FunctionDeclaration}
      */
-    this.declaration = definition.declaration;
+    this.declaration = this.definition.declaration;
+
+    /**
+     * Function signature.
+     * @type {!reflect.FunctionSignature}
+     */
+    this.signature = this.declaration.signature;
 
     /**
      * Assembly reference.
      * @type {!reflect.Assembly}
      */
-    this.assembly = definition.declaration.assembly;
+    this.assembly = this.declaration.assembly;
+
+    /**
+     * Writer buffer queue.
+     * @type {!util.BufferQueue}
+     */
+    this.bufferQueue = bufferQueue || new util.BufferQueue();
 
     /**
      * AST pointer.
      * @type {!stmt.StmtList|stmt.BaseStmt}
      */
-    this.ptr = definition.ast;
+    this.ptr = functionDefinition.ast;
 
     /**
      * AST sequence.

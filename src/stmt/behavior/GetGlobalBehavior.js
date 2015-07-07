@@ -5,13 +5,16 @@ var Behavior = require("./Behavior"),
     GlobalVariable = require("../../reflect/GlobalVariable");
 
 /**
- * Behavior specifying how to process GetGlo expressions.
+ * GetGlobal behavior.
+ * @param {string} name
  * @param {string} description
  * @param {number} type
  * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.GetGlobalBehavior
  */
-function GetGlobalBehavior(description, type) {
-    Behavior.call(this, description);
+function GetGlobalBehavior(name, description, type) {
+    Behavior.call(this, name, description);
 
     /**
      * Global variable type.
@@ -33,14 +36,14 @@ GetGlobalBehavior.prototype.read = function(s, op, imm) {
 };
 
 GetGlobalBehavior.prototype.validate = function(definition, stmt) {
-    assert.strictEqual(stmt.operands.length, 1, "GetGlo requires exactly 1 operand");
+    assert.strictEqual(stmt.operands.length, 1, "GetGlobal requires exactly 1 operand");
     var variable = stmt.operands[0];
-    assert(variable instanceof GlobalVariable, "GetGlo operand 0 must be a GlobalVariable");
-    assert.strictEqual(variable.definition.declaration.assembly, definition.definition.declaration.assembly, "GetGlo variable must be part of this assembly");
-    assert.strictEqual(variable.type, this.type, "GetGlo variable type must be "+types.RTypeNames[this.type]);
+    assert(variable instanceof GlobalVariable, "GetGlobal variable (operand 0) must be a GlobalVariable");
+    assert.strictEqual(variable.definition.declaration.assembly, definition.definition.declaration.assembly, "GetGlobal variable (operand 0) must be part of this assembly");
+    assert.strictEqual(variable.type, this.type, "GetGlobal variable (operand 0) type must be "+types.RTypeNames[this.type]);
 };
 
 GetGlobalBehavior.prototype.write = function(s, stmt) {
-    s.emit();
+    s.code(stmt.code);
     s.varint(stmt.operands[0].index);
 };

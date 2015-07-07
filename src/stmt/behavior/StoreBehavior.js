@@ -5,8 +5,17 @@ var Behavior = require("./Behavior"),
     BaseExpr = require("../BaseExpr"),
     ExprI32 = require("../ExprI32");
 
-function StoreBehavior(description, heapType) {
-    Behavior.call(this, description);
+/**
+ * Store behavior.
+ * @param {string} name
+ * @param {string} description
+ * @param {number} heapType
+ * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.StoreBehavior
+ */
+function StoreBehavior(name, description, heapType) {
+    Behavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -17,6 +26,7 @@ function StoreBehavior(description, heapType) {
 
 module.exports = StoreBehavior;
 
+// Extends Behavior
 StoreBehavior.prototype = Object.create(Behavior.prototype);
 
 // opcode + Expr<I32> heap index + Expr<heap type> value
@@ -24,7 +34,8 @@ StoreBehavior.prototype = Object.create(Behavior.prototype);
 
 StoreBehavior.prototype.read = function(s, code, imm) {
     s.emit();
-    s.expect([s.state(types.RType.I32), s.state(this.heapType)]);
+    s.expect(s.state(types.RType.I32));
+    s.expect(s.state(this.heapType));
 };
 
 StoreBehavior.prototype.validate = function(definition, stmt) {
@@ -37,6 +48,7 @@ StoreBehavior.prototype.validate = function(definition, stmt) {
 };
 
 StoreBehavior.prototype.write = function(s, stmt) {
-    s.emit();
-    s.expect([s.state(types.RType.I32), s.state(this.heapType)]);
+    s.code(stmt.code);
+    s.write(stmt.operands[0]);
+    s.write(stmt.operands[1]);
 };

@@ -5,13 +5,16 @@ var Behavior = require("./Behavior"),
     LocalVariable = require("../../reflect/LocalVariable");
 
 /**
- * Behavior specifying how to process GetLoc expressions.
+ * GetLocal behavior.
+ * @param {string} name
  * @param {string} description
  * @param {number} type
  * @constructor
+ * @extends stmt.behavior.Behavior
+ * @exports stmt.behavior.GetLocalBehavior
  */
-function GetLocalBehavior(description, type) {
-    Behavior.call(this, description);
+function GetLocalBehavior(name, description, type) {
+    Behavior.call(this, name, description);
 
     /**
      * Local variable type.
@@ -33,19 +36,19 @@ GetLocalBehavior.prototype.read = function(s, op, imm) {
 };
 
 GetLocalBehavior.prototype.validate = function(definition, stmt) {
-    assert.strictEqual(stmt.operands.length, 1, "GetLoc requires exactly 1 operand");
+    assert.strictEqual(stmt.operands.length, 1, "GetLocal requires exactly 1 operand");
     var variable = stmt.operands[0];
-    assert(variable instanceof LocalVariable, "GetLoc operand 0 must be a LocalVariable");
-    assert.strictEqual(variable.definition, definition, "GetLoc variable must be part of this definition");
-    assert.strictEqual(variable.type, this.type, "GetLoc variable type must be "+types.RTypeNames[this.type]);
+    assert(variable instanceof LocalVariable, "GetLocal variable (operand 0) must be a LocalVariable");
+    assert.strictEqual(variable.definition, definition, "GetLocal variable (operand 0) must be part of this definition");
+    assert.strictEqual(variable.type, this.type, "GetLocal variable (operand 0) type must be "+types.RTypeNames[this.type]);
 };
 
 GetLocalBehavior.prototype.write = function(s, stmt) {
     var codeWithImm;
     if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
-        s.emit_code(codeWithImm, stmt.operands[0].index);
+        s.code(codeWithImm, stmt.operands[0].index);
     else {
-        s.emit();
+        s.code(stmt.code);
         s.varint(stmt.operands[0].index);
     }
 };

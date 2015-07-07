@@ -30,13 +30,13 @@ function ReadState(reader, popState) {
 
     /**
      * Current type.
-     * @type {number|undefined}
+     * @type {number|null|undefined}
      */
     this._type = undefined;
 
     /**
      * Current code.
-     * @type {number|!{code: number, imm: number|null}|undefined}
+     * @type {number|null|!{code: number, imm: number|null}|undefined}
      */
     this._code = undefined;
 
@@ -226,59 +226,19 @@ ReadState.prototype.expect = function(states) {
 /**
  * Converts the specified opcode without imm to its counterpart with imm.
  * @param {number} code
- * @returns {number}
+ * @returns {number} -1 if there is no counterpart without imm
  */
 ReadState.prototype.without_imm = function(code) {
-    var other;
-    if (typeof this._type === 'number') {
-        switch (this._type) {
-            case types.RType.I32:
-                if (typeof (other = types.I32WithImmToI32[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F32:
-                if (typeof (other = types.F32WithImmToF32[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F64:
-                if (typeof (other = types.F64WithImmToF64[code]) !== 'undefined')
-                    return other;
-                break;
-            default:
-                throw Error("illegal type: " + this._type);
-        }
-    } else if (typeof (other = types.StmtWithImmToStmt[code]) !== 'undefined')
-        return other;
-    throw Error("code "+code+" has no counterpart without imm");
+    return types.codeWithoutImm(this._type, code);
 };
 
 /**
  * Converts the specified opcode with imm to its counterpart without imm.
  * @param {number} code
- * @returns {number}
+ * @returns {number} -1 if there is no counterpart with imm
  */
 ReadState.prototype.with_imm = function(code) {
-    var other;
-    if (typeof this._type === 'number') {
-        switch (this._type) {
-            case types.RType.I32:
-                if (typeof (other = types.I32ToI32WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F32:
-                if (typeof (other = types.F32ToF32WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F64:
-                if (typeof (other = types.F64ToF64WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            default:
-                throw Error("illegal type: " + this._type);
-        }
-    } else if (typeof (other = types.StmtToStmtWithImm[code]) !== 'undefined')
-        return other;
-    throw Error("code "+code+" has no counterpart with imm");
+    return types.codeWithImm(this._type, code);
 };
 
 /**
@@ -328,7 +288,7 @@ ReadState.prototype.emit = function(operands) {
     else if (this._code.imm === null)
         this.emit_code(this._code.code, operands);
     else
-        this.emit_code(this.without_imm(this._code.code), operands);
+        this.emit_code(types.codeWithoutImm(this._type, this._code.code), operands);
 };
 
 /**
