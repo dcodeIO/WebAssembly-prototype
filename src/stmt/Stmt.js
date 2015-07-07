@@ -1,6 +1,6 @@
 var types = require("../types"),
     BaseStmt = require("./BaseStmt"),
-    behavior = require("./bahavior");
+    behavior = require("./behavior");
 
 /**
  * A statement.

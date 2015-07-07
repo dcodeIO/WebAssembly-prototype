@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("../BaseExpr");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number>} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.BinaryBehavior
  */
 function BinaryBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression type.
@@ -25,15 +25,15 @@ function BinaryBehavior(name, description, type) {
 
 module.exports = BinaryBehavior;
 
-BinaryBehavior.prototype = Object.create(Behavior.prototype);
+BinaryBehavior.prototype = Object.create(BaseBehavior.prototype);
 
-// opcode + Expr<*> argument [...]
+// opcode + Expr<*> left + Expr<*> right
 // Expr<*>, all without imm
 
-BinaryBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
-    s.expect(s.state(this.type));
-    s.expect(s.state(this.type));
+BinaryBehavior.prototype.read = function(s, code) {
+    s.stmt(code);
+    s.read(this.type);
+    s.read(this.type);
 };
 
 BinaryBehavior.prototype.validate = function(definition, stmt) {
@@ -45,7 +45,7 @@ BinaryBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BinaryBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
+    s.u8(stmt.code);
     s.write(stmt.operands[0]);
     s.write(stmt.operands[1]);
 };

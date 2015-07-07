@@ -1,29 +1,30 @@
 var assert = require("assert");
 
-var Behavior = require("./Behavior");
+var BaseBehavior = require("./BaseBehavior");
 
 /**
  * Label behavior.
  * @param {string} name
  * @param {string} description
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.LabelBehavior
  */
 function LabelBehavior(name, description) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 }
 
 module.exports = LabelBehavior;
 
 // Extends Behavior
-LabelBehavior.prototype = Object.create(Behavior.prototype);
+LabelBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + label index
 // Stmt only, without imm
 
 LabelBehavior.prototype.read = function(s, code, imm) {
-    s.emit(s.varint());
+    s.code(code);
+    s.operand(s.varint());
 };
 
 LabelBehavior.prototype.validate = function(definition, stmt) {

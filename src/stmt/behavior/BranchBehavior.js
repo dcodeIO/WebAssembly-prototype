@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     Stmt = require("../Stmt"),
     BaseExpr = require("../BaseExpr");
 
@@ -11,11 +11,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number|null|!Array.<number|null>} types
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.BranchBehavior
  */
 function BranchBehavior(name, description, types) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression types.
@@ -28,15 +28,15 @@ function BranchBehavior(name, description, types) {
 
 module.exports = BranchBehavior;
 
-BranchBehavior.prototype = Object.create(Behavior.prototype);
+BranchBehavior.prototype = Object.create(BaseBehavior.prototype);
 
-// opcode + Expr<*> value [...]
+// opcode + Expr<types[0]> value [...]
 // Expr<*>, all without imm
 
-BranchBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
+BranchBehavior.prototype.read = function(s, code) {
+    s.stmt(code);
     this.types.forEach(function(type) {
-        s.expect(s.state(type));
+        s.read(type);
     }, this);
 };
 
@@ -53,8 +53,8 @@ BranchBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BranchBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
-    stmt.operands.forEach(function(subStmt) {
-        s.write(subStmt);
+    s.u8(stmt.code);
+    stmt.operands.forEach(function(operand) {
+        s.write(operand);
     });
 };

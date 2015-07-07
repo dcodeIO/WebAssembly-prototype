@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     ExprI32 = require("../ExprI32");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} heapType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.LoadWithOffsetBehavior
  */
 function LoadWithOffsetBehavior(name, description, heapType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -26,14 +26,15 @@ function LoadWithOffsetBehavior(name, description, heapType) {
 module.exports = LoadWithOffsetBehavior;
 
 // Extends Behavior
-LoadWithOffsetBehavior.prototype = Object.create(Behavior.prototype);
+LoadWithOffsetBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint offset + Expr<I32> heap index
 // Expr<*>, all without imm
 
-LoadWithOffsetBehavior.prototype.read = function(s, code, imm) {
-    s.emit(s.varint());
-    s.expect(s.state(types.RType.I32));
+LoadWithOffsetBehavior.prototype.read = function(s, code) {
+    s.code(code);
+    s.operand(s.varint());
+    s.read(types.RType.I32);
 };
 
 LoadWithOffsetBehavior.prototype.validate = function(definition, stmt) {

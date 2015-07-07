@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("../BaseExpr");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} returnType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.CommaBehavior
  */
 function CommaBehavior(name, description, returnType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Return type.
@@ -26,15 +26,15 @@ function CommaBehavior(name, description, returnType) {
 module.exports = CommaBehavior;
 
 // Extends Behavior
-CommaBehavior.prototype = Object.create(Behavior.prototype);
+CommaBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + U8 RType + Expr<previous RType> left + Expr<*> right
 // Expr<*>, all without imm
 
-CommaBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
-    s.expect(s.state(s.u8()));
-    s.expect(s.state(this.returnType));
+CommaBehavior.prototype.read = function(s, code) {
+    s.code(code);
+    s.read(s.u8());
+    s.read(this.returnType);
 };
 
 CommaBehavior.prototype.validate = function(definition, stmt) {
@@ -46,8 +46,8 @@ CommaBehavior.prototype.validate = function(definition, stmt) {
 };
 
 CommaBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
     var left = stmt.operands[0];
+    s.code(stmt.code);
     s.u8(left.type);
     s.write(left);
     s.write(stmt.operands[1]);

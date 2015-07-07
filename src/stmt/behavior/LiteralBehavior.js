@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior");
+var BaseBehavior = require("./BaseBehavior");
 
 /**
  * Literal behavior.
@@ -9,11 +9,11 @@ var Behavior = require("./Behavior");
  * @param {string} description
  * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.LiteralBehavior
  */
 function LiteralBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Literal type.
@@ -25,21 +25,28 @@ function LiteralBehavior(name, description, type) {
 module.exports = LiteralBehavior;
 
 // Extends Behavior
-LiteralBehavior.prototype = Object.create(Behavior.prototype);
+LiteralBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + literal
 // Expr<*>, Expr<I32> with imm
 
 LiteralBehavior.prototype.read = function(s, code, imm) {
-    if (this.type === types.RType.I32)
-        s.emit(imm !== null ? imm : s.varint());
-    else {
+    if (this.type === types.RType.I32) {
+        if (imm !== null) {
+            s.code(s.without_imm(code));
+            s.operand(imm);
+        } else {
+            s.code(code);
+            s.operand(s.varint());
+        }
+    } else {
+        s.code(code);
         switch (this.type) {
             case types.RType.F32:
-                s.emit(s.f32());
+                s.operand(s.f32());
                 break;
             case types.RType.F64:
-                s.emit(s.f64());
+                s.operand(s.f64());
                 break;
             default:
                 throw Error("unreachable");
@@ -60,7 +67,7 @@ LiteralBehavior.prototype.write = function(s, stmt) {
     var value = stmt.operands[0];
     if (this.type === types.RType.I32) {
         var codeWithImm;
-        if (value >= 0 && value <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
+        if (value >= 0 && value <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
             s.code(codeWithImm, value);
         else {
             s.code(stmt.code);

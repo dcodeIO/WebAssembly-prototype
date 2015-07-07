@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     LocalVariable = require("../../reflect/LocalVariable"),
     BaseExpr = require("../BaseExpr"),
     Stmt = require("../Stmt");
@@ -12,11 +12,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} returnType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.SetLocalBehavior
  */
 function SetLocalBehavior(name, description, returnType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression return type, if an expression.
@@ -28,15 +28,21 @@ function SetLocalBehavior(name, description, returnType) {
 module.exports = SetLocalBehavior;
 
 // Extends Behavior
-SetLocalBehavior.prototype = Object.create(Behavior.prototype);
+SetLocalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint local variable index + Expr<local variable type> value
 // Stmt & Expr<*>, Stmt with imm
 
-SetLocalBehavior.prototype.read = function(s, op, imm) {
-    var variable = s.local(imm !== null ? imm : s.varint());
-    s.emit(variable);
-    s.expect(s.state(variable.type));
+SetLocalBehavior.prototype.read = function(s, code, imm) {
+    var variable;
+    if (imm !== null) {
+        s.code(s.without_imm(code));
+        s.operand(variable = s.local(imm));
+    } else {
+        s.code(code);
+        s.operand(variable = s.local(s.varint()));
+    }
+    s.read(variable.type);
 };
 
 SetLocalBehavior.prototype.validate = function(definition, stmt) {
@@ -54,7 +60,7 @@ SetLocalBehavior.prototype.validate = function(definition, stmt) {
 SetLocalBehavior.prototype.write = function(s, stmt) {
     var variable = stmt.operands[0],
         codeWithImm;
-    if (variable.index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
+    if (variable.index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
         s.code(codeWithImm, variable.index);
     else {
         s.code(stmt.code);

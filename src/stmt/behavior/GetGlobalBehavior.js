@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     GlobalVariable = require("../../reflect/GlobalVariable");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.GetGlobalBehavior
  */
 function GetGlobalBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Global variable type.
@@ -26,13 +26,14 @@ function GetGlobalBehavior(name, description, type) {
 module.exports = GetGlobalBehavior;
 
 // Extends Behavior
-GetGlobalBehavior.prototype = Object.create(Behavior.prototype);
+GetGlobalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + global variable index
 // Expr<*>, all without imm
 
-GetGlobalBehavior.prototype.read = function(s, op, imm) {
-    s.emit(s.global(s.varint()));
+GetGlobalBehavior.prototype.read = function(s, code) {
+    s.code(code);
+    s.operand(s.global(s.varint()));
 };
 
 GetGlobalBehavior.prototype.validate = function(definition, stmt) {

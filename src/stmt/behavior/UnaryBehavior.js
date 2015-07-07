@@ -1,20 +1,20 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("../BaseExpr");
 
 /**
  * Unary behavior.
  * @param {string} name
  * @param {string} description
- * @param {number>} type
+ * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.UnaryBehavior
  */
 function UnaryBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression type.
@@ -25,14 +25,14 @@ function UnaryBehavior(name, description, type) {
 
 module.exports = UnaryBehavior;
 
-UnaryBehavior.prototype = Object.create(Behavior.prototype);
+UnaryBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + Expr<*> argument
 // Expr<*>, all without imm
 
-UnaryBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
-    s.expect(s.state(this.type));
+UnaryBehavior.prototype.read = function(s, code) {
+    s.code(code);
+    s.read(this.type);
 };
 
 UnaryBehavior.prototype.validate = function(definition, stmt) {

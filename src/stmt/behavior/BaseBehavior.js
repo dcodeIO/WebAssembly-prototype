@@ -1,13 +1,14 @@
 var types = require("../../types");
 
 /**
- * Base class of all behaviors.
+ * Abstract base class of all behaviors.
  * @constructor
  * @param {string} name
  * @param {string} description
- * @exports stmt.behavior.Behavior
+ * @abstract
+ * @exports stmt.behavior.BaseBehavior
  */
-function Behavior(name, description) {
+function BaseBehavior(name, description) {
 
     /**
      * Textual name.
@@ -22,7 +23,7 @@ function Behavior(name, description) {
     this.description = description;
 }
 
-module.exports = Behavior;
+module.exports = BaseBehavior;
 
 /**
  * A function capable of reading a statement with this behaviour.
@@ -30,7 +31,7 @@ module.exports = Behavior;
  * @param {number} code
  * @param {number|null} imm
  */
-Behavior.prototype.read = function(s, code, imm) {
+BaseBehavior.prototype.read = function(s, code, imm) {
     throw Error("not implemented");
 };
 
@@ -39,7 +40,7 @@ Behavior.prototype.read = function(s, code, imm) {
  * @param {!reflect.FunctionDefinition} definition
  * @param {!stmt.BaseStmt} stmt
  */
-Behavior.prototype.validate = function(definition, stmt) {
+BaseBehavior.prototype.validate = function(definition, stmt) {
     throw Error("not implemented");
 };
 
@@ -48,6 +49,6 @@ Behavior.prototype.validate = function(definition, stmt) {
  * @param {!ast.WriteState} s
  * @param {!stmt.BaseStmt} stmt
  */
-Behavior.prototype.write = function(s, stmt) {
+BaseBehavior.prototype.write = function(s, stmt) {
     throw Error("not implemented");
 };

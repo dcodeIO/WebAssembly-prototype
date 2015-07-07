@@ -1,13 +1,29 @@
-exports.BaseStmt = require("./BaseStmt");
-exports.BaseOperand = require("./BaseOperand");
-exports.BaseExpr = require("./BaseExpr");
+/**
+ * @namespace
+ */
+var stmt = module.exports = {};
 
-exports.Stmt = require("./Stmt");
-exports.StmtList = require("./StmtList");
+stmt.BaseStmt = require("./BaseStmt");
+stmt.BaseOperand = require("./BaseOperand");
+stmt.BaseExpr = require("./BaseExpr");
 
-exports.ExprI32 = require("./ExprI32");
-exports.ExprF32 = require("./ExprF32");
-exports.ExprF64 = require("./ExprF64");
-exports.ExprVoid = require("./ExprVoid");
+stmt.Stmt = require("./Stmt");
+stmt.StmtList = require("./StmtList");
 
-exports.behavior = require("./behavior");
+stmt.ExprI32 = require("./ExprI32");
+stmt.ExprF32 = require("./ExprF32");
+stmt.ExprF64 = require("./ExprF64");
+stmt.ExprVoid = require("./ExprVoid");
+
+stmt.SwitchCase = require("./SwitchCase");
+
+stmt.behavior = require("./behavior");
+
+stmt.Type = {
+    Stmt: 0,
+    ExprI32: 1,
+    ExprF32: 2,
+    ExprF64: 3,
+    ExprVoid: 4,
+    SwitchCase: 5
+};

@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     ExprI32 = require("../ExprI32");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} heapType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.LoadBehavior
  */
 function LoadBehavior(name, description, heapType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -26,14 +26,14 @@ function LoadBehavior(name, description, heapType) {
 module.exports = LoadBehavior;
 
 // Extends Behavior
-LoadBehavior.prototype = Object.create(Behavior.prototype);
+LoadBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + Expr<I32> heap index
 // Expr<*>, all without imm
 
-LoadBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
-    s.expect(s.state(types.RType.I32));
+LoadBehavior.prototype.read = function(s, code) {
+    s.code(code);
+    s.read(types.RType.I32);
 };
 
 LoadBehavior.prototype.validate = function(definition, stmt) {

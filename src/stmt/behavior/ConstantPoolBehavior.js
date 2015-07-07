@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     Constant = require("../../reflect/Constant");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.ConstantPoolBehavior
  */
 function ConstantPoolBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Constant type.
@@ -26,13 +26,19 @@ function ConstantPoolBehavior(name, description, type) {
 module.exports = ConstantPoolBehavior;
 
 // Extends Behavior
-ConstantPoolBehavior.prototype = Object.create(Behavior.prototype);
+ConstantPoolBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + constant index
 // Expr<*>, all with imm
 
-ConstantPoolBehavior.prototype.read = function(s, op, imm) {
-    s.emit(s.const(imm !== null ? imm : s.varint()));
+ConstantPoolBehavior.prototype.read = function(s, code, imm) {
+    if (imm !== null) {
+        s.code(s.without_imm(code));
+        s.operand(s.constant(imm));
+    } else {
+        s.code(code);
+        s.operand(s.constant(s.varint()));
+    }
 };
 
 ConstantPoolBehavior.prototype.validate = function(definition, stmt) {
@@ -45,7 +51,7 @@ ConstantPoolBehavior.prototype.validate = function(definition, stmt) {
 
 ConstantPoolBehavior.prototype.write = function(s, stmt) {
     var codeWithImm;
-    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
+    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
         s.code(codeWithImm, stmt.operands[0].index);
     else {
         s.code(stmt.code);

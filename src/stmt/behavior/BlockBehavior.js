@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     Stmt = require("../Stmt");
 
 /**
@@ -9,26 +9,26 @@ var Behavior = require("./Behavior"),
  * @param {string} name
  * @param {string} description
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.BlockBehavior
  */
 function BlockBehavior(name, description) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 }
 
 module.exports = BlockBehavior;
 
 // Extends Behavior
-BlockBehavior.prototype = Object.create(Behavior.prototype);
+BlockBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint count + count * Stmt
 // Stmt only, without imm
 
-BlockBehavior.prototype.read = function(s, code, imm) {
+BlockBehavior.prototype.read = function(s, code) {
     var count = s.varint();
-    s.emit();
+    s.stmt(code);
     for (var i=0; i<count; ++i)
-        s.expect(s.state(null));
+        s.read(null);
 };
 
 BlockBehavior.prototype.validate = function(definition, stmt) {
@@ -38,8 +38,8 @@ BlockBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BlockBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
-    var count = stmt.operands.length;
-    for (var i=0; i<count; ++i)
-        s.write(stmt.operands[i]);
+    s.u8(stmt.code);
+    stmt.operands.forEach(function(operand) {
+        s.write(operand);
+    }, this);
 };

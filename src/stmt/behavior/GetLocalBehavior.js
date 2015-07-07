@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     LocalVariable = require("../../reflect/LocalVariable");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.GetLocalBehavior
  */
 function GetLocalBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Local variable type.
@@ -26,13 +26,19 @@ function GetLocalBehavior(name, description, type) {
 module.exports = GetLocalBehavior;
 
 // Extends Behavior
-GetLocalBehavior.prototype = Object.create(Behavior.prototype);
+GetLocalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + local variable index
 // Expr<*>, all with imm
 
-GetLocalBehavior.prototype.read = function(s, op, imm) {
-    s.emit(s.local(imm !== null ? imm : s.varint()));
+GetLocalBehavior.prototype.read = function(s, code, imm) {
+    if (imm !== null) {
+        s.code(s.without_imm(code));
+        s.operand(s.local(imm));
+    } else {
+        s.code(code);
+        s.operand(s.local(s.varint()));
+    }
 };
 
 GetLocalBehavior.prototype.validate = function(definition, stmt) {
@@ -45,7 +51,7 @@ GetLocalBehavior.prototype.validate = function(definition, stmt) {
 
 GetLocalBehavior.prototype.write = function(s, stmt) {
     var codeWithImm;
-    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
+    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
         s.code(codeWithImm, stmt.operands[0].index);
     else {
         s.code(stmt.code);

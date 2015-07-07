@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("../BaseExpr");
 
 /**
@@ -9,26 +9,26 @@ var Behavior = require("./Behavior"),
  * @param {string} name
  * @param {string} description
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.ReturnBehavior
  */
 function ReturnBehavior(name, description) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 }
 
 module.exports = ReturnBehavior;
 
 // Extends Behavior
-ReturnBehavior.prototype = Object.create(Behavior.prototype);
+ReturnBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode [ + Expr<function return type> if function return type is not void ]
 // Stmt only, without imm
 
 ReturnBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
+    s.code(code);
     var rtype = s.rtype();
     if (rtype !== null)
-        s.expect(s.state(rtype));
+        s.read(rtype);
 };
 
 ReturnBehavior.prototype.validate = function(definition, stmt) {

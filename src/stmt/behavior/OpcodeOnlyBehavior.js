@@ -1,29 +1,29 @@
 var assert = require("assert");
 
-var Behavior = require("./Behavior");
+var BaseBehavior = require("./BaseBehavior");
 
 /**
  * OpcodeOnly behavior.
  * @param {string} name
  * @param {string} description
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.OpcodeOnlyBehavior
  */
 function OpcodeOnlyBehavior(name, description) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 }
 
 module.exports = OpcodeOnlyBehavior;
 
 // Extends Behavior
-OpcodeOnlyBehavior.prototype = Object.create(Behavior.prototype);
+OpcodeOnlyBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode only
 // Stmt only, without imm
 
-OpcodeOnlyBehavior.prototype.read = function(s, code, imm) {
-    s.emit();
+OpcodeOnlyBehavior.prototype.read = function(s, code) {
+    s.code(code);
 };
 
 OpcodeOnlyBehavior.prototype.validate = function(definition, stmt) {

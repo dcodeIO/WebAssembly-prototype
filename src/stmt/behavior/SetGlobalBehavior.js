@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     GlobalVariable = require("../../reflect/GlobalVariable"),
     BaseExpr = require("../BaseExpr"),
     Stmt = require("../Stmt");
@@ -12,11 +12,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} returnType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.SetGlobalBehavior
  */
 function SetGlobalBehavior(name, description, returnType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression return type, if an expression.
@@ -28,15 +28,21 @@ function SetGlobalBehavior(name, description, returnType) {
 module.exports = SetGlobalBehavior;
 
 // Extends Behavior
-SetGlobalBehavior.prototype = Object.create(Behavior.prototype);
+SetGlobalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint global variable index + Expr<global variable type> value
 // Stmt & Expr<*>, Stmt with imm
 
 SetGlobalBehavior.prototype.read = function(s, code, imm) {
-    var variable = s.global(imm !== null ? imm : s.varint());
-    s.emit(variable);
-    s.expect(s.state(variable.type));
+    var variable;
+    if (imm !== null) {
+        s.code(s.without_imm(code));
+        s.operand(variable = s.global(imm));
+    } else {
+        s.code(code);
+        s.operand(variable = s.global(s.varint()));
+    }
+    s.read(variable.type);
 };
 
 SetGlobalBehavior.prototype.validate = function(definition, stmt) {
@@ -54,7 +60,7 @@ SetGlobalBehavior.prototype.validate = function(definition, stmt) {
 SetGlobalBehavior.prototype.write = function(s, stmt) {
     var variable = stmt.operands[0],
         codeWithImm;
-    if (variable.index <= types.ImmMax && (codeWithImm = stmt.codeWithImm) >= 0)
+    if (variable.index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
         s.code(codeWithImm, variable.index);
     else {
         s.code(stmt.code);

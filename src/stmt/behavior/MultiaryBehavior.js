@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("../BaseExpr");
 
 /**
@@ -10,11 +10,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} type
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.MultiaryBehavior
  */
 function MultiaryBehavior(name, description, type) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Expression type.
@@ -25,16 +25,16 @@ function MultiaryBehavior(name, description, type) {
 
 module.exports = MultiaryBehavior;
 
-MultiaryBehavior.prototype = Object.create(Behavior.prototype);
+MultiaryBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint count + count * Expr<*> argument
 // Expr<*>, all without imm
 
-MultiaryBehavior.prototype.read = function(s, code, imm) {
+MultiaryBehavior.prototype.read = function(s, code) {
     var count = s.varint();
-    s.emit();
+    s.code(code);
     for (var i=0; i<count; ++i)
-        s.expect(s.state(this.type));
+        s.read(this.type);
 };
 
 MultiaryBehavior.prototype.validate = function(definition, stmt) {

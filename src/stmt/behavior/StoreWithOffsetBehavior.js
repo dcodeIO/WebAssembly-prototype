@@ -1,7 +1,7 @@
 var assert = require("assert"),
     types = require("../../types");
 
-var Behavior = require("./Behavior"),
+var BaseBehavior = require("./BaseBehavior"),
     BaseExpr = require("..//BaseExpr"),
     ExprI32 = require("../ExprI32");
 
@@ -11,11 +11,11 @@ var Behavior = require("./Behavior"),
  * @param {string} description
  * @param {number} heapType
  * @constructor
- * @extends stmt.behavior.Behavior
+ * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.StoreWithOffsetBehavior
  */
 function StoreWithOffsetBehavior(name, description, heapType) {
-    Behavior.call(this, name, description);
+    BaseBehavior.call(this, name, description);
 
     /**
      * Heap type.
@@ -27,15 +27,16 @@ function StoreWithOffsetBehavior(name, description, heapType) {
 module.exports = StoreWithOffsetBehavior;
 
 // Extends Behavior
-StoreWithOffsetBehavior.prototype = Object.create(Behavior.prototype);
+StoreWithOffsetBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 // opcode + varint offset + Expr<I32> heap index + Expr<heap type> value
 // Stmt & Expr<*>, all without imm
 
 StoreWithOffsetBehavior.prototype.read = function(s, code, imm) {
-    s.emit(s.varint());
-    s.expect(s.state(types.RType.I32));
-    s.expect(s.state(this.heapType));
+    s.code(code);
+    s.operand(s.varint());
+    s.read(types.RType.I32);
+    s.read(this.heapType);
 };
 
 StoreWithOffsetBehavior.prototype.validate = function(definition, stmt) {
