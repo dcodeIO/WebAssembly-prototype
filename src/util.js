@@ -152,17 +152,21 @@ util.indexedName = function(range, i) {
 };
 
 util.localName = function(i) {
-    return util.indexedName(util.FirstCharRangeMinusDollar, i + types.HotStdLib.length);
+    return util.indexedName(util.FirstCharRangeMinusDollar, i + types.HotStdLibNames.length);
 };
 
 util.globalName = function(i) {
-    return '$' + util.indexedName(util.NextCharRange, i + types.StdLib.length);
+    return '$' + util.indexedName(util.NextCharRange, i + types.StdLibNames.length);
 };
 
-util.hotStdLibName = function(funcName) {
-    var i = types.HotStdLib.indexOf(funcName);
-    assert(i >= 0 && i < types.HotStdLib.length);
-    return String.fromCharCode(0x61 + i);
+util.hotStdLibName = function(index) {
+    assert(index >= 0 && index < types.HotStdLibNames.length);
+    return String.fromCharCode(0x61 + index);
+};
+
+util.stdLibName = function(index) {
+    assert(index >= 0 && index < types.StdLibNames.length);
+    return "$" + util.indexedName(util.FirstCharRange, index);
 };
 
 var FNAME_RE = /^[a-zA-Z_\$][a-zA-Z0-9_\$]*$/; // FIXME

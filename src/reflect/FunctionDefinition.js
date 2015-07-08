@@ -93,13 +93,14 @@ FunctionDefinition.prototype.getVariable = function(index) {
 };
 
 /**
- * Builds the function header in JavaScript.
+ * Builds the function header in asm.js.
  * @param {bool=} pack
  * @returns {string}
  */
-FunctionDefinition.prototype.header = function(pack) {
-    var ws = pack ? "" : "    ";
-    var nl = pack ? "" : "\n";
+FunctionDefinition.prototype.asmHeader = function(pack) {
+    var indent = pack ? "" : "    ",
+        ws = pack ? "" : " ",
+        nl = pack ? "" : "\n";
     var sb = [];
     sb.push("function ", this.name, "(");
     var args = this.declaration.signature.argumentTypes;
@@ -109,10 +110,10 @@ FunctionDefinition.prototype.header = function(pack) {
             sb.push(",");
         sb.push(assembly.localName(i));
     }
-    sb.push("){\n");
+    sb.push(")", ws, "{\n");
     if (args.length > 0) {
         for (i = 0; i < args.length; ++i) {
-            sb.push(ws, assembly.localName(i), "=");
+            sb.push(indent, assembly.localName(i), ws, "=", ws);
             switch (args[i]) {
                 case types.Type.I32:
                     sb.push(assembly.localName(i), "|0;", nl);
@@ -127,12 +128,12 @@ FunctionDefinition.prototype.header = function(pack) {
         }
     }
     if (this.variables.length > args.length) {
-        sb.push(ws, "var ");
+        sb.push(indent, "var ");
         for (i = args.length; i < this.variables.length; ++i) {
             var v = this.variables[i];
             if (i > args.length)
-                sb.push(",", nl, ws);
-            sb.push(assembly.localName(i + args.length), "=");
+                sb.push(",", nl, indent);
+            sb.push(assembly.localName(i + args.length), ws, "=", ws);
             switch (v.type) {
                 case types.Type.I32:
                     sb.push("0");

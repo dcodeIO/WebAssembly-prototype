@@ -267,13 +267,13 @@ function makeGenericRead(wireType, clazz, name) {
         if ((code & types.ImmFlag) === 0) {
             if (verbose >= 1)
                 console.log("processing "+name+":" + types[name+"Names"][code] + " (opcode " + code + ")");
-            this.readState.prepare(wireType, code, null);
+            this.readState.prepare(wireType);
             clazz.determineBehavior(code, false).read(this.readState, code, null);
         } else {
             code = util.unpackWithImm(code);
             if (verbose >= 1)
                 console.log("processing "+name+"WithImm:" + types[name+"WithImmNames"][code.code] + " (" + code.code + ")");
-            this.readState.prepare(wireType, code.code, code.imm);
+            this.readState.prepare(wireType);
             clazz.determineBehavior(code.code, true).read(this.readState, code.code, code.imm);
         }
         this.readState.commit();
@@ -338,7 +338,7 @@ Reader.prototype.inspect = function() {
     sb.push("Stack size: ", this.stack.length.toString(10), "\n");
     sb.push("State size: "+this.state.length.toString(10), "\n\n");
     sb.push(this.assembly.toString(), "\n\n");
-    sb.push(this.definition.header(), "\n");
+    sb.push(this.definition.asmHeader(), "\n");
     if (!this.skipAhead)
         sb.push(inspect(this.stack[0]));
     return sb.join("");

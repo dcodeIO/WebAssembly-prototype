@@ -834,7 +834,7 @@ Assembly.prototype.validateExport = function() {
  * @returns {string}
  */
 Assembly.prototype.localName = function(index) {
-    return util.indexedName(util.FirstCharRangeMinusDollar, index + types.HotStdLib.length);
+    return util.indexedName(util.FirstCharRangeMinusDollar, index + types.HotStdLibNames.length);
 };
 
 /**
@@ -843,7 +843,7 @@ Assembly.prototype.localName = function(index) {
  * @returns {string}
  */
 Assembly.prototype.globalName = function(index) {
-    return '$' + util.indexedName(util.NextCharRange, index + types.StdLib.length);
+    return '$' + util.indexedName(util.NextCharRange, index + types.StdLibNames.length);
 };
 
 Assembly.prototype.toString = function() {
@@ -872,4 +872,108 @@ Assembly.prototype.validate = function() {
     this.validateFunctionPointerTables();
     this.validateExport();
     return true;
+};
+
+/**
+ * Builds the assembly header in asm.js.
+ * @param {bool=} pack
+ * @returns {string}
+ */
+Assembly.prototype.asmHeader = function(pack) {
+    var indent = pack ? "" : "    ",
+        ws = pack ? "" : " ",
+        nl = pack ? "" : "\n";
+    var sb = [];
+    sb.push("function asmModule($a,$b,$c)", ws, "{", nl, indent, "'use asm';", nl);
+    sb.push(indent, "var ");
+    var n = 0;
+    util.values(types.HotStdLib).forEach(function(index) {
+        switch (index) {
+            case types.HotStdLib.HeapS8:
+            case types.HotStdLib.HeapU8:
+            case types.HotStdLib.HeapS16:
+            case types.HotStdLib.HeapU16:
+            case types.HotStdLib.HeapS32:
+            case types.HotStdLib.HeapU32:
+            case types.HotStdLib.HeapF32:
+            case types.HotStdLib.HeapF64:
+                sb.push(index > 0 ? indent : "", util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".", types.HotStdLibCtor[index], "(", util.stdLibName(types.StdLib.buffer), "),", nl);
+                break;
+            case types.HotStdLib.IMul:
+            case types.HotStdLib.FRound:
+                sb.push(indent, util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".Math.", types.HotStdLibNames[index].toLowerCase(), ",", nl);
+                break;
+            default:
+                throw Error("unreachable");
+        }
+    }, this);
+    util.values(types.StdLib).forEach(function(index) {
+        if (index < 3)
+            return;
+        switch (index) {
+            case types.StdLib.acos:
+            case types.StdLib.asin:
+            case types.StdLib.atan:
+            case types.StdLib.cos:
+            case types.StdLib.sin:
+            case types.StdLib.tan:
+            case types.StdLib.exp:
+            case types.StdLib.log:
+            case types.StdLib.ceil:
+            case types.StdLib.floor:
+            case types.StdLib.sqrt:
+            case types.StdLib.abs:
+            case types.StdLib.min:
+            case types.StdLib.max:
+            case types.StdLib.atan2:
+            case types.StdLib.pow:
+            case types.StdLib.clz32:
+                sb.push(indent, util.stdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".Math.", types.StdLibNames[index], ",", nl);
+                break;
+            case types.StdLib.NaN:
+            case types.StdLib.Infinity:
+                sb.push(indent, util.stdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".", types.StdLibNames[index], ",", nl);
+                break;
+            default:
+                throw Error("unreachable");
+        }
+    }, this);
+    this.functionImports.forEach(function(imprt, index) {
+        sb.push(indent, imprt.name, ws, "=", ws, util.stdLibName(types.StdLib.foreign), ".", imprt.importName, ",", nl);
+    }, this);
+    this.globalVariables.forEach(function(variable, index) {
+        if (variable.importName === null) {
+            sb.push(indent, variable.name, ws, "=", ws);
+            switch (variable.type) {
+                case types.Type.I32:
+                    sb.push("0", ",", nl);
+                    break;
+                case types.Type.F32:
+                    sb.push(util.hotStdLibName(types.HotStdLib.FRound), "(0)", ",", nl);
+                    break;
+                case types.Type.F64:
+                    sb.push("0.", ",", nl);
+                    break;
+                default:
+                    throw Error("unreachable");
+            }
+        } else {
+            sb.push(indent, variable.name, ws, "=", ws);
+            switch (variable.type) {
+                case types.Type.I32:
+                    sb.push(util.stdLibName(types.StdLib.foreign), ".", variable.importName, "|0", ",", nl);
+                    break;
+                case types.Type.F32:
+                    sb.push(util.hotStdLibName(types.HotStdLib.FRound), "(", util.stdLibName(types.StdLib.foreign), ".", variable.importName, ")", ",", nl);
+                    break;
+                case types.Type.F64:
+                    sb.push("+", util.stdLibName(types.StdLib.foreign), ".", variable.importName, ",", nl);
+                    break;
+                default:
+                    throw Error("unreachable");
+            }
+        }
+    });
+    sb[sb.length-2] = ";"; // override last ","
+    return sb.join("");
 };

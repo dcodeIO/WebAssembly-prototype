@@ -470,45 +470,62 @@ types.codeWithoutImm = function(type, code) {
     return -1;
 };
 
-// ----- platform specific standard library -----
+// ----- standard library -----
 
-types.HotStdLib = [
-    "HeapS8",
-    "HeapU8",
-    "HeapS16",
-    "HeapU16",
-    "HeapS32",
-    "HeapU32",
-    "HeapF32",
-    "HeapF64",
-    "IMul",
-    "FRound"
+types.HotStdLib = {
+    HeapS8: 0,
+    HeapU8: 1,
+    HeapS16: 2,
+    HeapU16: 3,
+    HeapS32: 4,
+    HeapU32: 5,
+    HeapF32: 6,
+    HeapF64: 7,
+    IMul: 8,
+    FRound: 9
+};
+
+types.HotStdLibNames = swap(types.HotStdLib);
+
+types.HotStdLibCtor = [
+    "Int8Array",
+    "Uint8Array",
+    "Int16Array",
+    "Uint16Array",
+    "Int32Array",
+    "Uint32Array",
+    "Float32Array",
+    "Float64Array",
+    null,
+    null
 ];
 
-types.StdLib = [
-    "stdlib",
-    "foreign",
-    "buffer",
-    "acos",
-    "asin",
-    "atan",
-    "cos",
-    "sin",
-    "tan",
-    "exp",
-    "log",
-    "ceil",
-    "floor",
-    "sqrt",
-    "abs",
-    "min",
-    "max",
-    "atan2",
-    "pow",
-    "clz32",
-    "NaN",
-    "Infinity"
-];
+types.StdLib = {
+    stdlib: 0,
+    foreign: 1,
+    buffer: 2,
+    acos: 3,
+    asin: 4,
+    atan: 5,
+    cos: 6,
+    sin: 7,
+    tan: 8,
+    exp: 9,
+    log: 10,
+    ceil: 11,
+    floor: 12,
+    sqrt: 13,
+    abs: 14,
+    min: 15,
+    max: 16,
+    atan2: 17,
+    pow: 18,
+    clz32: 19,
+    NaN: 20,
+    Infinity: 21
+};
+
+types.StdLibNames = swap(types.StdLib);
 
 // ----- operation precedence (yet unused) -----
 

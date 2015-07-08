@@ -37,20 +37,6 @@ function ReadState(reader, popState) {
     this._type = undefined;
 
     /**
-     * Current code.
-     * @type {number|undefined}
-     * @private
-     */
-    this._code = undefined;
-
-    /**
-     * Current imm.
-     * @type {number|null|undefined}
-     * @private
-     */
-    this._imm = undefined;
-
-    /**
      * Current statement.
      * @type {!stmt.BaseStmt|undefined}
      * @private
@@ -72,13 +58,9 @@ var Reader = require("./Reader"); // cyclic
 /**
  * Prepares for the next read operation.
  * @param {number} type Wire type
- * @param {number} code Opcode
- * @param {number|null} imm Imm, if any
  */
-ReadState.prototype.prepare = function(type, code, imm) {
+ReadState.prototype.prepare = function(type) {
     this._type = type;
-    this._code = code;
-    this._imm = imm;
     this._stmt = undefined;
     this._states = [];
 };
@@ -105,7 +87,7 @@ ReadState.prototype.commit = function() {
  * Resets the internal state.
  */
 ReadState.prototype.reset = function() {
-    this._type = this._code = this._imm = this._stmt = undefined;
+    this._type = this._stmt = undefined;
     this._states = [];
     this.reader.bufferQueue.reset();
 };
@@ -275,24 +257,6 @@ ReadState.prototype.indirect = function(index) {
  */
 ReadState.prototype.import = function(index) {
     return this.reader.assembly.getFunctionImportSignature(index);
-};
-
-/**
- * Converts the specified opcode without imm to its counterpart with imm.
- * @param {number} code
- * @returns {number} -1 if there is no counterpart without imm
- */
-ReadState.prototype.without_imm = function(code) {
-    return types.codeWithoutImm(this._type, code);
-};
-
-/**
- * Converts the specified opcode with imm to its counterpart without imm.
- * @param {number} code
- * @returns {number} -1 if there is no counterpart with imm
- */
-ReadState.prototype.with_imm = function(code) {
-    return types.codeWithImm(this._type, code);
 };
 
 /**

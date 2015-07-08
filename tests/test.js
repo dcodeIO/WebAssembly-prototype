@@ -114,6 +114,7 @@ reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
     console.log("Complete: "+reader.assembly.toString());
+    console.log(reader.assembly.asmHeader());
     console.log("Validating assembly ...");
 
     write(reader.assembly);
