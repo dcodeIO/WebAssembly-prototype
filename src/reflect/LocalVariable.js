@@ -54,7 +54,7 @@ Object.defineProperty(LocalVariable.prototype, "index", {
  */
 Object.defineProperty(LocalVariable.prototype, "isArgument", {
     get: function() {
-        return this.index < this.functionDefinition.signature.argumentTypes.length;
+        return this.index < this.functionDefinition.declaration.signature.argumentTypes.length;
     }
 });
 

@@ -19,10 +19,16 @@ Contents
   Classes to represent the different statement and expression types.
 
 * **[Reader](https://github.com/dcodeIO/WebAssembly/blob/master/src/Reader.js)**<br />
-  A streaming reader for dissecting a WASM binary into its reflection structure.
+  A streaming reader for disassembling WASM binaries into their respective reflection structure.
 
 * **[AstReader](https://github.com/dcodeIO/WebAssembly/blob/master/src/ast/Reader.js)**<br />
-  A streaming reader for parsing function bodies, returning their respective AST.
+  A streaming reader for disassembling function bodies into their respective AST.
+
+* **[Writer](https://github.com/dcodeIO/WebAssembly/blob/master/src/Writer.js)**<br />
+  A streaming writer for assembling WASM binaries from their respective reflection structure.
+
+* **[AstWriter](https://github.com/dcodeIO/WebAssembly/blob/master/src/ast/Writer.js)**<br />
+  A streaming writer for assembling function bodies from their respective AST.
 
 Compatibility
 -------------

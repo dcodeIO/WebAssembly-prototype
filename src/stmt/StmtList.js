@@ -1,3 +1,5 @@
+var types = require("../types");
+
 /**
  * A list of statements.
  * @constructor
@@ -21,6 +23,17 @@ module.exports = StmtList;
 
 // Extends Array
 StmtList.prototype = Object.create(Array.prototype);
+
+/**
+ * Wire type.
+ * @name stmt.StmtList#type
+ * @type {number}
+ */
+Object.defineProperty(StmtList.prototype, "type", {
+    get: function() {
+        return types.WireType.StmtList;
+    }
+});
 
 /**
  * Adds a statement to the list.

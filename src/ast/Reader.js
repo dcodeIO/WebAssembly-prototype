@@ -234,7 +234,8 @@ Reader.prototype._process = function() {
                 this.state.push(state); // Wait for more
                 return;
             }
-            console.log(this.inspect());
+            if (verbose >= 1)
+                console.log(this.inspect());
             this.emit("error", err);
             this.state = [];
             return;
@@ -266,14 +267,14 @@ function makeGenericRead(wireType, clazz, name) {
         var code = this.readState.u8();
         if ((code & types.OpWithImm_Flag) === 0) {
             if (verbose >= 1)
-                console.log("processing "+name+":" + types[name+"Names"][code] + " (opcode " + code + ")");
-            this.readState.prepare(wireType);
+                console.log("processing "+name+":" + types[name+"Names"][code] + " @ " + (this.offset-1).toString(16));
+            this.readState.prepare(wireType, code, null);
             clazz.determineBehavior(code, false).read(this.readState, code, null);
         } else {
             code = util.unpackWithImm(code);
             if (verbose >= 1)
-                console.log("processing "+name+"WithImm:" + types[name+"WithImmNames"][code.code] + " (" + code.code + ")");
-            this.readState.prepare(wireType);
+                console.log("processing "+name+"WithImm:" + types[name+"WithImmNames"][code.code] + " @ " + (this.offset-1).toString(16));
+            this.readState.prepare(wireType, code.code, code.imm);
             clazz.determineBehavior(code.code, true).read(this.readState, code.code, code.imm);
         }
         this.readState.commit();
@@ -292,9 +293,8 @@ Reader.prototype._readSwitchCase = makeGenericRead(types.WireType.SwitchCase, Sw
  * @param {!stmt.BaseStmt|!stmt.StmtList|number} stmt
  * @param {number=} depth
  * @returns {string}
- * @inner
  */
-function inspect(stmt, depth) {
+Reader.inspect = function(stmt, depth) {
     depth = depth || 0;
     var indent = "";
     for (var i=0; i<depth; ++i)
@@ -312,14 +312,14 @@ function inspect(stmt, depth) {
     if (stmt instanceof StmtList) {
         sb.push(indent + "StmtList["+stmt.length+"]");
         stmt.forEach(function(stmt) {
-            sb.push("\n", inspect(stmt, depth + 1));
+            sb.push("\n", Reader.inspect(stmt, depth + 1));
         });
         return sb.join("");
     }
     if (stmt instanceof BaseStmt) {
         sb.push(indent + stmt.name);
         stmt.operands.forEach(function(oper) {
-            sb.push("\n", inspect(oper, depth + 1));
+            sb.push("\n", Reader.inspect(oper, depth + 1));
         });
         return sb.join("");
     }
@@ -340,7 +340,7 @@ Reader.prototype.inspect = function() {
     sb.push(this.assembly.toString(), "\n\n");
     sb.push(this.definition.asmHeader(), "\n");
     if (!this.skipAhead)
-        sb.push(inspect(this.stack[0]));
+        sb.push(Reader.inspect(this.stack[0], 0));
     return sb.join("");
 };
 

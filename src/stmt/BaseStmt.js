@@ -35,6 +35,13 @@ function BaseStmt(code, operands) {
         : typeof operands !== 'undefined'
             ? [operands]
             : [];
+
+    /**
+     * Whether this statement's opcode was originally packed with an imm.
+     * @type {boolean}
+     * @see {@link ast.Writer#preserveWithImm}
+     */
+    this.withImm = false;
 }
 
 module.exports = BaseStmt;
@@ -108,12 +115,13 @@ BaseStmt.prototype.toString = function(shortFormat) {
     if (shortFormat)
         sb.push("+", this.operands.length.toString());
     else
-        for (var i=0; i<this.operands.length; ++i) {
+        for (var i= 0, operand; i<this.operands.length; ++i) {
+            operand = this.operands[i];
             sb.push(" ");
-            if (this.operands[i] instanceof BaseStmt)
-                sb.push(this.operands[i].toString(true));
+            if (operand instanceof BaseStmt)
+                sb.push(operand.toString(true));
             else
-                sb.push(this.operands[i].toString());
+                sb.push(operand.toString());
         }
     return sb.join("");
 };

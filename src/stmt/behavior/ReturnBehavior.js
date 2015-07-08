@@ -44,8 +44,7 @@ ReturnBehavior.prototype.validate = function(definition, stmt) {
 };
 
 ReturnBehavior.prototype.write = function(s, stmt) {
-    var rtype = s.rtype();
     s.code(stmt.code);
-    if (rtype !== types.RType.Void)
+    if (stmt.operands.length !== 0)
         s.write(stmt.operands[0]);
 };

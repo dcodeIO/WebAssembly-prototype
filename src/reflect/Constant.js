@@ -57,3 +57,12 @@ Object.defineProperty(Constant.prototype, "index", {
         }
     }
 });
+
+/**
+ * Returns a string representation of this constant.
+ * @returns {string}
+ */
+Constant.prototype.toString = function() {
+    return "Constant"+types.TypeNames[this.type]
+         + " value:"+this.value;
+};

@@ -39,6 +39,7 @@ BlockBehavior.prototype.validate = function(definition, stmt) {
 
 BlockBehavior.prototype.write = function(s, stmt) {
     s.code(stmt.code);
+    s.varint(stmt.operands.length);
     stmt.operands.forEach(function(operand) {
         s.write(operand);
     }, this);

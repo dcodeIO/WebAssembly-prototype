@@ -87,7 +87,7 @@ Object.defineProperty(BufferQueue.prototype, "remaining", {
             return 0;
         var len = this.bufferLength;
         for (var i=0; i<this.bufferIndex; ++i)
-            len -= this.buffer[i].length;
+            len -= this.buffers[i].length;
         return len - this.bufferOffset;
     }
 });
@@ -251,14 +251,18 @@ BufferQueue.prototype.readVarint = function() {
  * @returns {!util.BufferQueue}
  */
 BufferQueue.prototype.writeVarint = function(u32) {
-    var c = 1;
     u32 >>>= 0;
-    while (u32 >= 1 << 7) {
-        this.writeUInt8((u32 & 0x7f) | 0x80);
-        u32 >>>= 7;
-        ++c;
-    }
-    return this.writeUInt8(u32);
+    if (u32) {
+        for (; true; u32 >>>= 7) {
+            if (u32 < 0x80) {
+                this.writeUInt8(u32);
+                return this;
+            }
+            this.writeUInt8(0x80 | (u32 & 0x7f));
+        }
+    } else
+        this.writeUInt8(0);
+    return this;
 };
 
 /**
@@ -293,7 +297,18 @@ BufferQueue.prototype.readVarintSigned = function() {
  * @returns {!util.BufferQueue}
  */
 BufferQueue.prototype.writeVarintSigned = function(s32) {
-    throw Error("not implemented");
+    s32 |= 0;
+    if (s32) {
+        for (; true; s32 >>= 7) {
+            if (-64 <= s32 && s32 < 64) {
+                this.writeUInt8(s32 & 0x7f);
+                return this;
+            }
+            this.writeUInt8(0x80 | (s32 & 0x7f));
+        }
+    } else
+        this.writeUInt8(0);
+    return this;
 };
 
 // ref: https://github.com/feross/ieee754

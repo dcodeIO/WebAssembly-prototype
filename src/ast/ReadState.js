@@ -37,6 +37,13 @@ function ReadState(reader, popState) {
     this._type = undefined;
 
     /**
+     * Whether an imm is present.
+     * @type {boolean}
+     * @private
+     */
+    this._withImm = false;
+
+    /**
      * Current statement.
      * @type {!stmt.BaseStmt|undefined}
      * @private
@@ -58,9 +65,12 @@ var Reader = require("./Reader"); // cyclic
 /**
  * Prepares for the next read operation.
  * @param {number} type Wire type
+ * @param {number} code
+ * @param {number|null} imm
  */
-ReadState.prototype.prepare = function(type) {
+ReadState.prototype.prepare = function(type, code, imm) {
     this._type = type;
+    this._withImm = imm !== null;
     this._stmt = undefined;
     this._states = [];
 };
@@ -70,8 +80,10 @@ ReadState.prototype.prepare = function(type) {
  */
 ReadState.prototype.commit = function() {
     this.reader.bufferQueue.advance();
-    var parent = this.reader.stack[this.reader.stack.length-1];
-    parent.add(this._stmt);
+    if (!this.reader.skipAhead) {
+        var parent = this.reader.stack[this.reader.stack.length - 1];
+        parent.add(this._stmt);
+    }
     if (this._states.length > 0) {
         if (!this.reader.skipAhead) {
             this.reader.stack.push(this._stmt);
@@ -88,6 +100,7 @@ ReadState.prototype.commit = function() {
  */
 ReadState.prototype.reset = function() {
     this._type = this._stmt = undefined;
+    this._withImm = false;
     this._states = [];
     this.reader.bufferQueue.reset();
 };
@@ -172,6 +185,7 @@ ReadState.prototype.stmt = function(code, operands) {
             throw Error("illegal WireType: "+this._type);
 
     }
+    this._stmt.withImm = this._withImm;
     return this._stmt;
 };
 

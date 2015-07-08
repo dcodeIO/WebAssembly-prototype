@@ -43,6 +43,7 @@ SwitchCaseMultipleBehavior.prototype.validate = function(definition, stmt) {
 SwitchCaseMultipleBehavior.prototype.write = function(s, stmt) {
     s.code(stmt.code);
     s.varint_s(stmt.operands[0]);
+    s.varint(stmt.operands.length-1);
     for (var i=1, k=stmt.operands.length; i<k; ++i)
         s.write(stmt.operands[i]);
 };

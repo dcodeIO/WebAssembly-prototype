@@ -17,6 +17,13 @@ function WriteState(writer) {
     this.writer = writer;
 
     /**
+     * Current wire type.
+     * @type {number|undefined}
+     * @private
+     */
+    this._type = undefined;
+
+    /**
      * Current statement.
      * @type {!BaseStmt|undefined}
      * @private
@@ -24,7 +31,7 @@ function WriteState(writer) {
     this._stmt = undefined;
 
     /**
-     * Stack from the current operation.
+     * Stack derived from the current operation.
      * @type {!Array.<!stmt.BaseStmt>}
      * @private
      */
@@ -33,23 +40,26 @@ function WriteState(writer) {
 
 module.exports = WriteState;
 
-WriteState.prototype.prepare = function(stmt) {
+WriteState.prototype.prepare = function(type, stmt) {
+    this._type = type;
     this._stmt = stmt;
-    this._states = [];
+    this._stack = [];
 };
 
 WriteState.prototype.commit = function() {
+    this.writer.bufferQueue.commit();
     for (var i=this._stack.length-1; i>=0; --i)
         this.writer.stack.push(this._stack[i]);
+    this.reset();
 };
 
 WriteState.prototype.reset = function() {
-    this._stmt = undefined;
-    this._states = [];
+    this._type = this._stmt = undefined;
+    this._stack = [];
 };
 
 WriteState.prototype.rtype = function() {
-    return this.writer.definition.signature.returnType;
+    return this.writer.signature.returnType;
 };
 
 WriteState.prototype.u8 = function(b) {
@@ -61,14 +71,21 @@ WriteState.prototype.code = function(code) {
 };
 
 WriteState.prototype.codeWithImm = function(code, imm) {
-    if (imm < 0 || imm > types.ImmMax || (code = types.codeWithImm(this._type, code)) < 0)
+    if (imm < 0 || imm > types.OpWithImm_ImmMax || (code = types.codeWithImm(this._type, code)) < 0)
+        return false;
+    if (this.writer.preserveWithImm && !this._stmt.withImm)
         return false;
     this.writer.bufferQueue.writeUInt8(util.packWithImm(code, imm));
+    return true;
 };
 
 WriteState.prototype.varint = function(value) {
     this.writer.bufferQueue.writeVarint(value);
 };
+
+WriteState.prototype.varint_s = function(value) {
+    this.writer.bufferQueue.writeVarintSigned(value);
+}
 
 WriteState.prototype.f32 = function(value) {
     this.writer.bufferQueue.writeFloatLE(value);
@@ -80,8 +97,4 @@ WriteState.prototype.f64 = function(value) {
 
 WriteState.prototype.write = function(stmt) {
     this._stack.push(stmt);
-};
-
-WriteState.prototype.write_case = function(switchCase) {
-    this._stack.push(switchCase);
 };

@@ -7,6 +7,7 @@ var webassembly = require("../"),
     Reader = webassembly.Reader,
     AstReader = webassembly.ast.Reader,
     Writer = webassembly.Writer,
+    AstWriter = webassembly.ast.Writer,
     Assembly = webassembly.reflect.Assembly;
 
 var file = path.join(__dirname, "AngryBots.wasm"),
@@ -18,11 +19,11 @@ var reader = new Reader({
     // skipAhead: true
 });
 
-reader.on("switchState", function (prevState, newState, offset) {
+/* reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
 });
 
-/* reader.on("header", function (size) {
+reader.on("header", function (size) {
     console.log("Precomputed size: " + size);
 });
 
@@ -113,13 +114,8 @@ reader.on("export", function(exprt) {
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
-    console.log("Complete: "+reader.assembly.toString());
-    console.log(reader.assembly.asmHeader());
+    console.log("Complete: "+reader.assembly.toString()+"\n");
     console.log("Validating assembly ...");
-
-    write(reader.assembly);
-    return;
-
     try {
         reader.assembly.validate();
     } catch (err) {
@@ -129,7 +125,7 @@ reader.on("end", function() {
         }
         throw err;
     }
-    console.log("Success");
+    console.log("Success\n");
     validateAstOffsets();
 });
 
@@ -145,8 +141,8 @@ function validateAstOffsets() {
 
     function next() {
         if (current === assembly.functionDeclarations.length) {
-            console.log("ASTs: "+current);
-            write(assembly);
+            console.log("Complete: "+current+" ASTs\n");
+            validateAstRewrite(assembly);
             return;
         }
         var declaration = assembly.functionDeclarations[current++],
@@ -158,9 +154,12 @@ function validateAstOffsets() {
         if (offset + length > stats.size)
             throw Error("offset + length "+(offset+length)+" > "+stats.size);
         var astReader = new AstReader(definition);
-
-        astReader.on("end", next);
-
+        astReader.on("ast", function(ast) {
+            definition.ast = ast;
+        });
+        astReader.on("end", function() {
+            next();
+        });
         fs.createReadStream(file, {
             start: offset,
             end: offset + length
@@ -170,24 +169,67 @@ function validateAstOffsets() {
     next();
 }
 
+function validateAstRewrite(assembly) {
+    console.log("Validating AST rewrite ...");
+    var contents = fs.readFileSync(file),
+        current = 0;
+
+    function next() {
+        if (current >= assembly.functionDeclarations.length) {
+            console.log("Success\n");
+            write(assembly);
+            return;
+        }
+        var definition = assembly.functionDeclarations[current].definition,
+            astContents = contents.slice(definition.byteOffset, definition.byteOffset + definition.byteLength);
+        var writer = new AstWriter(definition, { preserveWithImm: true }),
+            offset = 0;
+        writer.on("data", function(chunk) {
+            for (var i=0; i<chunk.length; ++i) {
+                if (astContents[offset+i] !== chunk[i]) {
+                    console.log("difference at offset "+(offset+i).toString(16)+": "+astContents[offset+i].toString(16)+" != "+chunk[i].toString(16));
+                    console.log("AstReader", astContents.slice(offset+i-3, offset+i+16));
+                    console.log("AStWriter", chunk.slice(i-3, i+16));
+
+                    console.log(definition.asmHeader());
+                    console.log(AstReader.inspect(definition.ast));
+
+                    throw Error("difference at offset "+(offset+i).toString(16));
+                }
+            }
+            offset += chunk.length;
+        });
+        writer.on("end", function() {
+            ++current;
+            setImmediate(next);
+        });
+        writer.resume();
+    }
+    next();
+}
+
 function write(assembly) {
     console.log("Writing assembly ...");
 
     var contents = fs.readFileSync(file),
         offset = 0;
-    var writer = new Writer(assembly);
-    writer.on("switchState", function(state, previousState, offset) {
+    var writer = new Writer(assembly, { preserveWithImm : true });
+    /* writer.on("switchState", function(state, previousState, offset) {
         console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
-    });
+    }); */
     writer.on("data", function(chunk) {
         for (var i=0; i<chunk.length; ++i) {
             if (contents[offset+i] !== chunk[i]) {
                 console.log("Reader", contents.slice(offset+i, offset+i+16));
                 console.log("Writer", chunk.slice(i, i+16));
+                console.log("Chunk size: "+chunk.length+", offset: "+i);
                 throw Error("difference at offset "+(offset+i).toString(16)+": "+contents[offset+i].toString(16)+" != "+chunk[i].toString(16));
             }
         }
         offset += chunk.length;
+    });
+    writer.on("end", function() {
+        console.log("Complete: "+offset+" bytes");
     });
     writer.resume();
 }

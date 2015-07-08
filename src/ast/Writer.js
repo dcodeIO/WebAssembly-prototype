@@ -3,10 +3,23 @@ var stream = require("stream"),
     types = require("../types"),
     util = require("../util");
 
-var WriteState = require("./WriteState");
+var WriteState = require("./WriteState"),
+    StmtList = require("../stmt/StmtList"),
+    ExprI32 = require("../stmt/ExprI32"),
+    ExprF32 = require("../stmt/ExprF32"),
+    ExprF64 = require("../stmt/ExprF64"),
+    ExprVoid = require("../stmt/ExprVoid"),
+    SwitchCase = require("../stmt/SwitchCase"),
+    Stmt = require("../stmt/Stmt");
+
+var verbose = 0; // for debugging
 
 /**
  * An abstract syntax tree writer.
+ *
+ * The writer is created in paused mode. Call {@link ast.Writer#resume) to
+ * begin writing the AST.
+ *
  * @param {!reflect.FunctionDefinition} functionDefinition
  * @param {!util.BufferQueue=} bufferQueue
  * @param {!Object.<string,*>=} options
@@ -15,8 +28,7 @@ var WriteState = require("./WriteState");
  * @exports ast.Writer
  */
 function Writer(functionDefinition, bufferQueue, options) {
-    if (!functionDefinition.ast)
-        throw Error("definition does not contain an AST");
+    assert(functionDefinition.ast instanceof StmtList, "definition must contain an AST");
 
     stream.Readable.call(this, options);
 
@@ -32,46 +44,29 @@ function Writer(functionDefinition, bufferQueue, options) {
     this.definition = functionDefinition;
 
     /**
-     * Function declaration.
-     * @type {!reflect.FunctionDeclaration}
-     */
-    this.declaration = this.definition.declaration;
-
-    /**
-     * Function signature.
-     * @type {!reflect.FunctionSignature}
-     */
-    this.signature = this.declaration.signature;
-
-    /**
-     * Assembly reference.
-     * @type {!reflect.Assembly}
-     */
-    this.assembly = this.declaration.assembly;
-
-    /**
      * Writer buffer queue.
      * @type {!util.BufferQueue}
      */
     this.bufferQueue = bufferQueue || new util.BufferQueue();
 
     /**
-     * AST pointer.
-     * @type {!stmt.StmtList|stmt.BaseStmt}
+     * Statement stack.
+     * @type {!Array.<!BaseStmt|!StmtList>}
      */
-    this.ptr = functionDefinition.ast;
-
-    /**
-     * AST sequence.
-     * @type {number}
-     */
-    this.sequence = 0;
+    this.stack = [functionDefinition.ast]; // StmtList
 
     /**
      * Write state.
      * @type {!ast.WriteState}
      */
     this.writeState = new WriteState(this);
+
+    /**
+     * Whether opcodes with imm should be preserved. Relevant only when rewriting ASTs with the intend to preserve
+     *  their original (unoptimized) byte code, e.g. for comparison.
+     * @type {boolean}
+     */
+    this.preserveWithImm = !!(options && options.preserveWithImm);
 
     this.pause();
 }
@@ -82,159 +77,130 @@ module.exports = Writer;
 Writer.prototype = Object.create(stream.Readable.prototype);
 
 /**
- * States.
- * @type {!Object.<string,number>}
- * @const
+ * Function declaration.
+ * @name ast.Writer#declaration
+ * @type {!reflect.FunctionDeclaration}
  */
-Writer.State = {
-    STMT_LIST: 0,
-    STMT: 1,
-    EXPR_I32: 2,
-    EXPR_F32: 3,
-    EXPR_F64: 4,
-    EXPR_VOID: 5,
-    SWITCH: 6,
-    END: 7,
-    ERROR: 8
-};
+Object.defineProperty(Writer.prototype, "declaration", {
+    get: function() {
+        return this.definition.declaration;
+    }
+});
+
+/**
+ * Function signature.
+ * @name ast.Writer#signature
+ * @type {!reflect.FunctionSignature}
+ */
+Object.defineProperty(Writer.prototype, "signature", {
+    get: function() {
+        return this.definition.declaration.signature;
+    }
+});
+
+/**
+ * Assembly.
+ * @name ast.Writer#assembly
+ * @type {!reflect.Assembly}
+ */
+Object.defineProperty(Writer.prototype, "assembly", {
+    get: function() {
+        return this.definition.declaration.assembly;
+    }
+});
+
+/**
+ * Global offset.
+ * @name ast.Writer#offset
+ * @type {number}
+ */
+Object.defineProperty(Writer.prototype, "offset", {
+    get: function() {
+        return this.bufferQueue.offset;
+    }
+});
 
 Writer.prototype._read = function(size) {
-    if (this.states.length === 0)
+    if (this.stack.length === 0)
         throw Error("already done");
-    while (size > 0) {
-        var initialState = this.state,
-            len = 0;
+    this.bufferQueue.push(new Buffer(size));
+    this._process();
+};
+
+Writer.prototype._process = function() {
+    if (this.stack.length === 0)
+        return;
+    while (this.stack.length > 0) {
+        var stmt = this.stack.pop(),
+            state = stmt.type;
+        this.emit("switchState", state, this.offset);
         try {
-            switch (this.state) {
-                case Writer.State.STMT_LIST:
-                    len += this._writeStmtList();
+            switch (state) {
+                case types.WireType.ExprI32:
+                    this._writeExprI32(stmt);
                     break;
-                case Writer.State.STMT:
-                    len += this._writeStmt();
+                case types.WireType.ExprF32:
+                    this._writeExprF32(stmt);
                     break;
-                case Writer.State.EXPR_I32:
-                    len += this._writeExprI32();
+                case types.WireType.ExprF64:
+                    this._writeExprF64(stmt);
                     break;
-                case Writer.State.EXPR_F32:
-                    len += this._writeExprF32();
+                case types.WireType.ExprVoid:
+                    this._writeExprVoid(stmt);
                     break;
-                case Writer.State.EXPR_F64:
-                    len += this._writeExprF64();
+                case types.WireType.SwitchCase:
+                    this._writeSwitchCase(stmt);
                     break;
-                case Writer.State.EXPR_VOID:
-                    len += this._writeExprVoid();
+                case types.WireType.Stmt:
+                    this._writeStmt(stmt);
                     break;
-                case Writer.State.SWITCHCASE:
-                    len += this._writeSwitch();
+                case types.WireType.StmtList:
+                    this._writeStmtList(stmt);
                     break;
-                case Writer.State.END:
-                case Writer.State.ERROR:
-                    this.push(null);
-                    return;
                 default:
-                    throw Error("illegal state: " + this.state);
+                    throw Error("illegal wire type: " + stmt.type);
             }
-            this.offset += len;
-            size -= len;
         } catch (err) {
-            this.emit("error", err);
-            this.state = Writer.State.ERROR;
-        }
-        if (this.state !== initialState)
-            this.emit("switchState", this.state, initialState, this.offset);
-    }
-};
-
-Writer.prototype._writeStmtList = function() {
-    var stmtList = this.stack.pop();
-    var buf = new Buffer(util.calculateVarint(stmtList.length));
-    var offset = util.writeVarint(buf, stmtList.length, 0);
-    assert.strictEqual(offset, buf.length, "offset mismatch");
-    stmtList.forEach(function(stmt) {
-        this.stack.unshift(stmt);
-        this.states.unshift(Writer.State.STMT);
-    }, this);
-    this.push(buf);
-    return buf.length;
-};
-
-/* Writer.prototype._writeStmt = function() {
-    var stmt = this.stack.pop();
-    this.writeState.init(stmt);
-    stmt.behavior.write(this.writeState, stmt);
-}; */
-
-Writer.prototype._writeStmt = function() {
-    var stmt = this.stack.pop();
-    var s = this.writeState;
-    var State = Writer.State;
-    var Op = types.Stmt;
-    var temp;
-    switch (stmt.code) {
-        // Stmt + LocalVariable
-        case Op.SetLoc:
-
-        // Stmt + GlobalVariable
-        case Op.SetGlo:
-            temp = stmt.operands[0];
-            if (temp.index <= types.ImmMax) {
-                s.emit_code(stmt.codeWithImm, temp.index);
-            } else {
-                s.emit();
-                s.varint(temp.index);
+            if (err === util.BufferQueue.E_MORE) {
+                this.stack.push(stmt);
+                var buf = this.bufferQueue.reset().toBuffer();
+                this.push(buf);
+                if (buf.length > 0)
+                    this.bufferQueue.clear();
+                return; // Wait for more
             }
-            break;
-
-        // Stmt + ExprI32 heap index + ExprI32 value
-        case Op.I32Store8:
-        case Op.I32Store16:
-        case Op.I32Store32:
-            s.emit();
-            s.expect([State.EXPR_I32, State.EXPR_I32]);
-            break;
-
-        // Stmt + offset + ExprI32 heap index + ExprI32 value
-        case Op.I32StoreOff8:
-        case Op.I32StoreOff16:
-        case Op.I32StoreOff32:
-            s.emit();
-            s.varint();
-            s.expect([State.EXPR_I32, State.EXPR_I32]);
-            break;
-
-        // Stmt + ExprI32 heap index + ExprF32 value
-        case Op.F32Store:
-            s.emit();
-            s.expect([State.EXPR_I32, State.EXPR_F32]);
-            break;
-
-        // opcode + offset + Stmt<I32> heap index + Stmt<F32> value
-        case Op.F32StoreOff:
-            s.emit();
-            s.varint();
-            s.expect([State.EXPR_I32, State.EXPR_F32]);
-            break;
-
+            this.emit("error", err);
+            this.stack = [];
+            return;
+        }
     }
+    this.bufferQueue.commit();
+    this.push(this.bufferQueue.toBuffer());
+    this.bufferQueue.clear();
+    this.push(null);
 };
 
-/* Writer.prototype._writeExprI32 = function() {
-    var expr = this.stack.pop();
-
-    switch (expr.code) {
-        case types.I32.LitImm:
-    }
-
-        typeWithImm = expr.typeWithImm,
-        firstOperand = expr.operands[0],
-        buf;
-    if (typeof typeWithImm !== 'undefined' && firstOperand <= types.ImmMax) {
-        buf = new Buffer(1);
-        buf[0] = util.packWithImm(typeWithImm, firstOperand);
-    } else if (typeof firstOperand === 'number') {
-
-    }
-    this.push(buf);
-    return buf.length;
+Writer.prototype._writeStmtList = function(stmtList) {
+    this.bufferQueue
+        .writeVarint(stmtList.length)
+        .commit();
+    for (var i=stmtList.length-1; i>=0; --i)
+        this.stack.push(stmtList[i]);
 };
- */
+
+function makeGenericWrite(wireType, clazz, name) {
+    return function(stmt) {
+        if (verbose >= 1)
+            console.log("writing "+stmt+" @ "+this.offset.toString(16));
+        this.writeState.prepare(wireType, stmt);
+        stmt.behavior.write(this.writeState, stmt);
+        this.writeState.commit();
+    }
+}
+
+Writer.prototype._writeExprI32 = makeGenericWrite(types.WireType.ExprI32, ExprI32, "I32");
+Writer.prototype._writeExprF32 = makeGenericWrite(types.WireType.ExprF32, ExprF32, "F32");
+Writer.prototype._writeExprF64 = makeGenericWrite(types.WireType.ExprF64, ExprF64, "F64");
+Writer.prototype._writeExprVoid = makeGenericWrite(types.WireType.ExprVoid, ExprVoid, "Void");
+Writer.prototype._writeSwitchCase = makeGenericWrite(types.WireType.SwitchCase, SwitchCase, "SwitchCase");
+Writer.prototype._writeStmt = makeGenericWrite(types.WireType.Stmt, Stmt, "Stmt");

@@ -4,9 +4,10 @@ var stream = require("stream"),
 var types = require("./types"),
     util = require("./util");
 
-var Reader = require("./Reader");
+var AstWriter = require("./ast/Writer");
 
-var DefaultExport = require("./reflect/DefaultExport");
+var DefaultExport = require("./reflect/DefaultExport"),
+    RecordExport = require("./reflect/RecordExport");
 
 /**
  * A WebAssembly writer implemented as a readable stream.
@@ -15,7 +16,7 @@ var DefaultExport = require("./reflect/DefaultExport");
  * begin writing the assembly.
  *
  * @constructor
- * @param {!Assembly} assembly
+ * @param {!reflect.Assembly} assembly
  * @param {!Object.<string,*>=} options
  * @extends stream.Readable
  * @exports Writer
@@ -52,6 +53,25 @@ function Writer(assembly, options) {
      * @type {number}
      */
     this.subSequence = 0;
+
+    /**
+     * Current AST writer.
+     * @type {ast.Writer}
+     */
+    this.astWriter = null;
+
+    /**
+     * Options.
+     * @type {!Object.<string, *>}
+     */
+    this.options = options || {};
+
+    /**
+     * Last swallowed size in _read.
+     * @type {number}
+     * @private
+     */
+    this._lastSwallowedRead = -1;
 
     this.pause();
 }
@@ -101,9 +121,19 @@ Writer.State = {
 };
 
 Writer.prototype._read = function(size) {
+    if (this.astWriter !== null) {
+        this._lastSwallowedRead = size;
+        return;
+    }
     if (size <= 0)
         return;
     this.bufferQueue.push(new Buffer(size));
+    this._process();
+};
+
+Writer.prototype._process = function() {
+    if (this.state === Writer.State.END || this.state === Writer.State.ERROR)
+        return;
     while (true) {
         var initialState = this.state;
         try {
@@ -157,7 +187,8 @@ Writer.prototype._read = function(size) {
                     this._writeFunctionPointerElements();
                     break;
                 case Writer.State.FUNCTION_DEFINITIONS:
-                    this._writeFunctionDefinitions();
+                    if (this._writeFunctionDefinitions())
+                        return; // controlled by AstWriter
                     break;
                 case Writer.State.EXPORT:
                     this._writeExport();
@@ -187,7 +218,7 @@ Writer.prototype._read = function(size) {
             this.state = Writer.State.ERROR;
         }
     }
-};
+}
 
 Writer.prototype._writeHeader = function() {
     this.bufferQueue
@@ -413,23 +444,92 @@ Writer.prototype._writeFunctionPointerElements = function() {
 };
 
 Writer.prototype._writeFunctionDefinitions = function() {
-    throw Error("not implemented (yet)");
+    var size = this.assembly.getFunctionDeclarationPoolSize();
+    if (this.sequence < size) {
+        var definition = this.assembly.getFunctionDefinition(this.sequence);
+
+        var nI32Vars = 0,
+            nF32Vars = 0,
+            nF64Vars = 0;
+        definition.variables.forEach(function(variable) {
+            if (variable.isArgument)
+                return;
+            switch (variable.type) {
+                case types.Type.I32:
+                    ++nI32Vars;
+                    break;
+                case types.Type.F32:
+                    ++nF32Vars;
+                    break;
+                case types.Type.F64:
+                    ++nF64Vars;
+                    break;
+                default:
+                    throw Error("illegal variable type: "+variable.type);
+            }
+        });
+        if (nF32Vars === 0 && nF64Vars === 0 && nI32Vars <= types.OpWithImm_ImmMax) {
+            this.bufferQueue.writeUInt8(util.packWithImm(types.VarTypeWithImm.OnlyI32, nI32Vars));
+        } else {
+            var code = 0;
+            if (nI32Vars > 0)
+                code |= types.VarType.I32;
+            if (nF32Vars > 0)
+                code |= types.VarType.F32;
+            if (nF64Vars > 0)
+                code |= types.VarType.F64;
+            this.bufferQueue.writeUInt8(code);
+            if (nI32Vars > 0)
+                this.bufferQueue.writeVarint(nI32Vars);
+            if (nF32Vars > 0)
+                this.bufferQueue.writeVarint(nF32Vars);
+            if (nF64Vars > 0)
+                this.bufferQueue.writeVarint(nF64Vars);
+        }
+        this.bufferQueue.commit();
+
+        this.astWriter = new AstWriter(definition, this.bufferQueue, this.options);
+        this.astWriter.on("end", function() {
+            this.astWriter.removeAllListeners();
+            this.astWriter = null;
+            ++this.sequence;
+            setImmediate(Writer.prototype._read.bind(this, this._lastSwallowedRead));
+        }.bind(this));
+        this.astWriter.on("data", function(chunk) {
+            this.push(chunk);
+        }.bind(this));
+        this.astWriter.on("error", function(err) {
+            this.astWriter.removeAllListeners();
+            this.astWriter = null;
+            this.state = Writer.State.ERROR;
+            this.emit("error", err);
+        }.bind(this));
+
+        this.astWriter.resume();
+        return true;
+    } else {
+        this.state = Writer.State.EXPORT;
+    }
 };
 
 Writer.prototype._writeExport = function() {
     var exprt = this.assembly.export;
     if (exprt instanceof DefaultExport) {
         this.bufferQueue
+            .writeUInt8(types.ExportFormat.Default)
             .writeVarint(exprt.function.index)
             .commit();
-    } else {
-        this.bufferQueue.writeVarint(Object.keys(exprt.functions).length);
+    } else if (exprt instanceof RecordExport) {
+        this.bufferQueue
+            .writeUInt8(types.ExportFormat.Record)
+            .writeVarint(Object.keys(exprt.functions).length);
         Object.keys(exprt.functions).forEach(function(name) {
             this.bufferQueue
                 .writeCString(name)
-                .writeVarint(exprt.functions[name]);
+                .writeVarint(exprt.functions[name].index);
         }, this);
         this.bufferQueue.commit();
-    }
+    } else
+        throw Error("illegal export: " + exprt);
     this.state = Writer.State.END;
 };

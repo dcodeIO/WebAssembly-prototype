@@ -27,7 +27,7 @@ util.unpackWithImm = function(b) {
 };
 
 util.packWithImm = function(code, imm) {
-    return ((code & types.OpWithImm_OpMax) << types.OpWithImm_ImmBits) | (imm & types.OpWithImm_ImmMax);
+    return types.OpWithImm_Flag | ((code & types.OpWithImm_OpMax) << types.OpWithImm_ImmBits) | (imm & types.OpWithImm_ImmMax);
 };
 
 util.calculateVarint = function(value) {

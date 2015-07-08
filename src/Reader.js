@@ -416,11 +416,11 @@ Reader.prototype._readFunctionDefinitions = function() {
         if ((code & types.OpWithImm_Flag) !== 0)
             nI32Vars = util.unpackWithImm(code).imm;
         else {
-            if ((code & types.VarType.I32) === types.VarType.I32)
+            if ((code & types.VarType.I32) !== 0)
                 nI32Vars = this.bufferQueue.readVarint();
-            if ((code & types.VarType.F32) === types.VarType.F32)
+            if ((code & types.VarType.F32) !== 0)
                 nF32Vars = this.bufferQueue.readVarint();
-            if ((code & types.VarType.F64) === types.VarType.F64)
+            if ((code & types.VarType.F64) !== 0)
                 nF64Vars = this.bufferQueue.readVarint();
         }
         this.bufferQueue.advance();
@@ -428,12 +428,9 @@ Reader.prototype._readFunctionDefinitions = function() {
         var definition = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.bufferQueue.offset);
         this.emit("functionDefinitionPre", definition, index);
 
-        // console.log("creating AstReader for "+definition+" at "+this.bufferQueue.offset);
-
         // Read the AST
         this.astReader = new AstReader(definition, this.bufferQueue, this.options);
         this.astReader.on("end", function() {
-            // console.log("AstReader end");
             definition.byteLength = this.bufferQueue.offset - definition.byteOffset;
             if (!this.options.skipAhead)
                 definition.ast = this.astReader.stack[0];
@@ -445,6 +442,8 @@ Reader.prototype._readFunctionDefinitions = function() {
             setImmediate(Reader.prototype._process.bind(this));
         }.bind(this));
         this.astReader.on("error", function(err) {
+            this.astReader.removeAllListeners();
+            this.astReader = null;
             this.emit("error", err);
         }.bind(this));
         this.astReader.bufferQueue = this.bufferQueue;
