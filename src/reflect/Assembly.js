@@ -35,7 +35,7 @@ function Assembly(precomputedSize, options) {
      * Precomputed size.
      * @type {number}
      */
-    this.precomputedSize = precomputedSize || 0;
+    this.precomputedSize = precomputedSize || 0xFFFFFFFF;
 
     /**
      * I32 constants.
@@ -755,7 +755,7 @@ Assembly.prototype.validateFunctionPointerTables = function() {
  * @param {number} nI32vars
  * @param {number} nF32vars
  * @param {number} nF64vars
- * @param {number} byteOffset
+ * @param {number=} byteOffset
  * @param {number=} byteLength
  * @returns {!reflect.FunctionDefinition}
  */
@@ -811,7 +811,7 @@ Assembly.prototype.setRecordExport = function(functionIndexes) {
  * @throws {assert.AssertionError}
  */
 Assembly.prototype.validateExport = function() {
-    assert.strictEqual(this.export instanceof DefaultExport || this.export instanceof RecordExport, true, "export must be a DefaultExport or RecordExport");
+    assert(this.export instanceof DefaultExport || this.export instanceof RecordExport, "export must be a DefaultExport or RecordExport");
     assert.strictEqual(this.export.assembly, this, "export must reference this assembly");
     if (this.export instanceof DefaultExport) {
         assert.strictEqual(this.export.function instanceof FunctionDeclaration, true, "export function must be a FunctionDeclaration");
@@ -963,4 +963,20 @@ Assembly.prototype.asmHeader = function(pack) {
     });
     sb[sb.length-2] = ";"; // override last ","
     return sb.join("");
+};
+
+// ----- convenience -----
+
+/**
+ * Defines a new function with an empty body and returns the function definition.
+ * @param {number} returnType
+ * @param {!Array.<number>} argumentTypes
+ * @returns {!reflect.FunctionDefinition}
+ */
+Assembly.prototype.defineFunction = function(returnType, argumentTypes) {
+    var signature = this.setFunctionSignature(this.functionSignatures.length++, returnType, argumentTypes),
+        declaration = this.setFunctionDeclaration(this.functionDeclarations.length++, signature.index),
+        definition = this.setFunctionDefinition(declaration.index, 0, 0, 0);
+    definition.ast = new StmtList();
+    return definition;
 };

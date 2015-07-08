@@ -42,7 +42,7 @@ function FunctionDefinition(declaration, nI32vars, nF32vars, nF64vars, byteOffse
      * Byte offset of the function body.
      * @type {number}
      */
-    this.byteOffset = byteOffset;
+    this.byteOffset = byteOffset || -1;
 
     /**
      * Byte length of the function body.
@@ -69,6 +69,17 @@ var LocalVariable = require("./LocalVariable"); // cyclic
 Object.defineProperty(FunctionDefinition.prototype, "name", {
     get: function() {
         return this.declaration.name;
+    }
+});
+
+/**
+ * Declaration index.
+ * @name reflect.FunctionDefinition#index
+ * @type {number}
+ */
+Object.defineProperty(FunctionDefinition.prototype, "index", {
+    get: function() {
+        return this.declaration.index;
     }
 });
 

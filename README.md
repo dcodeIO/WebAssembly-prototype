@@ -17,6 +17,9 @@ Contents
 
 * **[Statement types](https://github.com/dcodeIO/WebAssembly/tree/master/src/stmt)**<br />
   Classes to represent the different statement and expression types.
+  
+* **[Statement and expression behaviors](https://github.com/dcodeIO/WebAssembly/tree/master/src/stmt/behavior)**<br />
+  Classes describing the wire-format of any statement or expression in an easy to grasp way.
 
 * **[Reader](https://github.com/dcodeIO/WebAssembly/blob/master/src/Reader.js)**<br />
   A streaming reader for disassembling WASM binaries into their respective reflection structure.

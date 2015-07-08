@@ -218,7 +218,7 @@ Writer.prototype._process = function() {
             this.state = Writer.State.ERROR;
         }
     }
-}
+};
 
 Writer.prototype._writeHeader = function() {
     this.bufferQueue

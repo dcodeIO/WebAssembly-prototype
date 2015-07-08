@@ -217,6 +217,7 @@ BufferQueue.prototype.readUInt32LE = function() {
  * @returns {!util.BufferQueue}
  */
 BufferQueue.prototype.writeUInt32LE = function(u32) {
+    u32 >>>= 0;
     return this.writeUInt8(u32)
         .writeUInt8(u32 >>> 8)
         .writeUInt8(u32 >>> 16)
