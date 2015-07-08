@@ -107,21 +107,21 @@ FunctionDefinition.prototype.header = function(pack) {
     for (var i=0; i<args.length; ++i) {
         if (i > 0)
             sb.push(",");
-        sb.push(assembly.localName(i, util.variablePrefix(args[i])));
+        sb.push(assembly.localName(i));
     }
     sb.push("){\n");
     if (args.length > 0) {
         for (i = 0; i < args.length; ++i) {
-            sb.push(ws, assembly.localName(i, util.variablePrefix(args[i])), "=");
+            sb.push(ws, assembly.localName(i), "=");
             switch (args[i]) {
                 case types.Type.I32:
-                    sb.push(assembly.localName(i, util.variablePrefix(args[i])), "|0;", nl);
+                    sb.push(assembly.localName(i), "|0;", nl);
                     break;
                 case types.Type.F32:
-                    sb.push(util.hotStdLibName("FRound"), "(", assembly.localName(i, util.variablePrefix(args[i])), ");", nl);
+                    sb.push(util.hotStdLibName("FRound"), "(", assembly.localName(i), ");", nl);
                     break;
                 case types.Type.F64:
-                    sb.push("+", assembly.localName(i, util.variablePrefix(args[i])), ";", nl);
+                    sb.push("+", assembly.localName(i), ";", nl);
                     break;
             }
         }
@@ -132,7 +132,7 @@ FunctionDefinition.prototype.header = function(pack) {
             var v = this.variables[i];
             if (i > args.length)
                 sb.push(",", nl, ws);
-            sb.push(assembly.localName(i + args.length, util.variablePrefix(this.variables[i].type)), "=");
+            sb.push(assembly.localName(i + args.length), "=");
             switch (v.type) {
                 case types.Type.I32:
                     sb.push("0");

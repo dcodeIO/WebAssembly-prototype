@@ -28,7 +28,7 @@ BlockBehavior.prototype.read = function(s, code) {
     var count = s.varint();
     s.stmt(code);
     for (var i=0; i<count; ++i)
-        s.read(null);
+        s.read(types.WireType.Stmt);
 };
 
 BlockBehavior.prototype.validate = function(definition, stmt) {
@@ -38,7 +38,7 @@ BlockBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BlockBehavior.prototype.write = function(s, stmt) {
-    s.u8(stmt.code);
+    s.code(stmt.code);
     stmt.operands.forEach(function(operand) {
         s.write(operand);
     }, this);

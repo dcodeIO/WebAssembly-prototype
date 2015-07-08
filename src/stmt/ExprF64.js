@@ -21,7 +21,7 @@ ExprF64.prototype = Object.create(BaseExpr.prototype);
 
 Object.defineProperty(ExprF64.prototype, "type", {
     get: function() {
-        return this.types.RType.F64;
+        return types.WireType.ExprF64;
     }
 });
 
@@ -31,10 +31,11 @@ Object.defineProperty(ExprF64.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(ExprF64.prototype, "behavior", {
-    get: function() {
-        var Op = types.F64;
-        switch (this.code) {
+ExprF64.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.F64;
+        switch (code) {
             case Op.LitImm:
                 return behavior.LiteralF64;
             case Op.LitPool:
@@ -96,7 +97,23 @@ Object.defineProperty(ExprF64.prototype, "behavior", {
             case Op.Max:
                 return behavior.MultiaryF64;
             default:
-                throw Error("illegal F64 opcode: "+this.code);
+                throw Error("illegal F64 opcode: " + code);
         }
+    } else {
+        Op = types.F64WithImm;
+        switch (code) {
+            case Op.LitPool:
+                return behavior.ConstantF64;
+            case Op.GetLoc:
+                return behavior.GetLocalF64;
+            default:
+                throw Error("illegal F64WithImm opcode: " + code);
+        }
+    }
+};
+
+Object.defineProperty(ExprF64.prototype, "behavior", {
+    get: function() {
+        return ExprF64.determineBehavior(this.code);
     }
 });

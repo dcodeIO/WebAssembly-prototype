@@ -1,4 +1,5 @@
-var util = require("../util");
+var util = require("../util"),
+    types = require("../types");
 
 /**
  * AST write state.
@@ -11,63 +12,76 @@ function WriteState(writer) {
     /**
      * Writer reference.
      * @type {!ast.Writer}
+     * @private
      */
     this.writer = writer;
 
     /**
-     * Current type.
-     * @type {number|null|undefined}
-     */
-    this._type = undefined;
-
-    /**
-     * Current opcode.
-     * @type {number}
-     */
-    this._code = -1;
-
-    /**
      * Current statement.
      * @type {!BaseStmt|undefined}
+     * @private
      */
     this._stmt = undefined;
+
+    /**
+     * Stack from the current operation.
+     * @type {!Array.<!stmt.BaseStmt>}
+     * @private
+     */
+    this._stack = [];
 }
 
 module.exports = WriteState;
 
-WriteState.prototype.init = function(stmt) {
+WriteState.prototype.prepare = function(stmt) {
     this._stmt = stmt;
-    this._type = stmt.type;
-    this._code = stmt.code;
+    this._states = [];
+};
+
+WriteState.prototype.commit = function() {
+    for (var i=this._stack.length-1; i>=0; --i)
+        this.writer.stack.push(this._stack[i]);
+};
+
+WriteState.prototype.reset = function() {
+    this._stmt = undefined;
+    this._states = [];
 };
 
 WriteState.prototype.rtype = function() {
     return this.writer.definition.signature.returnType;
 };
 
-WriteState.prototype.code = function(op, imm) {
-    this.writer.bufferQueue.writeUInt8(typeof imm !== 'undefined' ? util.packWithImm(op, imm) : op);
+WriteState.prototype.u8 = function(b) {
+    this.writer.bufferQueue.writeUInt8(b);
+};
+
+WriteState.prototype.code = function(code) {
+    this.writer.bufferQueue.writeUInt8(code);
+};
+
+WriteState.prototype.codeWithImm = function(code, imm) {
+    if (imm < 0 || imm > types.ImmMax || (code = types.codeWithImm(this._type, code)) < 0)
+        return false;
+    this.writer.bufferQueue.writeUInt8(util.packWithImm(code, imm));
 };
 
 WriteState.prototype.varint = function(value) {
     this.writer.bufferQueue.writeVarint(value);
 };
 
-WriteState.prototype.expect = function(states) {
-    /* if (typeof states === 'number') {
-        if (this._stmt) {
-            this.writer.stack.push(this._stmt);
-            this.writer.state.push(this.popState);
-        }
-        this.reader.state.push(states);
-    } else {
-        if (states.length === 0)
-            return;
-        if (this._stmt && !this.reader.skipAhead) {
-            this.reader.stack.push(this._stmt);
-            this.reader.state.push(this.popState);
-        }
-        for (var i=states.length-1; i>=0; --i)
-            this.reader.state.push(states[i]);
-    } */
+WriteState.prototype.f32 = function(value) {
+    this.writer.bufferQueue.writeFloatLE(value);
+};
+
+WriteState.prototype.f64 = function(value) {
+    this.writer.bufferQueue.writeDoubleLE(value);
+};
+
+WriteState.prototype.write = function(stmt) {
+    this._stack.push(stmt);
+};
+
+WriteState.prototype.write_case = function(switchCase) {
+    this._stack.push(switchCase);
 };

@@ -33,10 +33,9 @@ CallInternalBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Stmt & Expr<*>, all without imm
 
 CallInternalBehavior.prototype.read = function(s, code) {
-    var func = s.internal(s.varint());
-    s.code(code);
-    s.operand(func);
-    func.signature.argumentTypes.forEach(function(type) {
+    var functionDeclaration = s.internal(s.varint());
+    s.stmt(code, [ functionDeclaration ]);
+    functionDeclaration.signature.argumentTypes.forEach(function(type) {
         s.read(type);
     }, this);
 };

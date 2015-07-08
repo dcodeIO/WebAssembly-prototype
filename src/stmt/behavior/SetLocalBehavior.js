@@ -10,19 +10,19 @@ var BaseBehavior = require("./BaseBehavior"),
  * SetLocal behavior.
  * @param {string} name
  * @param {string} description
- * @param {number} returnType
+ * @param {number} wireType
  * @constructor
  * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.SetLocalBehavior
  */
-function SetLocalBehavior(name, description, returnType) {
+function SetLocalBehavior(name, description, wireType) {
     BaseBehavior.call(this, name, description);
 
     /**
      * Expression return type, if an expression.
-     * @type {number|null}
+     * @type {number}
      */
-    this.returnType = returnType || null;
+    this.wireType = wireType;
 }
 
 module.exports = SetLocalBehavior;
@@ -35,14 +35,11 @@ SetLocalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 SetLocalBehavior.prototype.read = function(s, code, imm) {
     var variable;
-    if (imm !== null) {
-        s.code(s.without_imm(code));
-        s.operand(variable = s.local(imm));
-    } else {
-        s.code(code);
-        s.operand(variable = s.local(s.varint()));
-    }
-    s.read(variable.type);
+    if (imm !== null)
+        s.stmtWithoutImm(code, [ variable = s.local(imm, this.wireType !== types.WireType.Stmt ? this.wireType : undefined) ]);
+    else
+        s.stmt(code, [ variable = s.local(s.varint(), this.wireType !== types.WireType.Stmt ? this.wireType : undefined) ]);
+    s.read(this.wireType === types.WireType.Stmt ? variable.type : this.wireType);
 };
 
 SetLocalBehavior.prototype.validate = function(definition, stmt) {
@@ -50,21 +47,18 @@ SetLocalBehavior.prototype.validate = function(definition, stmt) {
     var variable = stmt.operands[0];
     assert(variable instanceof LocalVariable, "SetLocal variable (operand 0) must be a LocalVariable");
     assert.strictEqual(variable.definition, definition, "SetLocal variable (operand 0) must be part of this definition");
-    if (this.returnType !== null)
-        assert.strictEqual(variable.type, this.returnType, "SetLocal variable (operand 0) must be "+types.RTypeNames[this.returnType]);
+    if (this.wireType !== types.WireType.Stmt)
+        assert.strictEqual(variable.type, this.wireType, "SetLocal variable (operand 0) must be "+types.TypeNames[this.returnType]);
     var expr = stmt.operands[1];
     assert(expr instanceof BaseExpr, "SetLocal value (operand 1) must be an expression");
-    assert.strictEqual(expr.type, variable.type, "SetLocal value (operand 1) expression must be "+types.RTypeNames[variable.type]);
+    assert.strictEqual(expr.type, variable.type, "SetLocal value (operand 1) expression must be "+types.WireTypeNames[variable.type]);
 };
 
 SetLocalBehavior.prototype.write = function(s, stmt) {
-    var variable = stmt.operands[0],
-        codeWithImm;
-    if (variable.index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
-        s.code(codeWithImm, variable.index);
-    else {
+    var index = stmt.operands[0].index;
+    if (!s.codeWithImm(stmt.code, index)) {
         s.code(stmt.code);
-        s.varint(variable.index);
+        s.varint(index);
     }
     s.write(stmt.operands[1]);
 };

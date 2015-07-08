@@ -21,7 +21,7 @@ ExprVoid.prototype = Object.create(BaseExpr.prototype);
 
 Object.defineProperty(ExprVoid.prototype, "type", {
     get: function() {
-        return this.types.RType.Void;
+        return types.WireType.ExprVoid;
     }
 });
 
@@ -31,10 +31,11 @@ Object.defineProperty(ExprVoid.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(ExprVoid.prototype, "behavior", {
-    get: function() {
-        var Op = types.Void;
-        switch (this.code) {
+ExprVoid.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.Void;
+        switch (code) {
             case Op.CallInt:
                 return behavior.CallInternalVoid;
             case Op.CallImp:
@@ -42,7 +43,14 @@ Object.defineProperty(ExprVoid.prototype, "behavior", {
             case Op.CallInd:
                 return behavior.CallIndirectVoid;
             default:
-                throw Error("illegal Void opcode: "+this.code);
+                throw Error("illegal Void opcode: " + code);
         }
+    } else
+        throw Error("illegal VoidWithImm opcode: " + code);
+};
+
+Object.defineProperty(ExprVoid.prototype, "behavior", {
+    get: function() {
+        return ExprVoid.determineBehavior(this.code);
     }
 });

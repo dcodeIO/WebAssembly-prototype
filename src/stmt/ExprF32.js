@@ -21,7 +21,7 @@ ExprF32.prototype = Object.create(BaseExpr.prototype);
 
 Object.defineProperty(ExprF32.prototype, "type", {
     get: function() {
-        return this.types.RType.F32;
+        return types.WireType.ExprF32;
     }
 });
 
@@ -31,10 +31,11 @@ Object.defineProperty(ExprF32.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(ExprF32.prototype, "behavior", {
-    get: function() {
-        var Op = types.F32;
-        switch (this.code) {
+ExprF32.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.F32;
+        switch (code) {
             case Op.LitImm:
                 return behavior.LiteralF32;
             case Op.LitPool:
@@ -80,7 +81,23 @@ Object.defineProperty(ExprF32.prototype, "behavior", {
             case Op.Div:
                 return behavior.BinaryF32;
             default:
-                throw Error("illegal F32 opcode: "+this.code);
+                throw Error("illegal F32 opcode: " + code);
         }
+    } else {
+        Op = types.F32WithImm;
+        switch (code) {
+            case Op.LitPool:
+                return behavior.ConstantF32;
+            case Op.GetLoc:
+                return behavior.GetLocalF32;
+            default:
+                throw Error("illegal F32WithImm opcode: " + code);
+        }
+    }
+};
+
+Object.defineProperty(ExprF32.prototype, "behavior", {
+    get: function() {
+        return ExprF32.determineBehavior(this.code);
     }
 });

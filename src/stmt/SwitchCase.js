@@ -22,7 +22,7 @@ SwitchCase.prototype = Object.create(BaseStmt.prototype);
 
 Object.defineProperty(SwitchCase.prototype, "type", {
     get: function() {
-        return null;
+        return types.WireType.SwitchCase;
     }
 });
 
@@ -32,23 +32,32 @@ Object.defineProperty(SwitchCase.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(SwitchCase.prototype, "behavior", {
-    get: function() {
-        switch (this.code) {
-            case types.SwitchCase.Case0:
+SwitchCase.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.SwitchCase;
+        switch (code) {
+            case Op.Case0:
                 return behavior.SwitchCase0;
-            case types.SwitchCase.Case1:
+            case Op.Case1:
                 return behavior.SwitchCase1;
-            case types.SwitchCase.CaseN:
+            case Op.CaseN:
                 return behavior.SwitchCaseN;
-            case types.SwitchCase.Default0:
+            case Op.Default0:
                 return behavior.SwitchDefault0;
-            case types.SwitchCase.Default1:
+            case Op.Default1:
                 return behavior.SwitchDefault1;
-            case types.SwitchCase.DefaultN:
+            case Op.DefaultN:
                 return behavior.SwitchDefaultN;
             default:
-                throw Error("illegal SwitchCase opcode: "+this.code);
+                throw Error("illegal SwitchCase opcode: " + code);
         }
+    } else
+        throw Error("illegal SwitchCaseWithImm opcode: " + code);
+};
+
+Object.defineProperty(SwitchCase.prototype, "behavior", {
+    get: function() {
+        return SwitchCase.determineBehavior(this.code);
     }
 });

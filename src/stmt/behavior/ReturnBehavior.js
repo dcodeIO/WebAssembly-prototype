@@ -25,15 +25,15 @@ ReturnBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Stmt only, without imm
 
 ReturnBehavior.prototype.read = function(s, code, imm) {
-    s.code(code);
     var rtype = s.rtype();
-    if (rtype !== null)
+    s.stmt(code);
+    if (rtype !== types.RType.Void)
         s.read(rtype);
 };
 
 ReturnBehavior.prototype.validate = function(definition, stmt) {
     var rtype = definition.declaration.signature.returnType;
-    if (rtype === null)
+    if (rtype === types.RType.Void)
         assert.strictEqual(stmt.operands.length, 0, this.name+" requires exactly 0 operands");
     else {
         assert.strictEqual(stmt.operands.length, 1, this.name+" requires exactly 1 operand");
@@ -44,8 +44,8 @@ ReturnBehavior.prototype.validate = function(definition, stmt) {
 };
 
 ReturnBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
     var rtype = s.rtype();
-    if (rtype !== null)
+    s.code(stmt.code);
+    if (rtype !== types.RType.Void)
         s.write(stmt.operands[0]);
 };

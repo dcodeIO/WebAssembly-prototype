@@ -2,11 +2,11 @@
  * A function import.
  * @constructor
  * @param {!reflect.Assembly} assembly
- * @param {string} name
+ * @param {string} importName
  * @param {!Array.<number|!reflect.FunctionImportSignature>} importSignatures
  * @exports reflect.FunctionImport
  */
-function FunctionImport(assembly, name, importSignatures) {
+function FunctionImport(assembly, importName, importSignatures) {
 
     /**
      * Assembly reference.
@@ -18,7 +18,7 @@ function FunctionImport(assembly, name, importSignatures) {
      * Import name.
      * @type {string}
      */
-    this.name = name;
+    this.importName = importName;
 
     /**
      * Function import signatures.
@@ -46,6 +46,17 @@ var FunctionImportSignature = require("./FunctionImportSignature"); // cyclic
 Object.defineProperty(FunctionImport.prototype, "index", {
     get: function() {
         return this.assembly.functionImports.indexOf(this);
+    }
+});
+
+/**
+ * Indexed name.
+ * @name reflect.FunctionImport#name
+ * @type {number}
+ */
+Object.defineProperty(FunctionImport.prototype, "name", {
+    get: function() {
+        return this.assembly.globalName(this.index);
     }
 });
 

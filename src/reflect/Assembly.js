@@ -96,27 +96,9 @@ function Assembly(precomputedSize, options) {
      * @type {reflect.BaseExport}
      */
     this.export = null;
-
-    /**
-     * Naming style. Defaults to {@link reflect.Assembly.NamingStyle.ASM}.
-     * @type {number}
-     * @see {@link reflect.Assembly.NamingStyle}
-     */
-    this.namingStyle = options && util.values(Assembly.NamingStyle).indexOf(options.namingStyle) >= 0
-        ? options.namingStyle
-        : Assembly.NamingStyle.ASM;
 }
 
 module.exports = Assembly;
-
-/**
- * Naming styles.
- * @type {!Object.<string,number>}
- */
-Assembly.NamingStyle = {
-    ASM: 0,
-    INDEX: 1
-};
 
 // ----- constant pools ------
 
@@ -368,13 +350,13 @@ Assembly.prototype.getFunctionImportSignaturePoolSize = function() {
 /**
  * Sets the function import at the specified index.
  * @param {number} index
- * @param {string} name
+ * @param {string} importName
  * @param {!Array.<number>} signatureIndexes
  */
-Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
+Assembly.prototype.setFunctionImport = function(index, importName, signatureIndexes) {
     var size = this.getFunctionImportPoolSize();
     assertInteger("index", index, 0, size-1);
-    assertFName("name", name);
+    assertFName("name", importName);
     var ssize = this.getFunctionSignaturePoolSize();
     signatureIndexes.forEach(function(index, i) {
         assertInteger("signatureIndexes["+i+"]", index, 0, ssize - 1);
@@ -382,7 +364,7 @@ Assembly.prototype.setFunctionImport = function(index, name, signatureIndexes) {
     var isize = this.getFunctionImportSignaturePoolSize();
     if (typeof this.functionImportSignatures.offset === 'undefined')
         this.functionImportSignatures.offset = 0;
-    var imprt = this.functionImports[index] = new FunctionImport(this, name, [] /* to be filled */);
+    var imprt = this.functionImports[index] = new FunctionImport(this, importName, [] /* to be filled */);
     for (var i=0; i<signatureIndexes.length; ++i) {
         if (this.functionImportSignatures.offset >= isize)
             throw RangeError("illegal function import signature index: "+this.functionImportSignatures.offset);
@@ -448,7 +430,7 @@ Assembly.validateFunctionImport = function(assembly, import_, index) {
     assert.notEqual(assembly.functionImports.indexOf(import_), -1, "functino import "+index+" must be part of this assembly");
     assert.strictEqual(import_.assembly, assembly, "function import "+index+" must reference this assembly");
     assert.strictEqual(import_.index, index, "function import "+index+" must reference its own index");
-    assert.strictEqual(util.isValidFName(import_.name), true, "function import "+index+" must have a valid function name");
+    assert.strictEqual(util.isValidFName(import_.importName), true, "function import "+index+" must have a valid function name");
     assert.strictEqual(Array.isArray(import_.signatures), true, "function import "+index+" signatures must be an array");
     import_.signatures.forEach(function(importSignature, importSignatureIndex) {
         assert.strictEqual(importSignature instanceof FunctionImportSignature, true, "function import "+index+" signature "+importSignatureIndex+" must be a FunctionImportSignature");
@@ -849,31 +831,19 @@ Assembly.prototype.validateExport = function() {
 /**
  * Generates a local name.
  * @param {number} index
- * @param {string=} prefix
  * @returns {string}
  */
-Assembly.prototype.localName = function(index, prefix) {
-    switch (this.namingStyle) {
-        case Assembly.NamingStyle.INDEX:
-            return (prefix || "L") + (index + types.HotStdLib.length);
-        default:
-            return util.indexedName(util.FirstCharRangeMinusDollar, index + types.HotStdLib.length);
-    }
+Assembly.prototype.localName = function(index) {
+    return util.indexedName(util.FirstCharRangeMinusDollar, index + types.HotStdLib.length);
 };
 
 /**
  * Generates a global name.
  * @param {number} index
- * @param {string=} prefix
  * @returns {string}
  */
-Assembly.prototype.globalName = function(index, prefix) {
-    switch (this.namingStyle) {
-        case Assembly.NamingStyle.INDEX:
-            return (prefix || "G") + (index + types.StdLib.length);
-        default:
-            return '$' + util.indexedName(util.NextCharRange, index + types.StdLib.length);
-    }
+Assembly.prototype.globalName = function(index) {
+    return '$' + util.indexedName(util.NextCharRange, index + types.StdLib.length);
 };
 
 Assembly.prototype.toString = function() {

@@ -23,7 +23,7 @@ OpcodeOnlyBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Stmt only, without imm
 
 OpcodeOnlyBehavior.prototype.read = function(s, code) {
-    s.code(code);
+    s.stmt(code);
 };
 
 OpcodeOnlyBehavior.prototype.validate = function(definition, stmt) {

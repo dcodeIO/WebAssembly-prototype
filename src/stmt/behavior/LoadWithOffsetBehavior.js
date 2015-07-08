@@ -32,9 +32,8 @@ LoadWithOffsetBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all without imm
 
 LoadWithOffsetBehavior.prototype.read = function(s, code) {
-    s.code(code);
-    s.operand(s.varint());
-    s.read(types.RType.I32);
+    s.stmt(code, [ s.varint() ]);
+    s.read(types.WireType.ExprI32);
 };
 
 LoadWithOffsetBehavior.prototype.validate = function(definition, stmt) {

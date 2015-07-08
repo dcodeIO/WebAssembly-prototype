@@ -32,13 +32,10 @@ ConstantPoolBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all with imm
 
 ConstantPoolBehavior.prototype.read = function(s, code, imm) {
-    if (imm !== null) {
-        s.code(s.without_imm(code));
-        s.operand(s.constant(imm));
-    } else {
-        s.code(code);
-        s.operand(s.constant(s.varint()));
-    }
+    if (imm !== null)
+        s.stmtWithoutImm(code, [ s.constant(imm) ]);
+    else
+        s.stmt(code, [ s.constant(s.varint()) ]);
 };
 
 ConstantPoolBehavior.prototype.validate = function(definition, stmt) {
@@ -50,11 +47,9 @@ ConstantPoolBehavior.prototype.validate = function(definition, stmt) {
 };
 
 ConstantPoolBehavior.prototype.write = function(s, stmt) {
-    var codeWithImm;
-    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
-        s.code(codeWithImm, stmt.operands[0].index);
-    else {
+    var index = stmt.operands[0].index;
+    if (!s.codeWithImm(stmt.code, index)) {
         s.code(stmt.code);
-        s.varint(stmt.operands[0].index);
+        s.varint(index);
     }
 };

@@ -1,5 +1,6 @@
 /**
  * @namespace
+ * @exports stmt
  */
 var stmt = module.exports = {};
 
@@ -18,12 +19,3 @@ stmt.ExprVoid = require("./ExprVoid");
 stmt.SwitchCase = require("./SwitchCase");
 
 stmt.behavior = require("./behavior");
-
-stmt.Type = {
-    Stmt: 0,
-    ExprI32: 1,
-    ExprF32: 2,
-    ExprF64: 3,
-    ExprVoid: 4,
-    SwitchCase: 5
-};

@@ -8,7 +8,7 @@ var BaseBehavior = require("./BaseBehavior"),
  * Binary behavior.
  * @param {string} name
  * @param {string} description
- * @param {number>} type
+ * @param {number} type
  * @constructor
  * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.BinaryBehavior
@@ -17,7 +17,7 @@ function BinaryBehavior(name, description, type) {
     BaseBehavior.call(this, name, description);
 
     /**
-     * Expression type.
+     * Wire type.
      * @type {number}
      */
     this.type = type;
@@ -45,7 +45,7 @@ BinaryBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BinaryBehavior.prototype.write = function(s, stmt) {
-    s.u8(stmt.code);
+    s.code(stmt.code);
     s.write(stmt.operands[0]);
     s.write(stmt.operands[1]);
 };

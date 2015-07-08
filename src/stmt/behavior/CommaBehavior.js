@@ -32,8 +32,18 @@ CommaBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all without imm
 
 CommaBehavior.prototype.read = function(s, code) {
-    s.code(code);
-    s.read(s.u8());
+    var rtype = s.u8();
+    s.stmt(code);
+    switch (rtype) {
+        case types.RType.I32:
+        case types.RType.F32:
+        case types.RType.F64:
+        case types.RType.Void:
+            s.read(rtype);
+            break;
+        default:
+            throw Error("illegal left hand return type: "+rtype);
+    }
     s.read(this.returnType);
 };
 
@@ -46,9 +56,8 @@ CommaBehavior.prototype.validate = function(definition, stmt) {
 };
 
 CommaBehavior.prototype.write = function(s, stmt) {
-    var left = stmt.operands[0];
     s.code(stmt.code);
-    s.u8(left.type);
-    s.write(left);
+    s.u8(stmt.operands[0].type);
+    s.write(stmt.operands[0]);
     s.write(stmt.operands[1]);
 };

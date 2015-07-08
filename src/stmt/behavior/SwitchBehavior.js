@@ -21,14 +21,15 @@ module.exports = SwitchBehavior;
 // Extends Behavior
 SwitchBehavior.prototype = Object.create(BaseBehavior.prototype);
 
-// opcode + number of cases + Expr<I32> condition + number of cases * ( SwitchCase type + respective (list of) Stmt )
+// opcode + number of cases + Expr<I32> condition + number of cases * SwitchCase
 // Stmt only, without imm
 
 SwitchBehavior.prototype.read = function(s, code) {
     var count = s.varint();
-    s.code(code);
+    s.stmt(code);
+    s.read(types.WireType.ExprI32);
     for (var i=0; i<count; ++i)
-        s.read_case();
+        s.read(types.WireType.SwitchCase);
 };
 
 SwitchBehavior.prototype.validate = function(definition, stmt) {
@@ -42,5 +43,5 @@ SwitchBehavior.prototype.write = function(s, stmt) {
     s.code(stmt.code);
     s.varint(count);
     for (var i=0; i<count; ++i)
-        s.write_case(stmt.operands[i]);
+        s.write(stmt.operands[i]);
 };

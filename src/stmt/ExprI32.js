@@ -21,7 +21,7 @@ ExprI32.prototype = Object.create(BaseExpr.prototype);
 
 Object.defineProperty(ExprI32.prototype, "type", {
     get: function() {
-        return this.types.RType.I32;
+        return types.WireType.ExprI32;
     }
 });
 
@@ -31,10 +31,11 @@ Object.defineProperty(ExprI32.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(ExprI32.prototype, "behavior", {
-    get: function() {
-        var Op = types.I32;
-        switch (this.code) {
+ExprI32.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.I32;
+        switch (code) {
             case Op.LitImm:
                 return behavior.LiteralI32;
             case Op.LitPool:
@@ -131,7 +132,25 @@ Object.defineProperty(ExprI32.prototype, "behavior", {
             case Op.UMax:
                 return behavior.MultiaryI32;
             default:
-                throw Error("illegal I32 opcode: "+this.code);
+                throw Error("illegal I32 opcode: " + code);
         }
+    } else {
+        Op = types.I32WithImm;
+        switch (code) {
+            case Op.LitPool:
+                return behavior.ConstantI32;
+            case Op.LitImm:
+                return behavior.LiteralI32;
+            case Op.GetLoc:
+                return behavior.GetLocalI32;
+            default:
+                throw Error("illegal I32WithImm opcode: " + code);
+        }
+    }
+};
+
+Object.defineProperty(ExprI32.prototype, "behavior", {
+    get: function() {
+        return ExprI32.determineBehavior(this.code);
     }
 });

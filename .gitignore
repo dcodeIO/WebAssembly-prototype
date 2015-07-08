@@ -3,3 +3,4 @@ npm-debug.log
 .idea/
 raw/
 v8.log
+tests/AngryBots-asm.txt

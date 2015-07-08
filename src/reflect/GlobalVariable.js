@@ -57,7 +57,8 @@ Object.defineProperty(GlobalVariable.prototype, "index", {
  */
 Object.defineProperty(GlobalVariable.prototype, "name", {
     get: function() {
-        return this.assembly.globalName(this.index, "$"+util.variablePrefix(this.type));
+        var num_func_imps = this.assembly.functionImports.length;
+        return this.assembly.globalName(num_func_imps + this.index);
     }
 });
 

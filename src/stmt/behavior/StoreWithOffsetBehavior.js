@@ -32,10 +32,9 @@ StoreWithOffsetBehavior.prototype = Object.create(BaseBehavior.prototype);
 // opcode + varint offset + Expr<I32> heap index + Expr<heap type> value
 // Stmt & Expr<*>, all without imm
 
-StoreWithOffsetBehavior.prototype.read = function(s, code, imm) {
-    s.code(code);
-    s.operand(s.varint());
-    s.read(types.RType.I32);
+StoreWithOffsetBehavior.prototype.read = function(s, code) {
+    s.stmt(code, [ s.varint() ]);
+    s.read(types.WireType.ExprI32);
     s.read(this.heapType);
 };
 
@@ -47,7 +46,7 @@ StoreWithOffsetBehavior.prototype.validate = function(definition, stmt) {
     assert(index instanceof ExprI32, "StoreWithOffset heap index (operand 1) must be an I32 expression");
     var value = stmt.operands[2];
     assert(value instanceof BaseExpr, "StoreWithOffset value (operand 2) must be an expression");
-    assert.strictEqual(value.type, this.heapType, "StoreWithOffset value (operand 1) expression must be "+types.RTypeNames[this.heapType]);
+    assert.strictEqual(value.type, this.heapType, "StoreWithOffset value (operand 1) expression must be "+types.TypeNames[this.heapType]);
 };
 
 StoreWithOffsetBehavior.prototype.write = function(s, stmt) {

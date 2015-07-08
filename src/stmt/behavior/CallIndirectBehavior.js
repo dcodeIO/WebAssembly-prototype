@@ -34,9 +34,8 @@ CallIndirectBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 CallIndirectBehavior.prototype.read = function(s, code) {
     var functionPointerTable = s.indirect(s.varint());
-    s.stmt(code);
-    s.operand(functionPointerTable);
-    s.read(types.RType.I32);
+    s.stmt(code, [ functionPointerTable ]);
+    s.read(types.WireType.ExprI32);
     functionPointerTable.signature.argumentTypes.forEach(function(type) {
         s.read(type);
     }, this);
@@ -60,7 +59,7 @@ CallIndirectBehavior.prototype.validate = function(definition, stmt) {
 };
 
 CallIndirectBehavior.prototype.write = function(s, stmt) {
-    s.code(stmt.code);
+    s.u8(stmt.code);
     s.varint(stmt.operands[0].index);
     s.write(stmt.operands[1]);
     for (var i=2; i<stmt.operands.length; ++i)

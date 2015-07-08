@@ -32,9 +32,9 @@ StoreBehavior.prototype = Object.create(BaseBehavior.prototype);
 // opcode + Expr<I32> heap index + Expr<heap type> value
 // Stmt & Expr<*>, all without imm
 
-StoreBehavior.prototype.read = function(s, code, imm) {
-    s.code(code);
-    s.read(types.RType.I32);
+StoreBehavior.prototype.read = function(s, code) {
+    s.stmt(code);
+    s.read(types.WireType.ExprI32);
     s.read(this.heapType);
 };
 

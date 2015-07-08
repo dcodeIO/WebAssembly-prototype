@@ -1,11 +1,12 @@
 var types = require("../types"),
     util = require("../util");
 
-var Stmt = require("../stmt/Stmt"),
-    ExprI32 = require("../stmt/ExprI32"),
+var ExprI32 = require("../stmt/ExprI32"),
     ExprF32 = require("../stmt/ExprF32"),
     ExprF64 = require("../stmt/ExprF64"),
-    ExprVoid = require("../stmt/ExprVoid");
+    ExprVoid = require("../stmt/ExprVoid"),
+    SwitchCase = require("../stmt/SwitchCase"),
+    Stmt = require("../stmt/Stmt");
 
 /**
  * AST read state.
@@ -30,26 +31,84 @@ function ReadState(reader, popState) {
 
     /**
      * Current type.
-     * @type {number|null|undefined}
+     * @type {number|undefined}
+     * @private
      */
     this._type = undefined;
 
     /**
      * Current code.
-     * @type {number|null|!{code: number, imm: number|null}|undefined}
+     * @type {number|undefined}
+     * @private
      */
     this._code = undefined;
 
     /**
+     * Current imm.
+     * @type {number|null|undefined}
+     * @private
+     */
+    this._imm = undefined;
+
+    /**
      * Current statement.
      * @type {!stmt.BaseStmt|undefined}
+     * @private
      */
     this._stmt = undefined;
+
+    /**
+     * States derived from the current operation.
+     * @type {!Array.<number>}
+     * @private
+     */
+    this._states = [];
 }
 
 module.exports = ReadState;
 
 var Reader = require("./Reader"); // cyclic
+
+/**
+ * Prepares for the next read operation.
+ * @param {number} type Wire type
+ * @param {number} code Opcode
+ * @param {number|null} imm Imm, if any
+ */
+ReadState.prototype.prepare = function(type, code, imm) {
+    this._type = type;
+    this._code = code;
+    this._imm = imm;
+    this._stmt = undefined;
+    this._states = [];
+};
+
+/**
+ * Commits the current read operation.
+ */
+ReadState.prototype.commit = function() {
+    this.reader.bufferQueue.advance();
+    var parent = this.reader.stack[this.reader.stack.length-1];
+    parent.add(this._stmt);
+    if (this._states.length > 0) {
+        if (!this.reader.skipAhead) {
+            this.reader.stack.push(this._stmt);
+            this.reader.state.push(this.popState);
+        }
+        for (var i=this._states.length-1; i>=0; --i)
+            this.reader.state.push(this._states[i]);
+    }
+    this.reset();
+};
+
+/**
+ * Resets the internal state.
+ */
+ReadState.prototype.reset = function() {
+    this._type = this._code = this._imm = this._stmt = undefined;
+    this._states = [];
+    this.reader.bufferQueue.reset();
+};
 
 /**
  * Gets the current function's return type.
@@ -60,35 +119,10 @@ ReadState.prototype.rtype = function() {
 };
 
 /**
- * Gets the matching state for the specified type.
- * @function
- * @param {number} type
+ * Reads the next unsigned byte.
  * @returns {number}
  */
-ReadState.prototype.state = Reader.stateForType;
-
-/**
- * Reads the next opcode.
- * @param {number} type
- * @returns {!{code: number, imm: number|null}}
- */
-ReadState.prototype.code = function(type) {
-    this._type = type;
-    var b = this.reader.bufferQueue.readUInt8();
-    return this._code = (b & types.ImmFlag)
-        ? util.unpackWithImm(b)
-        : {
-            code: b,
-            imm: null
-        };
-};
-
-/**
- * Reads the next single-byte opcode.
- * @returns {number}
- */
-ReadState.prototype.code_u8 = function() {
-    this._type = types.RType.Void;
+ReadState.prototype.u8 = function() {
     return this.reader.bufferQueue.readUInt8();
 };
 
@@ -109,14 +143,6 @@ ReadState.prototype.varint_s = function() {
 };
 
 /**
- * Reads the next unsigned 8bit integer.
- * @returns {number}
- */
-ReadState.prototype.u8 = function() {
-    return this.reader.bufferQueue.readUInt8();
-};
-
-/**
  * Reads the next 32bit float.
  * @returns {number}
  */
@@ -133,17 +159,60 @@ ReadState.prototype.f64 = function() {
 };
 
 /**
- * Advances the backing buffer queue by the amount of bytes previously read.
+ * Creates a statement or expression with the specified code.
+ * @param {number} code
+ * @param {(number|!stmt.BaseOperand|!Array.<number|!stmt.BaseOperand>)=} operands
+ * @returns {!stmt.BaseStmt|undefined}
  */
-ReadState.prototype.advance = function() {
-    this.reader.bufferQueue.advance();
+ReadState.prototype.stmt = function(code, operands) {
+    if (this.reader.skipAhead)
+        return;
+    switch (this._type) {
+        case types.WireType.ExprI32:
+            this._stmt = new ExprI32(code, operands);
+            break;
+        case types.WireType.ExprF32:
+            this._stmt = new ExprF32(code, operands);
+            break;
+        case types.WireType.ExprF64:
+            this._stmt = new ExprF64(code, operands);
+            break;
+        case types.WireType.ExprVoid:
+            this._stmt = new ExprVoid(code, operands);
+            break;
+        case types.WireType.SwitchCase:
+            this._stmt = new SwitchCase(code, operands);
+            break;
+        case types.WireType.Stmt:
+            this._stmt = new Stmt(code, operands);
+            break;
+        default:
+            throw Error("illegal WireType: "+this._type);
+
+    }
+    return this._stmt;
 };
 
 /**
- * Resets the backing buffer queue to the previous index and offset.
+ * Creates a statement or expression with the specified code, converted to its counterpart without imm.
+ * @param {number} code
+ * @param {(number|!stmt.BaseOperand|!Array.<number|!stmt.BaseOperand>)=} operands
+ * @returns {!stmt.BaseStmt|boolean} `false` if there is no counterpart without imm
  */
-ReadState.prototype.reset = function() {
-    this.reader.bufferQueue.reset();
+ReadState.prototype.stmtWithoutImm = function(code, operands) {
+    if ((code = types.codeWithoutImm(this._type, code)) < 0)
+        throw Error("cannot convert "+types.WireTypeNames[this._type]+" code to non-imm counterpart: "+code);
+    return this.stmt(code, operands);
+};
+
+/**
+ * Prepares to read the next statement or expression.
+ * @param {number} wireType
+ */
+ReadState.prototype.read = function(wireType) {
+    if (wireType === undefined)
+        throw Error("meh");
+    this._states.push(wireType);
 };
 
 /**
@@ -151,26 +220,34 @@ ReadState.prototype.reset = function() {
  * @param {number} index
  * @returns {!reflect.Constant}
  */
-ReadState.prototype.const = function(index) {
+ReadState.prototype.constant = function(index) {
     return this.reader.assembly.getConstant(this._type, index);
 };
 
 /**
  * Gets the local variable at the specified index.
  * @param {number} index
+ * @param {number=} type
  * @returns {!reflect.LocalVariable}
  */
-ReadState.prototype.local = function(index) {
-    return this.reader.definition.getVariable(index);
+ReadState.prototype.local = function(index, type) {
+    var variable = this.reader.definition.getVariable(index);
+    if (typeof type !== 'undefined' && variable.type !== type)
+        throw Error("illegal local variable type: "+variable.type+" != "+type);
+    return variable;
 };
 
 /**
  * Gets the global variable at the specified index.
  * @param {number} index
+ * @param {number=} type
  * @returns {!reflect.GlobalVariable}
  */
-ReadState.prototype.global = function(index) {
-    return this.reader.assembly.getGlobalVariable(index);
+ReadState.prototype.global = function(index, type) {
+    var variable = this.reader.assembly.getGlobalVariable(index);
+    if (typeof type !== 'undefined' && variable.type !== type)
+        throw Error("illegal global variable type: "+variable.type+" != "+type);
+    return variable;
 };
 
 /**
@@ -201,29 +278,6 @@ ReadState.prototype.import = function(index) {
 };
 
 /**
- * Pushes a state or a list of state to the state queue.
- * @param {number|!Array.<number>} states
- */
-ReadState.prototype.expect = function(states) {
-    if (typeof states === 'number') {
-        if (this._stmt && !this.reader.skipAhead) {
-            this.reader.stack.push(this._stmt);
-            this.reader.state.push(this.popState);
-        }
-        this.reader.state.push(states);
-    } else {
-        if (states.length === 0)
-            return;
-        if (this._stmt && !this.reader.skipAhead) {
-            this.reader.stack.push(this._stmt);
-            this.reader.state.push(this.popState);
-        }
-        for (var i=states.length-1; i>=0; --i)
-            this.reader.state.push(states[i]);
-    }
-};
-
-/**
  * Converts the specified opcode without imm to its counterpart with imm.
  * @param {number} code
  * @returns {number} -1 if there is no counterpart without imm
@@ -242,58 +296,16 @@ ReadState.prototype.with_imm = function(code) {
 };
 
 /**
- * Emits a specific opcode.
- * @param {number} code
- * @param {(!Array.<number|!stmt.BaseOperand>|number|!stmt.BaseOperand)=} operands
- * @returns {!stmt.BaseStmt|undefined}
+ * Advances the buffer queue.
  */
-ReadState.prototype.emit_code = function(code, operands) {
-    if (this.reader.skipAhead) {
-        this.reader.bufferQueue.advance();
-        return;
-    }
-    if (typeof this._type === 'number')
-        switch (this._type) {
-            case types.RType.I32:
-                this._stmt = new ExprI32(code, operands);
-                break;
-            case types.RType.F32:
-                this._stmt = new ExprF32(code, operands);
-                break;
-            case types.RType.F64:
-                this._stmt = new ExprF64(code, operands);
-                break;
-            case types.RType.Void:
-                this._stmt = new ExprVoid(code, operands);
-                break;
-            default:
-                throw Error("illegal type: "+this._type);
-        }
-    else
-        this._stmt = new Stmt(code, operands);
-    var parent = this.reader.stack[this.reader.stack.length-1];
-    parent.add(this._stmt);
+ReadState.prototype.advance = function() {
     this.reader.bufferQueue.advance();
-    return this._stmt;
-};
-
-/**
- * Emits the matching opcode for the previous read operation.
- * @param {(number|!Array.<number>)=} operands
- * @returns {!stmt.BaseStmt|undefined}
- */
-ReadState.prototype.emit = function(operands) {
-    if (typeof this._code === 'number')
-        this.emit_code(this._code, operands);
-    else if (this._code.imm === null)
-        this.emit_code(this._code.code, operands);
-    else
-        this.emit_code(types.codeWithoutImm(this._type, this._code.code), operands);
 };
 
 /**
  * Finishes the read state.
  */
 ReadState.prototype.finish = function() {
-    this.reader = this._type = this._code = this._stmt = null;
+    this.reset();
+    this.reader = null;
 };

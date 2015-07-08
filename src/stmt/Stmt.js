@@ -21,7 +21,7 @@ Stmt.prototype = Object.create(BaseStmt.prototype);
 
 Object.defineProperty(Stmt.prototype, "type", {
     get: function() {
-        return null;
+        return types.WireType.Stmt;
     }
 });
 
@@ -38,10 +38,11 @@ Object.defineProperty(Stmt.prototype, "codeWithImm", {
     }
 });
 
-Object.defineProperty(Stmt.prototype, "behavior", {
-    get: function() {
-        var Op = types.Stmt;
-        switch (this.code) {
+Stmt.determineBehavior = function(code, withImm) {
+    var Op;
+    if (!withImm) {
+        Op = types.Stmt;
+        switch (code) {
             case Op.SetLoc:
                 return behavior.SetLocal;
             case Op.SetGlo:
@@ -93,7 +94,24 @@ Object.defineProperty(Stmt.prototype, "behavior", {
             case Op.Switch:
                 return behavior.Switch;
             default:
-                throw Error("illegal Stmt opcode: " + this.code);
+                throw Error("illegal Stmt opcode: " + code);
         }
+    } else {
+        Op = types.StmtWithImm;
+        switch (code) {
+            case Op.SetLoc:
+                return behavior.SetLocal;
+            case Op.SetGlo:
+                return behavior.SetGlobal;
+            default:
+                throw Error("illegal StmtWithImm opcode: " + code);
+
+        }
+    }
+};
+
+Object.defineProperty(Stmt.prototype, "behavior", {
+    get: function() {
+        return Stmt.determineBehavior(this.code, false);
     }
 });

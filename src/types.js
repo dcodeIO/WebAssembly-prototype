@@ -68,6 +68,8 @@ types.Type = {
 
 types.TypeNames = swap(types.Type);
 
+types.TypeMax = Math.max(types.Type.I32, types.Type.F32, types.Type.F64);
+
 types.isValidType = function(type) {
     return type === 0 || type === 1 || type === 2;
 };
@@ -93,10 +95,12 @@ types.RType = {
     I32: types.Type.I32,
     F32: types.Type.F32,
     F64: types.Type.F64,
-    Void: 3
+    Void: types.TypeMax + 1
 };
 
 types.RTypeNames = swap(types.RType);
+
+types.RTypeMax = types.TypeMax + 1;
 
 types.isValidRType = function(type) {
     return type === 0 || type === 1 || type === 2 || type === 3;
@@ -108,6 +112,22 @@ types.ExportFormat = {
 };
 
 types.ExportFormatNames = swap(types.ExportFormat);
+
+// ----- wire types (custom to this library) -----
+
+types.WireType = {
+    ExprI32: types.RType.I32,
+    ExprF32: types.RType.F32,
+    ExprF64: types.RType.F64,
+    ExprVoid: types.RType.Void,
+    SwitchCase: types.RTypeMax + 1,
+    Stmt: types.RTypeMax + 2,
+    StmtList: types.RTypeMax + 3
+};
+
+types.WireTypeNames = swap(types.WireType);
+
+types.WireTypeMax = types.RTypeMax + 3;
 
 // ----- statements and expressions -----
 
@@ -402,51 +422,51 @@ types.VoidNames = swap(types.Void);
 
 types.codeWithImm = function(type, code) {
     var other;
-    if (type === null) {
-        if (typeof (other = types.StmtToStmtWithImm[code]) !== 'undefined')
-            return other;
-    } else
-        switch (type) {
-            case types.RType.I32:
-                if (typeof (other = types.I32ToI32WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F32:
-                if (typeof (other = types.F32ToF32WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F64:
-                if (typeof (other = types.F64ToF64WithImm[code]) !== 'undefined')
-                    return other;
-                break;
-            default:
-                throw Error("illegal type: " + type);
-        }
+    switch (type) {
+        case types.WireType.ExprI32:
+            if (typeof (other = types.I32ToI32WithImm[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.ExprF32:
+            if (typeof (other = types.F32ToF32WithImm[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.ExprF64:
+            if (typeof (other = types.F64ToF64WithImm[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.Stmt:
+            if (typeof (other = types.StmtToStmtWithImm[code]) !== 'undefined')
+                return other;
+            break;
+        default:
+            throw Error("illegal type: " + type);
+    }
     return -1;
 };
 
 types.codeWithoutImm = function(type, code) {
     var other;
-    if (type === null) {
-        if (typeof (other = types.StmtWithImmToStmt[code]) !== 'undefined')
-            return other;
-    } else
-        switch (type) {
-            case types.RType.I32:
-                if (typeof (other = types.I32WithImmToI32[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F32:
-                if (typeof (other = types.F32WithImmToF32[code]) !== 'undefined')
-                    return other;
-                break;
-            case types.RType.F64:
-                if (typeof (other = types.F64WithImmToF64[code]) !== 'undefined')
-                    return other;
-                break;
-            default:
-                throw Error("illegal type: " + type);
-        }
+    switch (type) {
+        case types.WireType.ExprI32:
+            if (typeof (other = types.I32WithImmToI32[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.ExprF32:
+            if (typeof (other = types.F32WithImmToF32[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.ExprF64:
+            if (typeof (other = types.F64WithImmToF64[code]) !== 'undefined')
+                return other;
+            break;
+        case types.WireType.Stmt:
+            if (typeof (other = types.StmtWithImmToStmt[code]) !== 'undefined')
+                return other;
+            break;
+        default:
+            throw Error("illegal type: " + type);
+    }
     return -1;
 };
 

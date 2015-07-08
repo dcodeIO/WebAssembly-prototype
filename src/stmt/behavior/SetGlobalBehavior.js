@@ -1,5 +1,6 @@
 var assert = require("assert"),
-    types = require("../../types");
+    types = require("../../types"),
+    util = require("../../util");
 
 var BaseBehavior = require("./BaseBehavior"),
     GlobalVariable = require("../../reflect/GlobalVariable"),
@@ -10,19 +11,19 @@ var BaseBehavior = require("./BaseBehavior"),
  * SetGlobal behavior.
  * @param {string} name
  * @param {string} description
- * @param {number} returnType
+ * @param {number} type
  * @constructor
  * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.SetGlobalBehavior
  */
-function SetGlobalBehavior(name, description, returnType) {
+function SetGlobalBehavior(name, description, wireType) {
     BaseBehavior.call(this, name, description);
 
     /**
-     * Expression return type, if an expression.
-     * @type {number|null}
+     * Wire type.
+     * @type {number}
      */
-    this.returnType = returnType || null;
+    this.wireType = wireType;
 }
 
 module.exports = SetGlobalBehavior;
@@ -35,14 +36,11 @@ SetGlobalBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 SetGlobalBehavior.prototype.read = function(s, code, imm) {
     var variable;
-    if (imm !== null) {
-        s.code(s.without_imm(code));
-        s.operand(variable = s.global(imm));
-    } else {
-        s.code(code);
-        s.operand(variable = s.global(s.varint()));
-    }
-    s.read(variable.type);
+    if (imm !== null)
+        s.stmtWithoutImm(code, [ variable = s.global(imm, this.wireType !== types.WireType.Stmt ? this.wireType : undefined) ]);
+    else
+        s.stmt(code, [ variable = s.global(s.varint(), this.wireType !== types.WireType.Stmt ? this.wireType : undefined) ]);
+    s.read(this.wireType === types.WireType.Stmt ? variable.type : this.wireType);
 };
 
 SetGlobalBehavior.prototype.validate = function(definition, stmt) {
@@ -50,21 +48,18 @@ SetGlobalBehavior.prototype.validate = function(definition, stmt) {
     var variable = stmt.operands[0];
     assert(variable instanceof GlobalVariable, "SetGlobal variable (operand 0) must be a GlobalVariable");
     assert.strictEqual(variable.assembly, definition.declaration.assembly, "SetGlobal variable (operand 0) must be part of this assembly");
-    if (this.returnType !== null)
-        assert.strictEqual(variable.type, this.returnType, "SetGlobal variable (operand 0) must be "+types.RTypeNames[this.returnType]);
+    if (this.wireType !== types.WireType.Stmt)
+        assert.strictEqual(variable.type, this.wireType, "SetGlobal variable (operand 0) must be "+types.TypeNames[this.wireType]);
     var expr = stmt.operands[1];
     assert(expr instanceof BaseExpr, "SetGlobal value (operand 1) must be an expression");
-    assert.strictEqual(expr.type, variable.type, "SetGlobal value (operand 1) expression must be "+types.RTypeNames[variable.type]);
+    assert.strictEqual(expr.type, variable.type, "SetGlobal value (operand 1) expression must be "+types.WireTypeNames[variable.type]);
 };
 
 SetGlobalBehavior.prototype.write = function(s, stmt) {
-    var variable = stmt.operands[0],
-        codeWithImm;
-    if (variable.index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
-        s.code(codeWithImm, variable.index);
-    else {
+    var index = stmt.operands[0].index;
+    if (!s.codeWithImm(stmt.code, index)) {
         s.code(stmt.code);
-        s.varint(variable.index);
+        s.varint(index);
     }
     s.write(stmt.operands[1]);
 };

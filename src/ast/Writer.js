@@ -124,7 +124,7 @@ Writer.prototype._read = function(size) {
                 case Writer.State.EXPR_VOID:
                     len += this._writeExprVoid();
                     break;
-                case Writer.State.SWITCH:
+                case Writer.State.SWITCHCASE:
                     len += this._writeSwitch();
                     break;
                 case Writer.State.END:

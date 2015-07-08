@@ -31,14 +31,14 @@ UnaryBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all without imm
 
 UnaryBehavior.prototype.read = function(s, code) {
-    s.code(code);
+    s.stmt(code);
     s.read(this.type);
 };
 
 UnaryBehavior.prototype.validate = function(definition, stmt) {
     assert.strictEqual(stmt.operands.length, 1, this.name+" requires exactly 1 operand");
     assert(stmt.operands[0] instanceof BaseExpr, this.name+" operand 0 must be an expression");
-    assert.strictEqual(stmt.operands[0].type, this.type, this.name+" operand 0 expression must be "+types.RTypeNames[this.type]);
+    assert.strictEqual(stmt.operands[0].type, this.type, this.name+" operand 0 expression must be "+types.TypeNames[this.type]);
 };
 
 UnaryBehavior.prototype.write = function(s, stmt) {

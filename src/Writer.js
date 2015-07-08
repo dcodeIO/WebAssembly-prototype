@@ -283,7 +283,7 @@ Writer.prototype._writeFunctionImports = function() {
     while (this.sequence < size) {
         var imprt = this.assembly.getFunctionImport(this.sequence);
         this.bufferQueue
-            .writeCString(imprt.name)
+            .writeCString(imprt.importName)
             .writeVarint(imprt.signatures.length);
         imprt.signatures.forEach(function(signature) {
             this.bufferQueue.writeVarint(signature.signature.index);

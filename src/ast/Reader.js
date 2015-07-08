@@ -31,7 +31,12 @@ var Constant = require("../reflect/Constant"),
 
 var BaseStmt = stmt.BaseStmt,
     StmtList = stmt.StmtList,
-    Stmt = stmt.Stmt;
+    Stmt = stmt.Stmt,
+    SwitchCase = stmt.SwitchCase,
+    ExprI32 = stmt.ExprI32,
+    ExprF32 = stmt.ExprF32,
+    ExprF64 = stmt.ExprF64,
+    ExprVoid = stmt.ExprVoid;
 
 var verbose = 0; // For debugging
 
@@ -58,24 +63,6 @@ function Reader(functionDefinition, bufferQueue, options) {
     this.definition = functionDefinition;
 
     /**
-     * Function declaration.
-     * @type {!reflect.FunctionDeclaration}
-     */
-    this.declaration = this.definition.declaration;
-
-    /**
-     * Function signature.
-     * @type {!reflect.FunctionSignature}
-     */
-    this.signature = this.declaration.signature;
-
-    /**
-     * Assembly.
-     * @type {!reflect.Assembly}
-     */
-    this.assembly = this.declaration.assembly;
-
-    /**
      * Read buffer queue.
      * @type {!util.BufferQueue}
      */
@@ -85,7 +72,7 @@ function Reader(functionDefinition, bufferQueue, options) {
      * State stack.
      * @type {!Array.<number>}
      */
-    this.state = [Reader.State.STMT_LIST];
+    this.state = [Reader.State.StmtList];
 
     /**
      * Processing stack.
@@ -97,7 +84,7 @@ function Reader(functionDefinition, bufferQueue, options) {
      * Read state closure.
      * @type {!ast.ReadState}
      */
-    this.readState = new ReadState(this, Reader.State.POP);
+    this.readState = new ReadState(this, Reader.State.Pop);
 
     /**
      * Whether to skip ahead, not parsing the AST in detail.
@@ -123,47 +110,52 @@ Object.defineProperty(Reader.prototype, "offset", {
 });
 
 /**
+ * Function declaration.
+ * @name ast.Reader#declaration
+ * @type {!reflect.FunctionDeclaration}
+ */
+Object.defineProperty(Reader.prototype, "declaration", {
+    get: function() {
+        return this.definition.declaration;
+    }
+});
+
+/**
+ * Function signature.
+ * @name ast.Reader#signature
+ * @type {!reflect.FunctionSignature}
+ */
+Object.defineProperty(Reader.prototype, "signature", {
+    get: function() {
+        return this.definition.declaration.signature;
+    }
+});
+
+/**
+ * Assembly.
+ * @name ast.Reader#assembly
+ * @type {!reflect.Assembly}
+ */
+Object.defineProperty(Reader.prototype, "assembly", {
+    get: function() {
+        return this.definition.declaration.assembly;
+    }
+});
+
+/**
  * States.
  * @type {!Object.<string,number>}
  * @const
  */
 Reader.State = {
-    STMT_LIST: 0,
-    STMT: 1,
-    EXPR_I32: 2,
-    EXPR_F32: 3,
-    EXPR_F64: 4,
-    EXPR_VOID: 5,
-    SWITCH: 6,
-    POP: 7
-};
-
-/**
- * Returns the reader state suitable for the specified statement type.
- * @function
- * @name ast.Reader.stateForType
- * @param {number|null} type
- * @param {boolean=} exprVoid
- * @returns {number}
- */
-var stateForType = Reader.stateForType = function(type) {
-    if (type === null)
-        return Reader.State.STMT;
-    switch (type) {
-        case types.RType.I32:
-            return Reader.State.EXPR_I32;
-            break;
-        case types.RType.F32:
-            return Reader.State.EXPR_F32;
-            break;
-        case types.RType.F64:
-            return Reader.State.EXPR_F64;
-            break;
-        case types.RType.Void:
-            return Reader.State.EXPR_VOID;
-        default:
-            throw Error("illegal type: "+type);
-    }
+    ExprI32: types.WireType.ExprI32,
+    ExprF32: types.WireType.ExprF32,
+    ExprF64: types.WireType.ExprF64,
+    ExprVoid: types.WireType.ExprVoid,
+    SwitchCase: types.WireType.SwitchCase,
+    Stmt: types.WireType.Stmt,
+    StmtList: types.WireType.StmtList,
+    Pop: types.WireTypeMax + 1
 };
 
 Reader.prototype._write = function (chunk, encoding, callback) {
@@ -206,40 +198,43 @@ Reader.prototype._process = function() {
             return;
         }
         var state = this.state.pop();
+        if (verbose >= 2)
+            console.log("state: "+state);
         try {
             switch (state) {
-                case Reader.State.STMT_LIST:
-                    this._readStmtList();
-                    break;
-                case Reader.State.STMT:
-                    this._readStmt();
-                    break;
-                case Reader.State.EXPR_I32:
+                case Reader.State.ExprI32:
                     this._readExprI32();
                     break;
-                case Reader.State.EXPR_F32:
+                case Reader.State.ExprF32:
                     this._readExprF32();
                     break;
-                case Reader.State.EXPR_F64:
+                case Reader.State.ExprF64:
                     this._readExprF64();
                     break;
-                case Reader.State.EXPR_VOID:
+                case Reader.State.ExprVoid:
                     this._readExprVoid();
                     break;
-                case Reader.State.SWITCH:
-                    this._readSwitch();
+                case Reader.State.SwitchCase:
+                    this._readSwitchCase();
                     break;
-                case Reader.State.POP:
+                case Reader.State.Stmt:
+                    this._readStmt();
+                    break;
+                case Reader.State.StmtList:
+                    this._readStmtList();
+                    break;
+                case Reader.State.Pop:
                     this.stack.pop();
                     break;
                 default:
-                    throw Error("illegal state: " + this.state);
+                    throw Error("illegal state: " + state);
             }
         } catch (err) {
             if (err === util.BufferQueue.E_MORE) {
                 this.state.push(state); // Wait for more
                 return;
             }
+            console.log(this.inspect());
             this.emit("error", err);
             this.state = [];
             return;
@@ -250,917 +245,47 @@ Reader.prototype._process = function() {
 };
 
 Reader.prototype._readStmtList = function() {
-    var s = this.readState;
-
-    var size = s.varint();
-    s.advance();
-
+    var size = this.readState.varint();
+    this.readState.advance();
     if (!this.skipAhead)
         this.stack.push(new StmtList(size));
     for (var i=0; i<size; ++i)
-        this.state.push(Reader.State.STMT);
+        this.state.push(Reader.State.Stmt);
 };
 
-Reader.prototype._readStmt = function() {
-    var s = this.readState;
-
-    var code = s.code();
-    var State = Reader.State;
-    var temp, i;
-
-    if (code.imm === null) {
-
-        if (verbose >= 1)
-            console.log("processing Stmt:" + types.StmtNames[code.code]);
-
-        var Op = types.Stmt;
-        switch (code.code) {
-
-            // opcode + local variable index + Stmt<local variable type>
-            case Op.SetLoc:
-                // Behavior.SetLoc.read(s);
-                temp = s.local(s.varint());
-                s.emit(temp);
-                s.expect(stateForType(temp.type));
-                break;
-
-            // opcode + global variable index + Stmt<global variable type>
-            case Op.SetGlo:
-                // Behavior.SetGlo.read(s);
-                temp = s.global(s.varint());
-                s.emit(temp);
-                s.expect(stateForType(temp.type));
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<I32> value
-            case Op.I32Store8:
-            case Op.I32Store16:
-            case Op.I32Store32:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<I32> value
-            case Op.I32StoreOff8:
-            case Op.I32StoreOff16:
-            case Op.I32StoreOff32:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<F32> value
-            case Op.F32Store:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F32]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<F32> value
-            case Op.F32StoreOff:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_F32]);
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<F64> value
-            case Op.F64Store:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F64]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<F64> value
-            case Op.F64StoreOff:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_F64]);
-                break;
-
-            // opcode + internal function index + argument list as Stmt<args[i] type>
-            case Op.CallInt:
-                temp = s.internal(s.varint()); // FunctionDeclaration
-                s.emit(temp);
-                var expectFromImpArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromImpArgs.push(stateForType(type));
-                });
-                s.expect(expectFromImpArgs);
-                break;
-
-            // opcode + imported function index + argument list as Stmt<args[i] type>
-            case Op.CallImp:
-                temp = s.import(s.varint()); // FunctionImportSignature
-                s.emit(temp);
-                var expectFromImpArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromImpArgs.push(stateForType(type));
-                });
-                s.expect(expectFromImpArgs);
-                break;
-
-            // opcode + function pointer table index + Stmt<I32> element index + argument list as Stmt<args[i] type>
-            case Op.CallInd:
-                temp = s.indirect(s.varint()); // FunctionPointerTable
-                s.emit(temp);
-                var expectFromIndArgs = [State.EXPR_I32];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromIndArgs.push(stateForType(type));
-                });
-                s.expect(expectFromIndArgs);
-                break;
-
-            // opcode if this function's return type is Void
-            // opcode + Stmt<return type> otherwise
-            case Op.Ret:
-                s.emit();
-                temp = s.rtype();
-                if (temp !== types.RType.Void)
-                    s.expect(stateForType(temp));
-                break;
-
-            // opcode + count + count * Stmt
-            case Op.Block:
-                temp = s.varint();
-                s.emit();
-                var expectFromCount = [];
-                for (i = 0; i < temp; ++i)
-                    expectFromCount.push(State.STMT);
-                s.expect(expectFromCount);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<Void> then
-            case Op.IfThen:
-                s.emit();
-                s.expect([State.EXPR_I32, State.STMT]);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<Void> then + Stmt<Void> else
-            case Op.IfElse:
-                s.emit();
-                s.expect([State.EXPR_I32, State.STMT, State.STMT]);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<Void> body
-            case Op.While:
-                s.emit();
-                s.expect([State.EXPR_I32, State.STMT]);
-                break;
-
-            // opcode + Stmt<void> body + Stmt<I32> condition
-            case Op.Do:
-                s.emit();
-                s.expect([State.STMT, State.EXPR_I32]);
-                break;
-
-            // opcode + Stmt<void> body
-            case Op.Label:
-                s.emit();
-                s.expect(State.STMT);
-                break;
-
-            // opcode
-            case Op.Break:
-            case Op.Continue:
-                s.emit();
-                break;
-
-            // opcode + label index
-            case Op.BreakLabel:
-            case Op.ContinueLabel:
-                s.emit(s.varint());
-                break;
-
-            // opcode + number of cases + Stmt<I32> condition + number of cases * ( SwitchCase type + respective (list of) Stmt<Void> )
-            case Op.Switch:
-                temp = s.varint();
-                s.emit();
-                var expectFromSwitch = [State.EXPR_I32];
-                for (i = 0; i < temp; ++i)
-                    expectFromSwitch.push(State.SWITCH);
-                s.expect(expectFromSwitch);
-                break;
-
-            default:
-                throw Error("illegal Stmt opcode: " + code.code);
+/**
+ * Makes a generic read method for the specified wire type.
+ * @param {number} wireType
+ * @param {!Function} clazz
+ * @param {string} name
+ * @returns {!function()}
+ * @inner
+ */
+function makeGenericRead(wireType, clazz, name) {
+    return function() {
+        var code = this.readState.u8();
+        if ((code & types.ImmFlag) === 0) {
+            if (verbose >= 1)
+                console.log("processing "+name+":" + types[name+"Names"][code] + " (opcode " + code + ")");
+            this.readState.prepare(wireType, code, null);
+            clazz.determineBehavior(code, false).read(this.readState, code, null);
+        } else {
+            code = util.unpackWithImm(code);
+            if (verbose >= 1)
+                console.log("processing "+name+"WithImm:" + types[name+"WithImmNames"][code.code] + " (" + code.code + ")");
+            this.readState.prepare(wireType, code.code, code.imm);
+            clazz.determineBehavior(code.code, true).read(this.readState, code.code, code.imm);
         }
-    } else {
-        if (verbose >= 1)
-            console.log("processing StmtWithImm:" + types.StmtWithImmNames[code.code]);
-        var Op = types.StmtWithImm;
-        switch (code.code) {
-
-            // opcodeWithImm (imm=local variable index) + Stmt<local variable type>
-            case Op.SetLoc:
-                // Behavior.SetLoc.read(s, code.imm);
-                s.emit_code(temp = s.local(code.imm));
-                s.expect(stateForType(temp.type));
-                break;
-
-            // opcodeWithImm (imm=global variable index) + Stmt<global variable type>
-            case Op.SetGlo:
-                // Behavior.SetGlo.read(s, code.imm);
-                s.emit_code(types.Stmt.SetGlo, temp = s.global(code.imm));
-                s.expect(stateForType(temp.type));
-                break;
-
-            default:
-                throw Error("illegal StmtWithImm opcode: " + code.code);
-        }
-    }
-};
-
-Reader.prototype._readSwitch = function() {
-    var sw = this.stack[this.stack.length-1];
-    if (!this.skipAhead && sw.code !== types.Stmt.Switch)
-        throw Error("illegal state: not a switch statement: "+sw);
-
-    var State = Reader.State;
-    var s = this.readState;
-    var switchType = s.u8();
-    var switchOperands = [switchType];
-    var expectWithinSwitch = [];
-    var temp, i;
-    switch (switchType) {
-        case types.SwitchCase.Case0:
-            switchOperands.push(s.varint_s());
-            break;
-        case types.SwitchCase.Case1:
-            switchOperands.push(s.varint_s());
-            expectWithinSwitch.push(State.STMT);
-            break;
-        case types.SwitchCase.CaseN:
-            switchOperands.push(s.varint_s());
-            temp = s.varint();
-            for (i=0; i<temp; ++i)
-                expectWithinSwitch.push(State.STMT);
-            break;
-        case types.SwitchCase.Default0:
-            break;
-        case types.SwitchCase.Default1:
-            expectWithinSwitch.push(State.STMT);
-            break;
-        case types.SwitchCase.DefaultN:
-            temp = s.varint();
-            for (i=0; i<temp; ++i)
-                expectWithinSwitch.push(State.STMT);
-            break;
-        default:
-            throw Error("illegal switch case type: " + switchType);
-    }
-    s.advance();
-    if (!this.skipAhead)
-        Array.prototype.push.apply(sw.operands, switchOperands);
-    if (expectWithinSwitch.length > 0)
-        s.expect(expectWithinSwitch);
-};
-
-Reader.prototype._readExprI32 = function() {
-    var s = this.readState;
-    var State = Reader.State;
-    var code = s.code(types.RType.I32);
-    var temp, i;
-    if (code.imm === null) {
-        if (verbose >= 1)
-            console.log("processing I32:" + types.I32Names[code.code]);
-        var Op = types.I32;
-        switch (code.code) {
-
-            // opcode + value
-            case Op.LitImm:
-                s.emit(s.varint()|0);
-                break;
-
-            // opcode + I32 constant index
-            case Op.LitPool:
-                s.emit(s.const(s.varint()));
-                break;
-
-            // opcode + local variable index
-            case Op.GetLoc:
-                temp = s.local(s.varint());
-                s.emit(temp);
-                break;
-
-            // opcode + global variable index
-            case Op.GetGlo:
-                temp = s.global(s.varint());
-                s.emit(temp);
-                break;
-
-            // opcode + local variable index + Stmt<I32> value
-            case Op.SetLoc:
-                temp = s.local(s.varint());
-                s.emit(temp);
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + global variable index + Stmt<I32> value
-            case Op.SetGlo:
-                temp = s.global(s.varint());
-                s.emit(temp);
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<I32> heap index
-            case Op.SLoad8:
-            case Op.ULoad8:
-            case Op.SLoad16:
-            case Op.ULoad16:
-            case Op.Load32:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index
-            case Op.SLoadOff8:
-            case Op.ULoadOff8:
-            case Op.SLoadOff16:
-            case Op.ULoadOff16:
-            case Op.LoadOff32:
-                s.emit(s.varint());
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<I32>
-            case Op.Store8:
-            case Op.Store16:
-            case Op.Store32:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<I32> value
-            case Op.StoreOff8:
-            case Op.StoreOff16:
-            case Op.StoreOff32:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + internal function index + argument list as Stmt<args[i] type>
-            case Op.CallInt:
-                temp = s.internal(s.varint()); // FunctionDeclaration
-                s.emit(temp);
-                var expectFromArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + imported function index + argument list as Stmt<args[i] type>
-            case Op.CallImp:
-                temp = s.import(s.varint()); // FunctionImportSignature
-                s.emit(temp);
-                var expectFromArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + function pointer table index + Stmt<I32> element index + argument list as Stmt<args[i] type>
-            case Op.CallInd:
-                temp = s.indirect(s.varint()); // FunctionPointerTable
-                s.emit(temp);
-                expectFromArgs = [State.EXPR_I32];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<I32> then + Stmt<I32> else
-            case Op.Cond:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + U8 RType + Stmt<previous RType> + Stmt<I32>
-            case Op.Comma:
-                temp = s.u8();
-                s.emit();
-                s.expect([stateForType(temp), State.EXPR_I32]);
-                break;
-
-            // opcode + Stmt<F32> value
-            case Op.FromF32:
-                s.emit();
-                s.expect(State.EXPR_F32);
-                break;
-
-            // opcode + Stmt<F64> value
-            case Op.FromF64:
-                s.emit();
-                s.expect(State.EXPR_F64);
-                break;
-
-            // opcode + Stmt<I32> value
-            case Op.Neg:
-            case Op.BitNot:
-            case Op.Clz:
-            case Op.LogicNot:
-            case Op.Abs:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<I32> left + Stmt<I32> right
-            case Op.Add:
-            case Op.Sub:
-            case Op.Mul:
-            case Op.SDiv:
-            case Op.UDiv:
-            case Op.SMod:
-            case Op.UMod:
-            case Op.BitOr:
-            case Op.BitAnd:
-            case Op.BitXor:
-            case Op.Lsh:
-            case Op.ArithRsh:
-            case Op.LogicRsh:
-            case Op.EqI32:
-            case Op.NEqI32:
-            case Op.SLeThI32:
-            case Op.ULeThI32:
-            case Op.SLeEqI32:
-            case Op.ULeEqI32:
-            case Op.SGrThI32:
-            case Op.UGrThI32:
-            case Op.SGrEqI32:
-            case Op.UGrEqI32:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_I32]);
-                break;
-
-            // opcode + Stmt<F32> left + Stmt<F32> right
-            case Op.EqF32:
-            case Op.NEqF32:
-            case Op.LeThF32:
-            case Op.LeEqF32:
-            case Op.GrThF32:
-            case Op.GrEqF32:
-                s.emit();
-                s.expect([State.EXPR_F32, State.EXPR_F32]);
-                break;
-
-            // opcode + Stmt<F64> left + Stmt<F64> right
-            case Op.EqF64:
-            case Op.NEqF64:
-            case Op.LeThF64:
-            case Op.LeEqF64:
-            case Op.GrThF64:
-            case Op.GrEqF64:
-                s.emit();
-                s.expect([State.EXPR_F64, State.EXPR_F64]);
-                break;
-
-            // opcode + num args + num args * Stmt<I32>
-            case Op.SMin:
-            case Op.UMin:
-            case Op.SMax:
-            case Op.UMax:
-                temp = s.varint();
-                s.emit();
-                var expectFromCount = [];
-                for (i = 0; i < temp; ++i)
-                    expectFromCount.push(State.EXPR_I32);
-                s.expect(expectFromCount);
-                break;
-
-            default:
-                throw Error("illegal I32 opcode: "+code.code);
-        }
-    } else {
-        if (verbose >= 1)
-            console.log("processing I32WithImm:" + types.I32WithImmNames[code.code]);
-
-        var Op = types.I32WithImm;
-        switch (code.code) {
-
-            // opcodeWithImm (imm = value)
-            case Op.LitImm:
-                s.emit_code(types.I32.LitImm, code.imm|0);
-                break;
-
-            // opcodeWithImm (imm = I32 constant index)
-            case Op.LitPool:
-                s.emit_code(types.I32.LitPool, s.const(code.imm));
-                break;
-
-            // opcodeWithImm (imm = local variable index)
-            case Op.GetLoc:
-                s.emit_code(types.I32.GetLoc, s.local(code.imm));
-                break;
-
-            default:
-                throw Error("illegal I32WithImm opcode: "+code.code);
-        }
-    }
-};
-
-Reader.prototype._readExprF32 = function() {
-    var s = this.readState;
-    var State = Reader.State;
-    var code = s.code(types.RType.F32);
-
-    if (verbose >= 1)
-        console.log("processing F32:" + types.F32Names[code.code]);
-
-    var temp;
-    if (code.imm === null) {
-        var Op = types.F32;
-        switch (code.code) {
-
-            // opcode + value
-            case Op.LitImm:
-                s.emit(s.f32());
-                break;
-
-            // opcode + F32 constant index
-            case Op.LitPool:
-                s.emit(s.const(s.varint()));
-                break;
-
-            // opcode + local variable index
-            case Op.GetLoc:
-                s.emit(s.local(s.varint()));
-                break;
-
-            // opcode + global variable index
-            case Op.GetGlo:
-                s.emit(s.global(s.varint()));
-                break;
-
-            // opcode + local variable index + Stmt<F32> value
-            case Op.SetLoc:
-                s.emit(s.local(s.varint()));
-                s.expect(State.EXPR_F32);
-                break;
-
-            // opcode + global variable index + Stmt<F32> value
-            case Op.SetGlo:
-                s.emit(s.global(s.varint()));
-                s.expect(State.EXPR_F32);
-                break;
-
-            // opcode + Stmt<I32> heap index
-            case Op.Load:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index
-            case Op.LoadOff:
-                s.emit(s.varint());
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<F32> value
-            case Op.Store:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F32]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<F32> value
-            case Op.StoreOff:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_F32]);
-                break;
-
-            // opcode + internal function index + argument list as Stmt<args[i] type>, ...
-            case Op.CallInt:
-                temp = s.internal(s.varint()); // FunctionDeclaration
-                s.emit(temp);
-                var expectFromArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + function pointer table index + Stmt<I32> element index + argument list as Stmt<args[i] type>, ...
-            case Op.CallInd:
-                temp = s.indirect(s.varint()); // FunctionPointerTable
-                s.emit(temp);
-                expectFromArgs = [State.EXPR_I32];
-                temp.signature.argumentTypes.forEach(function (type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<F32> then + Stmt<F32> else
-            case Op.Cond:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F32, State.EXPR_F32]);
-                break;
-
-            // opcode + U8 RType + Stmt<previous RType> left + Stmt<F32> right
-            case Op.Comma:
-                temp = s.u8();
-                s.emit();
-                s.expect([stateForType(temp), State.EXPR_F32]);
-                break;
-
-            // opcode + Stmt<I32> value
-            case Op.FromS32:
-            case Op.FromU32:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<F64> value
-            case Op.FromF64:
-                s.emit();
-                s.expect(State.EXPR_F64);
-                break;
-
-            // opcode + Stmt<F32> value
-            case Op.Neg:
-            case Op.Abs:
-            case Op.Ceil:
-            case Op.Floor:
-            case Op.Sqrt:
-                s.emit();
-                s.expect(State.EXPR_F32);
-                break;
-
-            // opcode + Stmt<F32> left + Stmt<F32> right
-            case Op.Add:
-            case Op.Sub:
-            case Op.Mul:
-            case Op.Div:
-                s.emit();
-                s.expect([State.EXPR_F32, State.EXPR_F32]);
-                break;
-
-            default:
-                throw Error("illegal F32 opcode: "+code.code);
-        }
-    } else {
-        var Op = types.F32WithImm;
-        switch (code.code) {
-
-            // opcode + F32 constant index
-            case Op.LitPool:
-                s.emit_code(types.F32.LitPool, s.const(code.imm));
-                break;
-
-            // opcode + local variable index
-            case Op.GetLoc:
-                s.emit_code(types.F32.GetLoc, s.local(code.imm));
-                break;
-
-            default:
-                throw Error("illegal F32WithImm opcode: "+code.code);
-        }
-    }
-};
-
-Reader.prototype._readExprF64 = function() {
-    var s = this.readState;
-    var State = Reader.State;
-    var code = s.code(types.RType.F64);
-    var temp, i;
-    if (code.imm === null) {
-        if (verbose >= 1)
-            console.log("processing F64:" + types.F64Names[code.code]);
-
-        var Op = types.F64;
-        switch (code.code) {
-
-            // opcode + value
-            case Op.LitImm:
-                s.emit(s.f64());
-                break;
-
-            // opcode + F64 constant index
-            case Op.LitPool:
-                s.emit(s.const(s.varint()));
-                break;
-
-            // opcode + local variable index
-            case Op.GetLoc:
-                s.emit(s.local(s.varint()));
-                break;
-
-            // opcode + global variable index
-            case Op.GetGlo:
-                s.emit(s.global(s.varint()));
-                break;
-
-            // opcode + local variable index + Stmt<F64> value
-            case Op.SetLoc:
-                s.emit(s.local(s.varint()));
-                s.expect(State.EXPR_F64);
-                break;
-
-            // opcode + global variable index + Stmt<F64> value
-            case Op.SetGlo:
-                s.emit(s.global(s.varint()));
-                s.expect(State.EXPR_F64);
-                break;
-
-            // opcode + Stmt<I32> heap index
-            case Op.Load:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index
-            case Op.LoadOff:
-                s.emit(s.varint());
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<I32> heap index + Stmt<F64> value
-            case Op.Store:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F64]);
-                break;
-
-            // opcode + offset + Stmt<I32> heap index + Stmt<F64> value
-            case Op.StoreOff:
-                s.emit(s.varint());
-                s.expect([State.EXPR_I32, State.EXPR_F64]);
-                break;
-
-            // opcode + internal function index + argument list as Stmt<args[i] type>
-            case Op.CallInt:
-                temp = s.internal(s.varint()); // FunctionDeclaration
-                s.emit(temp);
-                var expectFromArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + imported function index + argument list as Stmt<args[i] type>
-            case Op.CallImp:
-                temp = s.import(s.varint()); // FunctionImportSignature
-                s.emit(temp);
-                var expectFromArgs = [];
-                temp.signature.argumentTypes.forEach(function(type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + function pointer table index + Stmt<I32> element index + argument list as Stmt<args[i] type>
-            case Op.CallInd:
-                temp = s.indirect(s.varint()); // FunctionPointerTable
-                s.emit(temp);
-                expectFromArgs = [State.EXPR_I32];
-                temp.signature.argumentTypes.forEach(function (type) {
-                    expectFromArgs.push(stateForType(type));
-                });
-                s.expect(expectFromArgs);
-                break;
-
-            // opcode + Stmt<I32> condition + Stmt<F64> then + Stmt<F64> else
-            case Op.Cond:
-                s.emit();
-                s.expect([State.EXPR_I32, State.EXPR_F64, State.EXPR_F64]);
-                break;
-
-            // opcode + U8 RType + Stmt<previous RType> left + Stmt<F64> right
-            case Op.Comma:
-                temp = s.u8();
-                s.emit();
-                s.expect([stateForType(temp), State.EXPR_F64]);
-                break;
-
-            // opcode + Stmt<I32> value
-            case Op.FromS32:
-            case Op.FromU32:
-                s.emit();
-                s.expect(State.EXPR_I32);
-                break;
-
-            // opcode + Stmt<F32> value
-            case Op.FromF32:
-                s.emit();
-                s.expect(State.EXPR_F32);
-                break;
-
-            // opcode + Stmt<F64> value
-            case Op.Neg:
-            case Op.Abs:
-            case Op.Ceil:
-            case Op.Floor:
-            case Op.Sqrt:
-            case Op.Cos:
-            case Op.Sin:
-            case Op.Tan:
-            case Op.ACos:
-            case Op.ASin:
-            case Op.ATan:
-            case Op.Exp:
-            case Op.Ln:
-                s.emit();
-                s.expect(State.EXPR_F64);
-                break;
-
-            // opcode + Stmt<F64> left + Stmt<F64> right
-            case Op.Add:
-            case Op.Sub:
-            case Op.Mul:
-            case Op.Div:
-            case Op.Mod:
-
-            // opcode + Stmt<F64> y + Stmt<F64> x
-            case Op.ATan2:
-
-            // opcode + Stmt<F64> base + Stmt<F64> exponent
-            case Op.Pow:
-                s.emit();
-                s.expect([State.EXPR_F64, State.EXPR_F64]);
-                break;
-
-            // opcode + num args + num args * Stmt<F64>
-            case Op.Min:
-            case Op.Max:
-                temp = s.varint();
-                s.emit();
-                var expectFromCount = [];
-                for (i = 0; i < temp; ++i)
-                    expectFromCount.push(State.EXPR_F64);
-                s.expect(expectFromCount);
-                break;
-
-            default:
-                throw Error("illegal F64 opcode: "+code.code);
-        }
-    } else {
-        if (verbose >= 1)
-            console.log("processing F64WithImm:" + types.F64WithImmNames[code.code]);
-
-        var Op = types.F64WithImm;
-        switch (code.code) {
-
-            // opcode + F64 constant index
-            case Op.LitPool:
-                s.emit_code(types.F64.LitPool, s.const(code.imm));
-                break;
-
-            // opcode + local variable index
-            case Op.GetLoc:
-                s.emit_code(types.F64.GetLoc, s.local(code.imm));
-                break;
-
-            default:
-                throw Error("illegal F64WithImm opcode: "+code.code);
-        }
-    }
-};
-
-Reader.prototype._readExprVoid = function() {
-    var s = this.readState;
-    var State = Reader.State;
-    var code = s.code_u8();
-
-    if (verbose >= 1)
-        console.log("processing Void:" + types.VoidNames[code]);
-
-    var temp;
-    var Op = types.Void;
-    switch (code) {
-
-        // opcode + internal function index + argument list as Stmt<args[i] type>
-        case Op.CallInt:
-            temp = s.internal(s.varint()); // FunctionDeclaration
-            s.emit(temp);
-            var expectFromArgs = [];
-            temp.signature.argumentTypes.forEach(function(type) {
-                expectFromArgs.push(stateForType(type));
-            });
-            s.expect(expectFromArgs);
-            break;
-
-        // opcode + imported function index + argument list as Stmt<args[i] type>
-        case Op.CallImp:
-            temp = s.import(s.varint()); // FunctionImportSignature
-            s.emit(temp);
-            var expectFromArgs = [];
-            temp.signature.argumentTypes.forEach(function(type) {
-                expectFromArgs.push(stateForType(type));
-            });
-            s.expect(expectFromArgs);
-            break;
-
-        // opcode + function pointer table index + Stmt<I32> element index + argument list as Stmt<args[i] type>
-        case types.Void.CallInd:
-            temp = s.indirect(s.varint()); // FunctionPointerTable
-            s.emit(temp);
-            var expectFromArgs = [State.EXPR_I32];
-            temp.signature.argumentTypes.forEach(function(type) {
-                expectFromArgs.push(stateForType(type));
-            });
-            s.expect(expectFromArgs);
-            break;
-
-        default:
-            throw Error("illegal Void opcode: "+code);
-    }
-};
+        this.readState.commit();
+    };
+}
+
+Reader.prototype._readStmt = makeGenericRead(types.WireType.Stmt, Stmt, "Stmt");
+Reader.prototype._readExprI32 = makeGenericRead(types.WireType.ExprI32, ExprI32, "I32");
+Reader.prototype._readExprF32 = makeGenericRead(types.WireType.ExprF32, ExprF32, "F32");
+Reader.prototype._readExprF64 = makeGenericRead(types.WireType.ExprF64, ExprF64, "F64");
+Reader.prototype._readExprVoid = makeGenericRead(types.WireType.ExprVoid, ExprVoid, "Void");
+Reader.prototype._readSwitchCase = makeGenericRead(types.WireType.SwitchCase, SwitchCase, "SwitchCase");
 
 /**
  * Inspects a statement structure.

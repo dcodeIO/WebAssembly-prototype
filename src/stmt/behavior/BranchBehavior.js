@@ -9,7 +9,7 @@ var BaseBehavior = require("./BaseBehavior"),
  * Branch behavior.
  * @param {string} name
  * @param {string} description
- * @param {number|null|!Array.<number|null>} types
+ * @param {!Array.<number>} types
  * @constructor
  * @extends stmt.behavior.BaseBehavior
  * @exports stmt.behavior.BranchBehavior
@@ -18,12 +18,10 @@ function BranchBehavior(name, description, types) {
     BaseBehavior.call(this, name, description);
 
     /**
-     * Expression types.
-     * @type {!Array.<number|null>}
+     * Wire types.
+     * @type {!Array.<number>}
      */
-    this.types = Array.isArray(types)
-        ? types
-        : [types];
+    this.types = types;
 }
 
 module.exports = BranchBehavior;
@@ -53,7 +51,7 @@ BranchBehavior.prototype.validate = function(definition, stmt) {
 };
 
 BranchBehavior.prototype.write = function(s, stmt) {
-    s.u8(stmt.code);
+    s.code(stmt.code);
     stmt.operands.forEach(function(operand) {
         s.write(operand);
     });

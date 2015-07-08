@@ -32,8 +32,8 @@ LoadBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all without imm
 
 LoadBehavior.prototype.read = function(s, code) {
-    s.code(code);
-    s.read(types.RType.I32);
+    s.stmt(code);
+    s.read(types.WireType.ExprI32);
 };
 
 LoadBehavior.prototype.validate = function(definition, stmt) {

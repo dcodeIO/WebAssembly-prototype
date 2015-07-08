@@ -32,7 +32,7 @@ MultiaryBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 MultiaryBehavior.prototype.read = function(s, code) {
     var count = s.varint();
-    s.code(code);
+    s.stmt(code);
     for (var i=0; i<count; ++i)
         s.read(this.type);
 };

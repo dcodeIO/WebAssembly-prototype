@@ -43,9 +43,10 @@ module.exports = BaseStmt;
 BaseStmt.prototype = Object.create(BaseOperand.prototype);
 
 /**
- * Expression type.
+ * Wire type.
  * @name stmt.BaseExpr#type
- * @type {number|null}
+ * @type {number}
+ * @see {@link types.WireType}
  */
 
 /**
@@ -67,17 +68,19 @@ BaseStmt.prototype = Object.create(BaseOperand.prototype);
  */
 Object.defineProperty(BaseStmt.prototype, "name", {
     get: function() {
-        if (this.type === null)
-            return "Stmt:"+types.StmtNames[this.code];
         switch (this.type) {
-            case types.RType.I32:
+            case types.WireType.Stmt:
+                return "Stmt:"+types.StmtNames[this.code];
+            case types.WireType.ExprI32:
                 return "I32:"+types.I32Names[this.code];
-            case types.RType.F32:
+            case types.WireType.ExprF32:
                 return "F32:"+types.F32Names[this.code];
-            case types.RType.F64:
+            case types.WireType.ExprF64:
                 return "F64:"+types.F64Names[this.code];
-            case types.RType.Void:
+            case types.WireType.ExprVoid:
                 return "Void:"+types.VoidNames[this.code];
+            case types.WireType.SwitchCase:
+                return "SwitchCase:"+types.SwitchCaseNames[this.code];
             default:
                 throw Error("illegal statement type: "+this.type);
         }

@@ -32,13 +32,10 @@ GetLocalBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all with imm
 
 GetLocalBehavior.prototype.read = function(s, code, imm) {
-    if (imm !== null) {
-        s.code(s.without_imm(code));
-        s.operand(s.local(imm));
-    } else {
-        s.code(code);
-        s.operand(s.local(s.varint()));
-    }
+    if (imm !== null)
+        s.stmtWithoutImm(code, [ s.local(imm, this.type) ]);
+    else
+        s.stmt(code, [ s.local(s.varint(), this.type) ]);
 };
 
 GetLocalBehavior.prototype.validate = function(definition, stmt) {
@@ -46,15 +43,13 @@ GetLocalBehavior.prototype.validate = function(definition, stmt) {
     var variable = stmt.operands[0];
     assert(variable instanceof LocalVariable, "GetLocal variable (operand 0) must be a LocalVariable");
     assert.strictEqual(variable.definition, definition, "GetLocal variable (operand 0) must be part of this definition");
-    assert.strictEqual(variable.type, this.type, "GetLocal variable (operand 0) type must be "+types.RTypeNames[this.type]);
+    assert.strictEqual(variable.type, this.type, "GetLocal variable (operand 0) type must be "+types.WireTypeNames[this.type]);
 };
 
 GetLocalBehavior.prototype.write = function(s, stmt) {
-    var codeWithImm;
-    if (stmt.operands[0].index <= types.ImmMax && (codeWithImm = s.with_imm(stmt.code)) >= 0)
-        s.code(codeWithImm, stmt.operands[0].index);
-    else {
+    var index = stmt.operands[0].index;
+    if (!s.codeWithImm(stmt.code, index)) {
         s.code(stmt.code);
-        s.varint(stmt.operands[0].index);
+        s.varint(index);
     }
 };

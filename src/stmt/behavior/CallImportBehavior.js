@@ -34,8 +34,7 @@ CallImportBehavior.prototype = Object.create(BaseBehavior.prototype);
 
 CallImportBehavior.prototype.read = function(s, code) {
     var functionImportSignature = s.import(s.varint());
-    s.stmt(code);
-    s.operand(functionImportSignature);
+    s.stmt(code, [ functionImportSignature ]);
     functionImportSignature.signature.argumentTypes.forEach(function(type) {
         s.read(type);
     }, this);
@@ -56,7 +55,7 @@ CallImportBehavior.prototype.validate = function(definition, stmt) {
 };
 
 CallImportBehavior.prototype.write = function(s, stmt) {
-    s.u8(stmt.code);
+    s.code(stmt.code);
     s.varint(stmt.operands[0].index);
     for (var i=1; i<stmt.operands.length; ++i)
         s.write(stmt.operands[i]);

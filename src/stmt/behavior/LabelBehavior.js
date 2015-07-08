@@ -23,8 +23,7 @@ LabelBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Stmt only, without imm
 
 LabelBehavior.prototype.read = function(s, code, imm) {
-    s.code(code);
-    s.operand(s.varint());
+    s.stmt(code, [ s.varint() ]);
 };
 
 LabelBehavior.prototype.validate = function(definition, stmt) {

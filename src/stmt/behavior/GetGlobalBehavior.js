@@ -32,8 +32,7 @@ GetGlobalBehavior.prototype = Object.create(BaseBehavior.prototype);
 // Expr<*>, all without imm
 
 GetGlobalBehavior.prototype.read = function(s, code) {
-    s.code(code);
-    s.operand(s.global(s.varint()));
+    s.stmt(code, [ s.global(s.varint(), this.type) ]);
 };
 
 GetGlobalBehavior.prototype.validate = function(definition, stmt) {

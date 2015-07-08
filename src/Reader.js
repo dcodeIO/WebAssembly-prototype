@@ -428,9 +428,12 @@ Reader.prototype._readFunctionDefinitions = function() {
         var definition = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.bufferQueue.offset);
         this.emit("functionDefinitionPre", definition, index);
 
+        // console.log("creating AstReader for "+definition+" at "+this.bufferQueue.offset);
+
         // Read the AST
         this.astReader = new AstReader(definition, this.bufferQueue, this.options);
         this.astReader.on("end", function() {
+            // console.log("AstReader end");
             definition.byteLength = this.bufferQueue.offset - definition.byteOffset;
             if (!this.options.skipAhead)
                 definition.ast = this.astReader.stack[0];
