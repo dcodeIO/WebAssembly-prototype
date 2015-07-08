@@ -154,10 +154,10 @@ types.VarTypeNames = swap(types.VarType);
  * @type {!Object.<string,number>}
  */
 types.VarTypeWithImm = {
-    OnlyI32: 0,
-    Reserved0: 1,
-    Reserved1: 2,
-    Reserved2: 3
+    OnlyI32: 0
+    // Reserved0: 1,
+    // Reserved1: 2,
+    // Reserved2: 3
 };
 
 /**
@@ -289,9 +289,9 @@ types.StmtNames = swap(types.Stmt);
  */
 types.StmtWithImm = {
     SetLoc: 0,
-    SetGlo: 1,
-    Reserved1: 2,
-    Reserved2: 3
+    SetGlo: 1
+    // Reserved1: 2,
+    // Reserved2: 3
 };
 
 /**
@@ -436,8 +436,8 @@ types.I32Names = swap(types.I32);
 types.I32WithImm = {
     LitPool: 0,
     LitImm: 1,
-    GetLoc: 2,
-    Reserved: 3
+    GetLoc: 2
+    // Reserved: 3
 };
 
 /**
@@ -511,9 +511,9 @@ types.F32Names = swap(types.F32);
  */
 types.F32WithImm = {
     LitPool: 0,
-    GetLoc: 1,
-    Reserved0: 2,
-    Reserved1: 3
+    GetLoc: 1
+    // Reserved0: 2,
+    // Reserved1: 3
 };
 
 /**
@@ -599,9 +599,9 @@ types.F64Names = swap(types.F64);
  */
 types.F64WithImm = {
     LitPool: 0,
-    GetLoc: 1,
-    Reserved0: 2,
-    Reserved1: 3
+    GetLoc: 1
+    // Reserved0: 2,
+    // Reserved1: 3
 };
 
 /**
