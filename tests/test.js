@@ -10,7 +10,7 @@ var webassembly = require("../"),
     AstWriter = webassembly.ast.Writer,
     Assembly = webassembly.reflect.Assembly;
 
-var file = path.join(__dirname, "AngryBots.wasm"),
+var file = path.join(__dirname, "add.wasm"),
     stats = fs.statSync(file);
 
 console.log("Testing "+file+" ...\n");

@@ -6,9 +6,13 @@ var webassembly = require("../"),
     Assembly = webassembly.reflect.Assembly,
     Writer = webassembly.Writer;
 
-// An example showing how to build a super simple I32 adder
+// An example showing how to build a super simple I32 adder.
 
-var assembly = new Assembly(), // Does not support precomputing the output size
+// Calculating the asm.js output size is not yet supported. Instead, I initially used a big enough output size to
+// determine the correct value by running the resulting binary through the unpacker provided by the polyfill.
+// A CLI version of the unpacker is available in tools/unpack-cli.js
+
+var assembly = new Assembly(770),
     definition = assembly.defineFunction(types.RType.I32, [types.Type.I32, types.Type.I32]);
 
 assembly.setDefaultExport(definition.index);

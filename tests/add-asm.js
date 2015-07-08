@@ -1,4 +1,4 @@
-function asmModule($a,$b,$c){'use asm';
+module.exports=function asmModule($a,$b,$c){'use asm';
 var a=new $a.Int8Array($c);
 var b=new $a.Uint8Array($c);
 var c=new $a.Int16Array($c);
