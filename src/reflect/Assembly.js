@@ -888,24 +888,11 @@ Assembly.prototype.asmHeader = function(pack) {
     sb.push(indent, "var ");
     var n = 0;
     util.values(types.HotStdLib).forEach(function(index) {
-        switch (index) {
-            case types.HotStdLib.HeapS8:
-            case types.HotStdLib.HeapU8:
-            case types.HotStdLib.HeapS16:
-            case types.HotStdLib.HeapU16:
-            case types.HotStdLib.HeapS32:
-            case types.HotStdLib.HeapU32:
-            case types.HotStdLib.HeapF32:
-            case types.HotStdLib.HeapF64:
-                sb.push(index > 0 ? indent : "", util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".", types.HotStdLibCtor[index], "(", util.stdLibName(types.StdLib.buffer), "),", nl);
-                break;
-            case types.HotStdLib.IMul:
-            case types.HotStdLib.FRound:
-                sb.push(indent, util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".Math.", types.HotStdLibNames[index].toLowerCase(), ",", nl);
-                break;
-            default:
-                throw Error("unreachable");
-        }
+        var ctor = types.HotStdLibCtorNames[index];
+        if (ctor)
+            sb.push(index > 0 ? indent : "", util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".", types.HotStdLibCtorNames[index], "(", util.stdLibName(types.StdLib.buffer), "),", nl);
+        else
+            sb.push(indent, util.hotStdLibName(index), ws, "=", ws, util.stdLibName(types.StdLib.stdlib), ".Math.", types.HotStdLibNames[index].toLowerCase(), ",", nl);
     }, this);
     util.values(types.StdLib).forEach(function(index) {
         if (index < 3)

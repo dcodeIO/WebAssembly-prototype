@@ -413,7 +413,7 @@ Reader.prototype._readFunctionDefinitions = function() {
             nF32Vars = 0,
             nF64Vars = 0;
         var code = this.bufferQueue.readUInt8();
-        if ((code & types.ImmFlag) !== 0)
+        if ((code & types.OpWithImm_Flag) !== 0)
             nI32Vars = util.unpackWithImm(code).imm;
         else {
             if ((code & types.VarType.I32) === types.VarType.I32)

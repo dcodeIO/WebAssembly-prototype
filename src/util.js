@@ -16,10 +16,10 @@ util.BufferQueue = require("./util/BufferQueue");
 // ----- protocol -----
 
 util.unpackWithImm = function(b) {
-    if ((b & types.ImmFlag) === 0)
+    if ((b & types.OpWithImm_Flag) === 0)
         return false;
-    var op = (b >> types.ImmBits) & types.OpWithImmMax;
-    var imm = b & types.ImmMax;
+    var op = (b >> types.OpWithImm_ImmBits) & types.OpWithImm_OpMax;
+    var imm = b & types.OpWithImm_ImmMax;
     return {
         code: op,
         imm: imm
@@ -27,7 +27,7 @@ util.unpackWithImm = function(b) {
 };
 
 util.packWithImm = function(code, imm) {
-    return ((code & types.OpWithImmMax) << types.ImmBits) | (imm & types.ImmMax);
+    return ((code & types.OpWithImm_OpMax) << types.OpWithImm_ImmBits) | (imm & types.OpWithImm_ImmMax);
 };
 
 util.calculateVarint = function(value) {

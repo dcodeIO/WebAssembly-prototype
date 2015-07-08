@@ -264,7 +264,7 @@ Reader.prototype._readStmtList = function() {
 function makeGenericRead(wireType, clazz, name) {
     return function() {
         var code = this.readState.u8();
-        if ((code & types.ImmFlag) === 0) {
+        if ((code & types.OpWithImm_Flag) === 0) {
             if (verbose >= 1)
                 console.log("processing "+name+":" + types[name+"Names"][code] + " (opcode " + code + ")");
             this.readState.prepare(wireType);

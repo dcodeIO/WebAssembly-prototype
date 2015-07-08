@@ -3,19 +3,29 @@
  * @namespace
  * @exports types
  */
-var types = module.exports = {};
+var types = module.exports;
 
 /**
- * Swaps an object's keys and values, returning an array that may contain undefined elements.
- * @param {!Object.<!string,number>} obj
- * @returns {!Array.<string|undefined>}
+ * Swaps an object's keys and values, returning an array that may contain undefined elements if the object is an object
+ *  respectively an object if the object is an array.
+ * @param {!Object.<string,number>|!Array.<number|undefined>} obj
+ * @returns {!Array.<string|undefined>|!Object.<string,number>}
  * @inner
  */
 function swap(obj) {
-    var swp = [];
-    Object.keys(obj).forEach(function(key) {
-        swp[obj[key]] = key;
-    });
+    var swp;
+    if (Array.isArray(obj)) {
+        swp = {};
+        obj.forEach(function(value, i) {
+            swp[value] = i;
+        });
+    } else {
+        swp = [];
+        Object.keys(obj).forEach(function (key) {
+            swp[obj[key]] = key;
+        });
+        return swp;
+    }
     return swp;
 }
 
@@ -24,6 +34,7 @@ function swap(obj) {
  * @param {!Array.<number>} keys
  * @param {!Array.<*>} values
  * @returns {!Array.<*>}
+ * @inner
  */
 function imap(keys, values) {
     var map = [];
@@ -36,6 +47,7 @@ function imap(keys, values) {
  * Inverts an array.
  * @param {!Array.<number|undefined>} arr
  * @returns {!Array.<number|undefined>}
+ * @inner
  */
 function inv(arr) {
     var inv = [];
@@ -46,42 +58,101 @@ function inv(arr) {
     return inv;
 }
 
+/**
+ * Magic number identifying a WASM binary.
+ * @type {number}
+ */
 types.MagicNumber = 0x6d736177; // "wasm" LE
 
-// ----- imm encoding constants -----
+// ----- opcode with imm encoding -----
 
-types.ImmFlag = 0x80;
-types.OpWithImmBits = 2;
-types.OpWithImmLimit = 1 << types.OpWithImmBits; // 4
-types.OpWithImmMax = types.OpWithImmLimit-1; // 0x3
-types.ImmBits = 5;
-types.ImmLimit = 1 << types.ImmBits; // 32
-types.ImmMax = types.ImmLimit - 1; // 0x1F
+/**
+ * Opcode with imm flag.
+ * @type {number}
+ */
+types.OpWithImm_Flag = 0x80;
+
+/**
+ * Number of opcode bits in an opcode with imm.
+ * @type {number}
+ */
+types.OpWithImm_OpBits = 2;
+
+var OpWithImm_OpLimit = 1 << types.OpWithImm_OpBits; // 4
+
+/**
+ * Maximum opcode value in an opcode with imm.
+ * @type {number}
+ */
+types.OpWithImm_OpMax = OpWithImm_OpLimit-1; // 0x3
+
+/**
+ * Number of imm bits in an opcode with imm.
+ * @type {number}
+ */
+types.OpWithImm_ImmBits = 5;
+
+var OpWithImm_ImmLimit = 1 << types.OpWithImm_ImmBits; // 32
+
+/**
+ * Maximum imm value in an opcode with imm.
+ * @type {number}
+ */
+types.OpWithImm_ImmMax = OpWithImm_ImmLimit - 1; // 0x1F
 
 // ----- types -----
 
+/**
+ * Basic types.
+ * @type {!Object.<string,number>}
+ */
 types.Type = {
     I32: 0,
     F32: 1,
     F64: 2
 };
 
+/**
+ * Basic type names.
+ * @type {!Array.<string>}
+ */
 types.TypeNames = swap(types.Type);
 
+/**
+ * Maximum basic type.
+ * @type {number}
+ */
 types.TypeMax = Math.max(types.Type.I32, types.Type.F32, types.Type.F64);
 
+/**
+ * Tests if the specified type is a valid basic type.
+ * @param {number} type
+ * @returns {boolean}
+ */
 types.isValidType = function(type) {
     return type === 0 || type === 1 || type === 2;
 };
 
+/**
+ * Function definition variable type flags.
+ * @type {!Object.<string,number>}
+ */
 types.VarType = {
     I32: 0x1,
     F32: 0x2,
     F64: 0x4
 };
 
+/**
+ * Function definition variable type flag names.
+ * @type {!Array.<string|undefined>}
+ */
 types.VarTypeNames = swap(types.VarType);
 
+/**
+ * Function definition variable types with imm.
+ * @type {!Object.<string,number>}
+ */
 types.VarTypeWithImm = {
     OnlyI32: 0,
     Reserved0: 1,
@@ -89,8 +160,16 @@ types.VarTypeWithImm = {
     Reserved2: 3
 };
 
+/**
+ * Function definition variable type with imm names.
+ * @type {!Array.<string>}
+ */
 types.VarTypeWithImmNames = swap(types.VarTypeWithImm);
 
+/**
+ * Return types.
+ * @type {!Object.<string,number>}
+ */
 types.RType = {
     I32: types.Type.I32,
     F32: types.Type.F32,
@@ -98,23 +177,48 @@ types.RType = {
     Void: types.TypeMax + 1
 };
 
+/**
+ * Return type names.
+ * @type {!Array.<string>}
+ */
 types.RTypeNames = swap(types.RType);
 
+/**
+ * Maximum return type.
+ * @type {number}
+ */
 types.RTypeMax = types.TypeMax + 1;
 
+/**
+ * Tests if the specified type is a valid return type.
+ * @param {number} type
+ * @returns {boolean}
+ */
 types.isValidRType = function(type) {
     return type === 0 || type === 1 || type === 2 || type === 3;
 };
 
+/**
+ * Export formats.
+ * @type {!Object.<string,number>}
+ */
 types.ExportFormat = {
     Default: 0,
     Record: 1
 };
 
+/**
+ * Export format names.
+ * @type {!Array.<string>}
+ */
 types.ExportFormatNames = swap(types.ExportFormat);
 
-// ----- wire types (custom to this library) -----
+// ----- wire types -----
 
+/**
+ * Wire types. Custom to this library.
+ * @type {!Object.<string,number>}
+ */
 types.WireType = {
     ExprI32: types.RType.I32,
     ExprF32: types.RType.F32,
@@ -125,12 +229,24 @@ types.WireType = {
     StmtList: types.RTypeMax + 3
 };
 
+/**
+ * Wire type names. Custom to this library.
+ * @type {!Array.<string>}
+ */
 types.WireTypeNames = swap(types.WireType);
 
+/**
+ * Maximum wire type.
+ * @type {number}
+ */
 types.WireTypeMax = types.RTypeMax + 3;
 
 // ----- statements and expressions -----
 
+/**
+ * Statement opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.Stmt = {
     SetLoc: 0,
     SetGlo: 1,
@@ -161,8 +277,16 @@ types.Stmt = {
     Switch: 26
 };
 
+/**
+ * Statement opcode names.
+ * @type {!Array.<string>}
+ */
 types.StmtNames = swap(types.Stmt);
 
+/**
+ * Statement with imm opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.StmtWithImm = {
     SetLoc: 0,
     SetGlo: 1,
@@ -170,8 +294,16 @@ types.StmtWithImm = {
     Reserved2: 3
 };
 
+/**
+ * Statement with imm opcode names.
+ * @type {!Array.<string>}
+ */
 types.StmtWithImmNames = swap(types.StmtWithImm);
 
+/**
+ * A map from statement opcodes to their statement with imm opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.StmtToStmtWithImm = imap([
     types.Stmt.SetLoc,
     types.Stmt.SetGlo
@@ -180,6 +312,10 @@ types.StmtToStmtWithImm = imap([
     types.StmtWithImm.SetGlo
 ]);
 
+/**
+ * A map from statement with imm opcodes to their statement opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.StmtWithImmToStmt = imap([
     types.StmtWithImm.SetLoc,
     types.StmtWithImm.SetGlo
@@ -188,6 +324,10 @@ types.StmtWithImmToStmt = imap([
     types.Stmt.SetGlo
 ]);
 
+/**
+ * Switch case opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.SwitchCase = {
     Case0: 0,
     Case1: 1,
@@ -197,8 +337,16 @@ types.SwitchCase = {
     DefaultN: 5
 };
 
+/**
+ * Switch case opcode names.
+ * @type {!Array.<string>}
+ */
 types.SwitchCaseNames = swap(types.SwitchCase);
 
+/**
+ * I32 expression opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.I32 = {
     LitPool: 0,
     LitImm: 1,
@@ -275,8 +423,16 @@ types.I32 = {
     Abs: 72
 };
 
+/**
+ * I32 expression opcode names.
+ * @type {!Array.<string>}
+ */
 types.I32Names = swap(types.I32);
 
+/**
+ * I32 expression with imm opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.I32WithImm = {
     LitPool: 0,
     LitImm: 1,
@@ -284,8 +440,16 @@ types.I32WithImm = {
     Reserved: 3
 };
 
+/**
+ * I32 expression with imm opcode names.
+ * @type {!Array.<string>}
+ */
 types.I32WithImmNames = swap(types.I32WithImm);
 
+/**
+ * A map of I32 expression opcodes to their I32 expression with imm opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.I32ToI32WithImm = imap([
     types.I32.LitPool,
     types.I32.LitImm,
@@ -296,8 +460,16 @@ types.I32ToI32WithImm = imap([
     types.I32WithImm.GetLoc
 ]);
 
+/**
+ * A map of I32 expression with imm opcodes to their I32 expression opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.I32WithImmToI32 = inv(types.I32ToI32WithImm);
 
+/**
+ * F32 expression opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.F32 = {
     LitPool: 0,
     LitImm: 1,
@@ -327,8 +499,16 @@ types.F32 = {
     Sqrt: 25
 };
 
+/**
+ * F32 expression opcode names.
+ * @type {!Array.<string>}
+ */
 types.F32Names = swap(types.F32);
 
+/**
+ * F32 expression with imm opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.F32WithImm = {
     LitPool: 0,
     GetLoc: 1,
@@ -336,8 +516,16 @@ types.F32WithImm = {
     Reserved1: 3
 };
 
+/**
+ * F32 expression with imm opcode names.
+ * @type {!Array.<string>}
+ */
 types.F32WithImmNames = swap(types.F32WithImm);
 
+/**
+ * A map of F32 expression opcodes to their F32 expression with imm opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.F32ToF32WithImm = imap([
     types.F32.LitPool,
     types.F32.GetLoc
@@ -346,8 +534,16 @@ types.F32ToF32WithImm = imap([
     types.F32WithImm.GetLoc
 ]);
 
+/**
+ * A map of F32 expression with imm opcodes to their F32 expression opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.F32WithImmToF32 = inv(types.F32ToF32WithImm);
 
+/**
+ * F64 expression opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.F64 = {
     LitPool: 0,
     LitImm: 1,
@@ -391,8 +587,16 @@ types.F64 = {
     Pow: 39
 };
 
+/**
+ * F64 expression opcode names.
+ * @type {!Array.<string>}
+ */
 types.F64Names = swap(types.F64);
 
+/**
+ * F64 expression with imm opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.F64WithImm = {
     LitPool: 0,
     GetLoc: 1,
@@ -400,8 +604,16 @@ types.F64WithImm = {
     Reserved1: 3
 };
 
+/**
+ * F64 expression with imm opcode names.
+ * @type {!Array.<string>}
+ */
 types.F64WithImmNames = swap(types.F64WithImm);
 
+/**
+ * A map of F64 expression opcodes to their F64 expression with imm opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.F64ToF64WithImm = imap([
     types.F64.LitPool,
     types.F64.GetLoc
@@ -410,16 +622,34 @@ types.F64ToF64WithImm = imap([
     types.F64WithImm.GetLoc
 ]);
 
+/**
+ * A map of F64 expression with imm opcodes to their F64 expression opcode counterpart.
+ * @type {!Array.<number|undefined>}
+ */
 types.F64WithImmToF64 = inv(types.F64ToF64WithImm);
 
+/**
+ * Void expression opcodes.
+ * @type {!Object.<string,number>}
+ */
 types.Void = {
     CallInt: 0,
     CallInd: 1,
     CallImp: 2
 };
 
+/**
+ * Void expression opcode names.
+ * @type {!Array.<string>}
+ */
 types.VoidNames = swap(types.Void);
 
+/**
+ * Gets the opcode with imm counterpart of an opcode.
+ * @param {number} type Wire type
+ * @param {number} code Opcode
+ * @returns {number} -1 if there is no counterpart
+ */
 types.codeWithImm = function(type, code) {
     var other;
     switch (type) {
@@ -445,6 +675,12 @@ types.codeWithImm = function(type, code) {
     return -1;
 };
 
+/**
+ * Gets the opcode counterpart of an opcode with imm.
+ * @param {number} type Wire type
+ * @param {number} code Opcode with imm
+ * @returns {number} -1 if there is no counterpart
+ */
 types.codeWithoutImm = function(type, code) {
     var other;
     switch (type) {
@@ -472,22 +708,34 @@ types.codeWithoutImm = function(type, code) {
 
 // ----- standard library -----
 
-types.HotStdLib = {
-    HeapS8: 0,
-    HeapU8: 1,
-    HeapS16: 2,
-    HeapU16: 3,
-    HeapS32: 4,
-    HeapU32: 5,
-    HeapF32: 6,
-    HeapF64: 7,
-    IMul: 8,
-    FRound: 9
-};
+/**
+ * Hot standard library names.
+ * @type {!Array.<string>}
+ */
+types.HotStdLibNames = [
+    "HeapS8",
+    "HeapU8",
+    "HeapS16",
+    "HeapU16",
+    "HeapS32",
+    "HeapU32",
+    "HeapF32",
+    "HeapF64",
+    "IMul",
+    "FRound"
+];
 
-types.HotStdLibNames = swap(types.HotStdLib);
+/**
+ * Hot standard library.
+ * @type {!Object.<string,number>}
+ */
+types.HotStdLib = swap(types.HotStdLibNames);
 
-types.HotStdLibCtor = [
+/**
+ * Hot standard library constructor names.
+ * @type {!Array.<string|null>}
+ */
+types.HotStdLibCtorNames = [
     "Int8Array",
     "Uint8Array",
     "Int16Array",
@@ -500,35 +748,47 @@ types.HotStdLibCtor = [
     null
 ];
 
-types.StdLib = {
-    stdlib: 0,
-    foreign: 1,
-    buffer: 2,
-    acos: 3,
-    asin: 4,
-    atan: 5,
-    cos: 6,
-    sin: 7,
-    tan: 8,
-    exp: 9,
-    log: 10,
-    ceil: 11,
-    floor: 12,
-    sqrt: 13,
-    abs: 14,
-    min: 15,
-    max: 16,
-    atan2: 17,
-    pow: 18,
-    clz32: 19,
-    NaN: 20,
-    Infinity: 21
-};
+/**
+ * Standard library names.
+ * @type {!Array.<string>}
+ */
+types.StdLibNames = [
+    "stdlib",
+    "foreign",
+    "buffer",
+    "acos",
+    "asin",
+    "atan",
+    "cos",
+    "sin",
+    "tan",
+    "exp",
+    "log",
+    "ceil",
+    "floor",
+    "sqrt",
+    "abs",
+    "min",
+    "max",
+    "atan2",
+    "pow",
+    "clz32",
+    "NaN",
+    "Infinity"
+];
 
-types.StdLibNames = swap(types.StdLib);
+/**
+ * Standard library.
+ * @type {!Object.<string,number>}
+ */
+types.StdLib = swap(types.StdLibNames);
 
-// ----- operation precedence (yet unused) -----
+// ----- operation precedence (unused) -----
 
+/**
+ * Operator precedence.
+ * @type {!Object.<string,number>}
+ */
 types.Prec = {
     Lowest: 0,
     Comma: 2,
@@ -548,10 +808,18 @@ types.Prec = {
     Highest: 30
 };
 
+/**
+ * Operator precedence names.
+ * @type {!Array.<string>}
+ */
 types.PrecNames = swap(types.Prec);
 
-// ----- operation context (yet unused) -----
+// ----- operation context (unused) -----
 
+/**
+ * Operation contexts.
+ * @type {!Object.<string,number>}
+ */
 types.Ctx = {
     Default: 0,
     AddSub: 1,
@@ -560,4 +828,8 @@ types.Ctx = {
     ToNumber: 4
 };
 
+/**
+ * Operation context names.
+ * @type {!Array.<string>}
+ */
 types.CtxNames = swap(types.Ctx);
