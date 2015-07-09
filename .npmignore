@@ -1,3 +1,11 @@
+node_modules/
+npm-debug.log
+.idea/
+raw/
+v8.log
+tests/*.txt
+tests/AngryBotsPacked
+
 WebAssembly.png
 WebAssembly_uni.png
 tests/*.wasm
