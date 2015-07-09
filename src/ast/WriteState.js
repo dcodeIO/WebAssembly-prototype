@@ -85,7 +85,7 @@ WriteState.prototype.varint = function(value) {
 
 WriteState.prototype.varint_s = function(value) {
     this.writer.bufferQueue.writeVarintSigned(value);
-}
+};
 
 WriteState.prototype.f32 = function(value) {
     this.writer.bufferQueue.writeFloatLE(value);

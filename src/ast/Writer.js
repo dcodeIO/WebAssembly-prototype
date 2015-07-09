@@ -192,6 +192,7 @@ function makeGenericWrite(wireType, clazz, name) {
     return function(stmt) {
         if (verbose >= 1)
             console.log("writing "+stmt+" @ "+this.offset.toString(16));
+        this.emit("stmt", stmt);
         this.writeState.prepare(wireType, stmt);
         stmt.behavior.write(this.writeState, stmt);
         this.writeState.commit();

@@ -81,6 +81,7 @@ ReadState.prototype.prepare = function(type, code, imm) {
 ReadState.prototype.commit = function() {
     this.reader.bufferQueue.advance();
     if (!this.reader.skipAhead) {
+        this.reader.emit("stmt", this._stmt);
         var parent = this.reader.stack[this.reader.stack.length - 1];
         parent.add(this._stmt);
     }

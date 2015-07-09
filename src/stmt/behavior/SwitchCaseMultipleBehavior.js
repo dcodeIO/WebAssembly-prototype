@@ -44,20 +44,20 @@ SwitchCaseMultipleBehavior.prototype.optimize = function(definition, stmt) {
     if (stmt.code === types.SwitchCase.CaseN) {
         switch (stmt.operands.length - 1) {
             case 0:
-                console.log("reducing CaseN to Case0: "+stmt);
                 stmt.code = types.SwitchCase.Case0;
+                break;
             case 1:
-                console.log("reducing CaseN to Case1: "+stmt);
                 stmt.code = types.SwitchCase.Case1;
+                break;
         }
     } else if (stmt.code === types.SwitchCase.DefaultN) {
         switch (stmt.operands.length - 1) {
             case 0:
-                console.log("reducing DefaultN to Default0: "+stmt);
                 stmt.code = types.SwitchCase.Default0;
+                break;
             case 1:
-                console.log("reducing DefaultN to Default1: "+stmt);
                 stmt.code = types.SwitchCase.Default1;
+                break;
         }
     }
     return stmt;

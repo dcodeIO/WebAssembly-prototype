@@ -20,7 +20,7 @@ function RecordExport(assembly, functions) {
     Object.keys(functions).forEach(function(name) {
         this.functions[name] = functions[name] instanceof FunctionDeclaration
             ? functions[name]
-            : this.assembly.getFunctionDeclaration(functions[name]);
+            : assembly.getFunctionDeclaration(functions[name]);
     }, this);
 }
 
@@ -36,8 +36,8 @@ RecordExport.prototype = Object.create(BaseExport.prototype);
 RecordExport.prototype.toString = function() {
     var sb = [];
     sb.push("RecordExport");
-    var names = Object.keys(this.functionIndexes);
+    var names = Object.keys(this.functions);
     for (var i=0; i<names.length; ++i)
-        sb.push(" ", names[i], ":", this.functionIndexes[names[i]]);
+        sb.push(" ", names[i], ":", this.functions[names[i]]);
     return sb.join("");
 };

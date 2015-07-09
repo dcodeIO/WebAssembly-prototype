@@ -243,7 +243,7 @@ Reader.prototype._readConstantsI32 = function () {
             index = this.sequence++;
         this.bufferQueue.advance();
         var constant = this.assembly.setConstant(types.Type.I32, index, value);
-        this.emit("constant", constant, index);
+        this.emit("constant", constant);
     }
     this.sequence = 0;
     this.state = Reader.State.CONSTANTS_F32;
@@ -256,7 +256,7 @@ Reader.prototype._readConstantsF32 = function () {
             index = this.sequence++;
         this.bufferQueue.advance();
         var constant = this.assembly.setConstant(types.Type.F32, index, value);
-        this.emit("constant", constant, index);
+        this.emit("constant", constant);
     }
     this.sequence = 0;
     this.state = Reader.State.CONSTANTS_F64;
@@ -269,7 +269,7 @@ Reader.prototype._readConstantsF64 = function () {
             index = this.sequence++;
         this.bufferQueue.advance();
         var constant = this.assembly.setConstant(types.Type.F64, index, value);
-        this.emit("constant", constant, index);
+        this.emit("constant", constant);
     }
     this.emit("constantsEnd");
     this.state = Reader.State.SIGNATURES_COUNT;
@@ -296,7 +296,7 @@ Reader.prototype._readSignatures = function () {
         this.bufferQueue.advance();
         var index = this.sequence++;
         var sig = this.assembly.setFunctionSignature(index, returnType, args);
-        this.emit("functionSignature", sig, index);
+        this.emit("functionSignature", sig);
     }
     this.emit("functionSignaturesEnd");
     this.state = Reader.State.FUNCTION_IMPORTS_COUNT;
@@ -322,8 +322,8 @@ Reader.prototype._readFunctionImports = function () {
             signatureIndexes[i] = this.bufferQueue.readVarint();
         this.bufferQueue.advance();
         var index = this.sequence++;
-        var imp = this.assembly.setFunctionImport(index, importName, signatureIndexes);
-        this.emit("functionImport", imp, index);
+        var imprt = this.assembly.setFunctionImport(index, importName, signatureIndexes);
+        this.emit("functionImport", imprt);
     }
     this.emit("functionImportsEnd");
     this.state = Reader.State.GLOBAL_VARIABLES_COUNT;
@@ -352,7 +352,7 @@ Reader.prototype._readGlobalVariables = function () {
         var index = this.sequence++;
         var global = this.assembly.getGlobalVariable(index);
         global.importName = importName;
-        this.emit("globalVariable", global, index);
+        this.emit("globalVariable", global);
     }
     this.emit("globalVariablesEnd");
     this.state = Reader.State.FUNCTION_DECLARATIONS_COUNT;
@@ -373,7 +373,7 @@ Reader.prototype._readFunctionDeclarations = function () {
         var signatureIndex = this.bufferQueue.readVarint(),
             index = this.sequence++;
         this.bufferQueue.advance();
-        this.emit("functionDeclaration", this.assembly.setFunctionDeclaration(index, signatureIndex), index);
+        this.emit("functionDeclaration", this.assembly.setFunctionDeclaration(index, signatureIndex));
     }
     this.emit("functionDeclarationsEnd");
     this.state = Reader.State.FUNCTION_POINTER_TABLES_COUNT;
@@ -398,7 +398,7 @@ Reader.prototype._readFunctionPointerTables = function () {
             elements[i] = this.bufferQueue.readVarint();
         this.bufferQueue.advance();
         var index = this.sequence++;
-        this.emit("functionPointerTable", this.assembly.setFunctionPointerTable(index, signatureIndex, elements), index);
+        this.emit("functionPointerTable", this.assembly.setFunctionPointerTable(index, signatureIndex, elements));
     }
     this.emit("functionPointerTablesEnd");
     this.state = Reader.State.FUNCTION_DEFINITIONS;
@@ -426,7 +426,7 @@ Reader.prototype._readFunctionDefinitions = function() {
         this.bufferQueue.advance();
         var index = this.sequence;
         var definition = this.assembly.setFunctionDefinition(index, nI32Vars, nF32Vars, nF64Vars, this.bufferQueue.offset);
-        this.emit("functionDefinitionPre", definition, index);
+        this.emit("functionDefinitionPre", definition);
 
         // Read the AST
         this.astReader = new AstReader(definition, this.bufferQueue, this.options);
@@ -434,7 +434,7 @@ Reader.prototype._readFunctionDefinitions = function() {
             definition.byteLength = this.bufferQueue.offset - definition.byteOffset;
             if (!this.options.skipAhead)
                 definition.ast = this.astReader.stack[0];
-            this.emit("functionDefinition", definition, index);
+            this.emit("functionDefinition", definition);
             this.astReader.removeAllListeners();
             this.astReader = null;
             this.state = Reader.State.FUNCTION_DEFINITIONS;

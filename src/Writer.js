@@ -221,6 +221,7 @@ Writer.prototype._process = function() {
 };
 
 Writer.prototype._writeHeader = function() {
+    this.emit("header", this.assembly.precomputedSize);
     this.bufferQueue
         .writeUInt32LE(types.MagicNumber)
         .writeUInt32LE(this.assembly.precomputedSize)
@@ -229,10 +230,14 @@ Writer.prototype._writeHeader = function() {
 };
 
 Writer.prototype._writeConstantsCount = function() {
+    var nI32 = this.assembly.getConstantPoolSize(types.Type.I32),
+        nF32 = this.assembly.getConstantPoolSize(types.Type.F32),
+        nF64 = this.assembly.getConstantPoolSize(types.Type.F64);
+    this.emit("constants", nI32, nF32, nF64);
     this.bufferQueue
-        .writeVarint(this.assembly.getConstantPoolSize(types.Type.I32))
-        .writeVarint(this.assembly.getConstantPoolSize(types.Type.F32))
-        .writeVarint(this.assembly.getConstantPoolSize(types.Type.F64))
+        .writeVarint(nI32)
+        .writeVarint(nF32)
+        .writeVarint(nF64)
         .commit();
     this.state = Writer.State.CONSTANTS_I32;
     this.sequence = 0;
@@ -242,6 +247,7 @@ Writer.prototype._writeConstantsI32 = function() {
     var size = this.assembly.getConstantPoolSize(types.Type.I32);
     while (this.sequence < size) {
         var constant = this.assembly.getConstant(types.Type.I32, this.sequence);
+        this.emit("constant", constant);
         this.bufferQueue
             .writeVarint(constant.value)
             .commit();
@@ -255,6 +261,7 @@ Writer.prototype._writeConstantsF32 = function() {
     var size = this.assembly.getConstantPoolSize(types.Type.F32);
     while (this.sequence < size) {
         var constant = this.assembly.getConstant(types.Type.F32, this.sequence);
+        this.emit("constant", constant);
         this.bufferQueue
             .writeFloatLE(constant.value)
             .commit();
@@ -268,17 +275,21 @@ Writer.prototype._writeConstantsF64 = function() {
     var size = this.assembly.getConstantPoolSize(types.Type.F64);
     while (this.sequence < size) {
         var constant = this.assembly.getConstant(types.Type.F64, this.sequence);
+        this.emit("constant", constant);
         this.bufferQueue
             .writeDoubleLE(constant.value)
             .commit();
         ++this.sequence;
     }
+    this.emit("constantsEnd");
     this.state = Writer.State.SIGNATURES_COUNT;
 };
 
 Writer.prototype._writeSignaturesCount = function() {
+    var count = this.assembly.getFunctionSignaturePoolSize();
+    this.emit("signatures", count);
     this.bufferQueue
-        .writeVarint(this.assembly.getFunctionSignaturePoolSize())
+        .writeVarint(count)
         .commit();
     this.state = Writer.State.SIGNATURES;
     this.sequence = 0;
@@ -288,6 +299,7 @@ Writer.prototype._writeSignatures = function() {
     var size = this.assembly.getFunctionSignaturePoolSize();
     while (this.sequence < size) {
         var signature = this.assembly.getFunctionSignature(this.sequence);
+        this.emit("signature", signature);
         this.bufferQueue
             .writeUInt8(signature.returnType)
             .writeVarint(signature.argumentTypes.length);
@@ -297,13 +309,17 @@ Writer.prototype._writeSignatures = function() {
         this.bufferQueue.commit();
         ++this.sequence;
     }
+    this.emit("signaturesEnd");
     this.state = Writer.State.FUNCTION_IMPORTS_COUNT;
 };
 
 Writer.prototype._writeFunctionImportsCount = function() {
+    var nImports = this.assembly.getFunctionImportPoolSize(),
+        nSigs = this.assembly.getFunctionImportSignaturePoolSize();
+    this.emit("functionImports", nImports, nSigs);
     this.bufferQueue
-        .writeVarint(this.assembly.getFunctionImportPoolSize())
-        .writeVarint(this.assembly.getFunctionImportSignaturePoolSize())
+        .writeVarint(nImports)
+        .writeVarint(nSigs)
         .commit();
     this.state = Writer.State.FUNCTION_IMPORTS;
     this.sequence = 0;
@@ -313,6 +329,7 @@ Writer.prototype._writeFunctionImports = function() {
     var size = this.assembly.getFunctionImportPoolSize();
     while (this.sequence < size) {
         var imprt = this.assembly.getFunctionImport(this.sequence);
+        this.emit("functionImport", imprt);
         this.bufferQueue
             .writeCString(imprt.importName)
             .writeVarint(imprt.signatures.length);
@@ -322,6 +339,7 @@ Writer.prototype._writeFunctionImports = function() {
         this.bufferQueue.commit();
         ++this.sequence;
     }
+    this.emit("functionImportsEnd");
     this.state = Writer.State.GLOBAL_VARIABLES_COUNT;
 };
 
@@ -332,8 +350,8 @@ Writer.prototype._writeGlobalVariablesCount = function() {
         nI32import = 0,
         nF32import = 0,
         nF64import = 0;
-    var current = 0,
-        size = 0;
+    var current = 0;
+    this.emit("globalVariables", nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import);
     var vars = this.assembly.globalVariables;
     while (current < vars.length && vars[current].type === types.Type.I32) {
         nI32zero++;
@@ -377,17 +395,21 @@ Writer.prototype._writeGlobalVariables = function() {
     var size = this.assembly.getGlobalVariablePoolSize();
     while (this.sequence < size) {
         var variable = this.assembly.getGlobalVariable(this.sequence);
+        this.emit("globalVariable", variable);
         this.bufferQueue
             .writeCString(variable.importName)
             .commit();
         ++this.sequence;
     }
+    this.emit("globalVariablesEnd");
     this.state = Writer.State.FUNCTION_DECLARATIONS_COUNT;
 };
 
 Writer.prototype._writeFunctionDeclarationsCount = function() {
+    var count = this.assembly.getFunctionDeclarationPoolSize();
+    this.emit("functionDeclarations", count);
     this.bufferQueue
-        .writeVarint(this.assembly.getFunctionDeclarationPoolSize())
+        .writeVarint(count)
         .commit();
     this.state = Writer.State.FUNCTION_DECLARATIONS;
     this.sequence = 0;
@@ -397,17 +419,21 @@ Writer.prototype._writeFunctionDeclarations = function() {
     var size = this.assembly.getFunctionDeclarationPoolSize();
     while (this.sequence < size) {
         var declaration = this.assembly.getFunctionDeclaration(this.sequence);
+        this.emit("functionDeclaration", declaration);
         this.bufferQueue
             .writeVarint(declaration.signature.index)
             .commit();
         ++this.sequence;
     }
+    this.emit("functionDeclarationsEnd");
     this.state = Writer.State.FUNCTION_POINTER_TABLES_COUNT;
 };
 
 Writer.prototype._writeFunctionPointerTablesCount = function() {
+    var count = this.assembly.getFunctionPointerTablePoolSize();
+    this.emit("functionPointerTables", count);
     this.bufferQueue
-        .writeVarint(this.assembly.getFunctionPointerTablePoolSize())
+        .writeVarint(count)
         .commit();
     this.state = Writer.State.FUNCTION_POINTER_TABLES;
     this.sequence = 0;
@@ -417,15 +443,18 @@ Writer.prototype._writeFunctionPointerTables = function() {
     var size = this.assembly.getFunctionPointerTablePoolSize();
     if (this.sequence < size) {
         var table = this.assembly.getFunctionPointerTable(this.sequence);
+        this.emit("functionPointerTable", table);
         this.bufferQueue
             .writeVarint(table.signature.index)
             .writeVarint(table.elements.length)
             .commit();
         // Elements might be rather large (seen 8192), so ...
+        this.emit("functionPointerElements", table.elements.length);
         this.state = Writer.State.FUNCTION_POINTER_ELEMENTS;
         this.subSequence = 0;
         return;
     }
+    this.emit("functionPointerTablesEnd");
     this.state = Writer.State.FUNCTION_DEFINITIONS;
     this.sequence = 0;
 };
@@ -434,11 +463,14 @@ Writer.prototype._writeFunctionPointerElements = function() {
     var table = this.assembly.getFunctionPointerTable(this.sequence);
     while (this.subSequence < table.elements.length) {
         var element = table.elements[this.subSequence];
+        this.emit("functionPointerElement", element);
         this.bufferQueue
             .writeVarint(element.value)
             .commit();
         ++this.subSequence;
     }
+    this.emit("functionPointerElementsEnd");
+    this.emit("functionDefinitions", this.assembly.getFunctionDeclarationPoolSize());
     this.state = Writer.State.FUNCTION_POINTER_TABLES;
     ++this.sequence;
 };
@@ -447,7 +479,7 @@ Writer.prototype._writeFunctionDefinitions = function() {
     var size = this.assembly.getFunctionDeclarationPoolSize();
     if (this.sequence < size) {
         var definition = this.assembly.getFunctionDefinition(this.sequence);
-
+        this.emit("functionDefinition", definition);
         var nI32Vars = 0,
             nF32Vars = 0,
             nF64Vars = 0;
@@ -508,12 +540,14 @@ Writer.prototype._writeFunctionDefinitions = function() {
         this.astWriter.resume();
         return true;
     } else {
+        this.emit("functionDefinitionsEnd");
         this.state = Writer.State.EXPORT;
     }
 };
 
 Writer.prototype._writeExport = function() {
     var exprt = this.assembly.export;
+    this.emit("export", exprt);
     if (exprt instanceof DefaultExport) {
         this.bufferQueue
             .writeUInt8(types.ExportFormat.Default)

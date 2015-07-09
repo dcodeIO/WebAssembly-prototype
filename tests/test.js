@@ -1,6 +1,7 @@
 var fs = require("fs"),
     path = require("path"),
-    assert = require("assert");
+    assert = require("assert"),
+    pkg = require("../package.json");
 
 var webassembly = require("../"),
     types = webassembly.types,
@@ -10,16 +11,17 @@ var webassembly = require("../"),
     AstWriter = webassembly.ast.Writer,
     Assembly = webassembly.reflect.Assembly;
 
-var file = path.join(__dirname, "AngryBots.wasm"),
+var filename = "AngryBots.wasm";
+var file = path.join(__dirname, filename),
     stats = fs.statSync(file);
 
-console.log("Testing "+file+" ...\n");
+console.log("WebAssembly "+pkg.version+": Testing '"+filename+"' ...\n");
 
 var reader = new Reader({
-    // skipAhead: true
+    skipAhead: true
 });
 
-/* reader.on("switchState", function (prevState, newState, offset) {
+reader.on("switchState", function (prevState, newState, offset) {
     console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
 });
 
@@ -31,8 +33,8 @@ reader.on("constants", function (nI32, nF32, nF64) {
     console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
 });
 
-reader.on("constant", function(type, value, index) {
-    console.log(index+" "+types.TypeNames[type]+" "+value);
+reader.on("constant", function(constant) {
+    console.log(constant.toString());
 });
 
 reader.on("constantsEnd", function() {
@@ -43,7 +45,7 @@ reader.on("functionSignatures", function (nSigs) {
     console.log("Signatures: " + nSigs);
 });
 
-reader.on("functionSignature", function(signature, index) {
+reader.on("functionSignature", function(signature) {
     console.log(signature.toString());
 });
 
@@ -51,7 +53,7 @@ reader.on("functionImports", function (nFunctionImports, nSignatures) {
     console.log("Function imports: " + nFunctionImports+" ("+nSignatures+" signatures)");
 });
 
-reader.on("functionImport", function(fimport, index) {
+reader.on("functionImport", function(fimport) {
     console.log(fimport.toString());
 });
 
@@ -63,7 +65,7 @@ reader.on("globalVariables", function (nI32zero, nF32zero, nF64zero, nI32import,
     console.log("Global vars: " + [nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import]);
 });
 
-reader.on("globalVariable", function(variable, index) {
+reader.on("globalVariable", function(variable) {
     console.log(variable.toString());
 });
 
@@ -75,7 +77,7 @@ reader.on("functionDeclarations", function (nDeclarations) {
     console.log("Function declarations: " + nDeclarations);
 });
 
-reader.on("functionDeclaration", function(declaration, index) {
+reader.on("functionDeclaration", function(declaration) {
     console.log(declaration.toString());
 });
 
@@ -87,7 +89,7 @@ reader.on("functionPointerTables", function (nTables) {
     console.log("Function pointer tables: " + nTables);
 });
 
-reader.on("functionPointerTable", function(table, index) {
+reader.on("functionPointerTable", function(table) {
     console.log(table.toString());
 });
 
@@ -99,8 +101,8 @@ reader.on("functionDefinitions", function (nDefinitions) {
     console.log("Function definitions: " + nDefinitions);
 });
 
-reader.on("functionDefinition", function(definition, index) {
-    console.log(definition.header()+"\n");
+reader.on("functionDefinition", function(definition) {
+    console.log(definition.asmHeader()+"\n");
 });
 
 reader.on("functionDefinitionsEnd", function() {
@@ -109,15 +111,14 @@ reader.on("functionDefinitionsEnd", function() {
 
 reader.on("export", function(exprt) {
     console.log("Export: "+exprt.toString());
-}); */
+});
 
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
-    console.log("Complete: "+reader.assembly.toString()+"\n");
+    console.log("Indexing complete: "+reader.assembly.toString()+"\n");
 
-    optimize(reader.assembly);
-    return;
+    console.log(reader.assembly.asmHeader(), "\n");
 
     console.log("Validating assembly ...");
     try {
@@ -133,7 +134,7 @@ reader.on("end", function() {
     validateAstOffsets();
 });
 
-console.log("Reading assembly ...");
+console.log("Indexing assembly ...");
 fs.createReadStream(file).pipe(reader);
 
 function validateAstOffsets() {
@@ -152,14 +153,20 @@ function validateAstOffsets() {
         var declaration = assembly.functionDeclarations[current++],
             definition = declaration.definition;
         var offset = definition.byteOffset,
-            length = definition.byteLength;
+            length = definition.byteLength,
+            n = 0;
         if (length < 0)
             throw Error("length "+length+" < 0");
         if (offset + length > stats.size)
             throw Error("offset + length "+(offset+length)+" > "+stats.size);
+        console.log("Reading AST of "+definition+" @ "+definition.byteOffset.toString(16));
         var astReader = new AstReader(definition);
         astReader.on("ast", function(ast) {
+            console.log("AST read complete: "+n+" statements");
             definition.ast = ast;
+        });
+        astReader.on("stmt", function(stmt) {
+            ++n;
         });
         astReader.on("end", function() {
             next();
@@ -187,7 +194,9 @@ function validateAstRewrite(assembly) {
         var definition = assembly.functionDeclarations[current].definition,
             astContents = contents.slice(definition.byteOffset, definition.byteOffset + definition.byteLength);
         var writer = new AstWriter(definition, { preserveWithImm: true }),
-            offset = 0;
+            offset = 0,
+            n = 0;
+        console.log("Writing AST of "+definition);
         writer.on("data", function(chunk) {
             for (var i=0; i<chunk.length; ++i) {
                 if (astContents[offset+i] !== chunk[i]) {
@@ -203,7 +212,11 @@ function validateAstRewrite(assembly) {
             }
             offset += chunk.length;
         });
+        writer.on("stmt", function(stmt) {
+            ++n;
+        });
         writer.on("end", function() {
+            console.log("AST write complete: "+n+" statements");
             ++current;
             setImmediate(next);
         });
@@ -212,18 +225,24 @@ function validateAstRewrite(assembly) {
     next();
 }
 
+var unoptimizedSize = 0;
+
 function write(assembly) {
     console.log("Writing assembly ...");
 
     var contents = fs.readFileSync(file),
         offset = 0;
-    var writer = new Writer(assembly, { preserveWithImm : true });
-    /* writer.on("switchState", function(state, previousState, offset) {
+    var writer = new Writer(assembly, { preserveWithImm : true }),
+        wi = 0;
+    writer.on("switchState", function(state, previousState, offset) {
         console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
-    }); */
+    });
     writer.on("data", function(chunk) {
+        if (wi++%100 === 0)
+            process.stdout.write(".");
         for (var i=0; i<chunk.length; ++i) {
             if (contents[offset+i] !== chunk[i]) {
+                console.log("\n");
                 console.log("Reader", contents.slice(offset+i, offset+i+16));
                 console.log("Writer", chunk.slice(i, i+16));
                 console.log("Chunk size: "+chunk.length+", offset: "+i);
@@ -233,6 +252,7 @@ function write(assembly) {
         offset += chunk.length;
     });
     writer.on("end", function() {
+        unoptimizedSize = offset;
         console.log("Complete: "+offset+" bytes\n");
         optimize(assembly);
     });
@@ -243,19 +263,26 @@ function optimize(assembly) {
     console.log("Optimizing assembly ...");
     var n = assembly.optimize();
     console.log("Complete: "+n+" optimizations\n");
-    setImmediate(writeFile.bind(this, assembly, __dirname+"/out.wasm")); // Recursive process.nextTick
+    writeFile(assembly, path.basename(filename, ".wasm")+"-optimized.wasm");
 }
 
 function writeFile(assembly, file) {
     console.log("Writing assembly to "+file+" ...");
     var writer = new Writer(assembly);
-    var ws = fs.createWriteStream(file);
+    var ws = fs.createWriteStream(path.join(__dirname, file)),
+        offset = 0,
+        wi = 0;
     writer.on("data", function(chunk) {
+        if (wi++%100 === 0)
+            process.stdout.write(".");
         ws.write(chunk);
+        offset += chunk.length;
     });
     writer.on("end", function() {
         ws.end();
-        console.log("Complete");
+        var p = (unoptimizedSize-offset)/unoptimizedSize;
+        console.log("");
+        console.log("Complete: "+offset+" bytes (-"+p+"%)\n");
     });
     // FIXME: Why does .pipe throw "Maximum call stack size exceeded"?
     writer.resume();

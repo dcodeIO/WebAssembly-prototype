@@ -39,10 +39,8 @@ BlockBehavior.prototype.validate = function(definition, stmt) {
 
 BlockBehavior.prototype.optimize = function(definition, stmt) {
     var count = stmt.operands.length;
-    if (count === 1) {
-        console.log("reducing block to single statement: "+stmt);
+    if (count === 1)
         return stmt.operands[0];
-    }
     return stmt;
 };
 

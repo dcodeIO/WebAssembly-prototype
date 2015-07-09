@@ -117,7 +117,7 @@ function replace(ast, oldStmt, newStmt) {
             var operand = current.operands[i];
             if (operand instanceof BaseStmt) {
                 if (operand === oldStmt) {
-                    console.log("replacing "+operand+" with "+newStmt+" on "+current);
+                    // console.log("replacing "+operand+" with "+newStmt+" on "+current);
                     current.operands[i] = newStmt;
                 }
                 stack.push(operand);
@@ -183,7 +183,7 @@ FunctionDefinition.prototype.asmHeader = function(pack) {
                     sb.push(assembly.localName(i), "|0;", nl);
                     break;
                 case types.Type.F32:
-                    sb.push(util.hotStdLibName("FRound"), "(", assembly.localName(i), ");", nl);
+                    sb.push(util.hotStdLibName(types.HotStdLib.FRound), "(", assembly.localName(i), ");", nl);
                     break;
                 case types.Type.F64:
                     sb.push("+", assembly.localName(i), ";", nl);
@@ -203,7 +203,7 @@ FunctionDefinition.prototype.asmHeader = function(pack) {
                     sb.push("0");
                     break;
                 case types.Type.F32:
-                    sb.push(util.hotStdLibName("FRound"), "(0)");
+                    sb.push(util.hotStdLibName(types.HotStdLib.FRound), "(0)");
                     break;
                 case types.Type.F64:
                     sb.push("0.");
