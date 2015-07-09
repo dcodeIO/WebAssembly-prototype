@@ -11,6 +11,11 @@ var webassembly = require("../"),
     AstWriter = webassembly.ast.Writer,
     Assembly = webassembly.reflect.Assembly;
 
+var verbose = 1;
+
+if (typeof process.env.VERBOSE !== 'undefined')
+    verbose = parseInt(process.env.VERBOSE, 10);
+
 var filename = "AngryBots.wasm";
 var file = path.join(__dirname, filename),
     stats = fs.statSync(file);
@@ -21,104 +26,107 @@ var reader = new Reader({
     skipAhead: true
 });
 
-reader.on("switchState", function (prevState, newState, offset) {
-    console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
-});
+if (verbose) {
+    reader.on("switchState", function (prevState, newState, offset) {
+        console.log("switch state " + prevState + "->" + newState + " @ " + offset.toString(16));
+    });
 
-reader.on("header", function (size) {
-    console.log("Precomputed size: " + size);
-});
+    reader.on("header", function (size) {
+        console.log("Precomputed size: " + size);
+    });
 
-reader.on("constants", function (nI32, nF32, nF64) {
-    console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
-});
+    reader.on("constants", function (nI32, nF32, nF64) {
+        console.log("Constants: " + nI32 + "xI32, " + nF32 + "xF32, " + nF64 + "xF64");
+    });
 
-reader.on("constant", function(constant) {
-    console.log(constant.toString());
-});
+    reader.on("constant", function (constant) {
+        console.log(constant.toString());
+    });
 
-reader.on("constantsEnd", function() {
-    console.log("End of constants");
-});
+    reader.on("constantsEnd", function () {
+        console.log("End of constants");
+    });
 
-reader.on("functionSignatures", function (nSigs) {
-    console.log("Signatures: " + nSigs);
-});
+    reader.on("functionSignatures", function (nSigs) {
+        console.log("Signatures: " + nSigs);
+    });
 
-reader.on("functionSignature", function(signature) {
-    console.log(signature.toString());
-});
+    reader.on("functionSignature", function (signature) {
+        console.log(signature.toString());
+    });
 
-reader.on("functionImports", function (nFunctionImports, nSignatures) {
-    console.log("Function imports: " + nFunctionImports+" ("+nSignatures+" signatures)");
-});
+    reader.on("functionImports", function (nFunctionImports, nSignatures) {
+        console.log("Function imports: " + nFunctionImports + " (" + nSignatures + " signatures)");
+    });
 
-reader.on("functionImport", function(fimport) {
-    console.log(fimport.toString());
-});
+    reader.on("functionImport", function (fimport) {
+        console.log(fimport.toString());
+    });
 
-reader.on("functionImportsEnd", function() {
-    console.log("End of function imports");
-});
+    reader.on("functionImportsEnd", function () {
+        console.log("End of function imports");
+    });
 
-reader.on("globalVariables", function (nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import) {
-    console.log("Global vars: " + [nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import]);
-});
+    reader.on("globalVariables", function (nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import) {
+        console.log("Global vars: " + [nI32zero, nF32zero, nF64zero, nI32import, nF32import, nF64import]);
+    });
 
-reader.on("globalVariable", function(variable) {
-    console.log(variable.toString());
-});
+    reader.on("globalVariable", function (variable) {
+        console.log(variable.toString());
+    });
 
-reader.on("globalVariablesEnd", function() {
-    console.log("End of global variables");
-});
+    reader.on("globalVariablesEnd", function () {
+        console.log("End of global variables");
+    });
 
-reader.on("functionDeclarations", function (nDeclarations) {
-    console.log("Function declarations: " + nDeclarations);
-});
+    reader.on("functionDeclarations", function (nDeclarations) {
+        console.log("Function declarations: " + nDeclarations);
+    });
 
-reader.on("functionDeclaration", function(declaration) {
-    console.log(declaration.toString());
-});
+    reader.on("functionDeclaration", function (declaration) {
+        console.log(declaration.toString());
+    });
 
-reader.on("functionDeclarationsEnd", function() {
-    console.log("End of function declarations");
-});
+    reader.on("functionDeclarationsEnd", function () {
+        console.log("End of function declarations");
+    });
 
-reader.on("functionPointerTables", function (nTables) {
-    console.log("Function pointer tables: " + nTables);
-});
+    reader.on("functionPointerTables", function (nTables) {
+        console.log("Function pointer tables: " + nTables);
+    });
 
-reader.on("functionPointerTable", function(table) {
-    console.log(table.toString());
-});
+    reader.on("functionPointerTable", function (table) {
+        console.log(table.toString());
+    });
 
-reader.on("functionPointerTablesEnd", function() {
-    console.log("End of function pointer tables");
-});
+    reader.on("functionPointerTablesEnd", function () {
+        console.log("End of function pointer tables");
+    });
 
-reader.on("functionDefinitions", function (nDefinitions) {
-    console.log("Function definitions: " + nDefinitions);
-});
+    reader.on("functionDefinitions", function (nDefinitions) {
+        console.log("Function definitions: " + nDefinitions);
+    });
 
-reader.on("functionDefinition", function(definition) {
-    console.log(definition.asmHeader()+"\n");
-});
+    reader.on("functionDefinition", function (definition) {
+        console.log(definition.asmHeader() + "\n");
+    });
 
-reader.on("functionDefinitionsEnd", function() {
-    console.log("End of function definitions");
-});
+    reader.on("functionDefinitionsEnd", function () {
+        console.log("End of function definitions");
+    });
 
-reader.on("export", function(exprt) {
-    console.log("Export: "+exprt.toString());
-});
+    reader.on("export", function (exprt) {
+        console.log("Export: " + exprt.toString());
+    });
+}
 
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
     console.log("Indexing complete: "+reader.assembly.toString()+"\n");
 
-    console.log(reader.assembly.asmHeader(), "\n");
+    if (verbose)
+        console.log(reader.assembly.asmHeader(), "\n");
 
     console.log("Validating assembly ...");
     try {
@@ -159,10 +167,12 @@ function validateAstOffsets() {
             throw Error("length "+length+" < 0");
         if (offset + length > stats.size)
             throw Error("offset + length "+(offset+length)+" > "+stats.size);
-        console.log("Reading AST of "+definition+" @ "+definition.byteOffset.toString(16));
+        if (verbose)
+            console.log("Reading AST of "+definition+" @ "+definition.byteOffset.toString(16));
         var astReader = new AstReader(definition);
         astReader.on("ast", function(ast) {
-            console.log("AST read complete: "+n+" statements");
+            if (verbose)
+                console.log("AST read complete: "+n+" statements");
             definition.ast = ast;
         });
         astReader.on("stmt", function(stmt) {
@@ -196,7 +206,8 @@ function validateAstRewrite(assembly) {
         var writer = new AstWriter(definition, { preserveWithImm: true }),
             offset = 0,
             n = 0;
-        console.log("Writing AST of "+definition);
+        if (verbose)
+            console.log("Writing AST of "+definition);
         writer.on("data", function(chunk) {
             for (var i=0; i<chunk.length; ++i) {
                 if (astContents[offset+i] !== chunk[i]) {
@@ -216,7 +227,8 @@ function validateAstRewrite(assembly) {
             ++n;
         });
         writer.on("end", function() {
-            console.log("AST write complete: "+n+" statements");
+            if (verbose)
+                console.log("AST write complete: "+n+" statements");
             ++current;
             setImmediate(next);
         });
@@ -234,11 +246,12 @@ function write(assembly) {
         offset = 0;
     var writer = new Writer(assembly, { preserveWithImm : true }),
         wi = 0;
-    writer.on("switchState", function(state, previousState, offset) {
-        console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
-    });
+    if (verbose)
+        writer.on("switchState", function(state, previousState, offset) {
+            console.log("switch state "+previousState+"->"+state+" @ "+offset.toString(16));
+        });
     writer.on("data", function(chunk) {
-        if (wi++%100 === 0)
+        if (verbose && wi++%100 === 0)
             process.stdout.write(".");
         for (var i=0; i<chunk.length; ++i) {
             if (contents[offset+i] !== chunk[i]) {
@@ -273,7 +286,7 @@ function writeFile(assembly, file) {
         offset = 0,
         wi = 0;
     writer.on("data", function(chunk) {
-        if (wi++%100 === 0)
+        if (verbose && wi++%100 === 0)
             process.stdout.write(".");
         ws.write(chunk);
         offset += chunk.length;
@@ -281,7 +294,8 @@ function writeFile(assembly, file) {
     writer.on("end", function() {
         ws.end();
         var p = (unoptimizedSize-offset)/unoptimizedSize;
-        console.log("");
+        if (verbose)
+            console.log("");
         console.log("Complete: "+offset+" bytes (-"+p+"%)\n");
     });
     // FIXME: Why does .pipe throw "Maximum call stack size exceeded"?
