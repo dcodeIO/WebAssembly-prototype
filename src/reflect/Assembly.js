@@ -965,6 +965,60 @@ Assembly.prototype.asmHeader = function(pack) {
     return sb.join("");
 };
 
+// ----- optimization -----
+
+/**
+ * Optimizes this assembly.
+ * @returns {number}
+ */
+Assembly.prototype.optimize = function() {
+    var n = 0;
+
+    // Remove duplicate function signatures
+    var existingSignatures = {};
+    for (var i=0; i<this.functionSignatures.length;) {
+        var signature = this.functionSignatures[i];
+        var sig = [];
+        sig.push(signature.returnType.toString(), ":");
+        signature.argumentTypes.forEach(function(type, i) {
+            if (i > 0)
+                sig.push(",");
+            sig.push(type.toString());
+        });
+        sig = sig.join("");
+        if (existingSignatures.hasOwnProperty(sig)) {
+            signature._indexOverride = existingSignatures[sig]; // Override index used by still linked structures
+            this.functionSignatures.splice(i, 1);
+            ++n;
+        } else {
+            existingSignatures[sig] = signature.index;
+            ++i;
+        }
+    }
+
+    // TODO: function pointer mask (length-1) must be a power of 2-1
+    /* this.functionPointerTables.forEach(function(table) {
+        var existingElements = [];
+        for (var i=0; i<table.elements.length;) {
+            var element = table.elements[i];
+            if (existingElements.indexOf(element.value) >= 0) {
+                table.elements.splice(i, 1);
+                ++n;
+            } else {
+                existingElements.push(element.value);
+                ++i;
+            }
+        }
+    }, this); */
+
+    // Optimize statements
+    this.functionDeclarations.forEach(function(declaration) {
+        n += declaration.definition.optimize();
+    }, this);
+
+    return n;
+};
+
 // ----- convenience -----
 
 /**

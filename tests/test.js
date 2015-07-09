@@ -10,7 +10,7 @@ var webassembly = require("../"),
     AstWriter = webassembly.ast.Writer,
     Assembly = webassembly.reflect.Assembly;
 
-var file = path.join(__dirname, "add.wasm"),
+var file = path.join(__dirname, "AngryBots.wasm"),
     stats = fs.statSync(file);
 
 console.log("Testing "+file+" ...\n");
@@ -115,6 +115,10 @@ reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
     console.log("Complete: "+reader.assembly.toString()+"\n");
+
+    optimize(reader.assembly);
+    return;
+
     console.log("Validating assembly ...");
     try {
         reader.assembly.validate();
@@ -229,7 +233,30 @@ function write(assembly) {
         offset += chunk.length;
     });
     writer.on("end", function() {
-        console.log("Complete: "+offset+" bytes");
+        console.log("Complete: "+offset+" bytes\n");
+        optimize(assembly);
     });
+    writer.resume();
+}
+
+function optimize(assembly) {
+    console.log("Optimizing assembly ...");
+    var n = assembly.optimize();
+    console.log("Complete: "+n+" optimizations\n");
+    setImmediate(writeFile.bind(this, assembly, __dirname+"/out.wasm")); // Recursive process.nextTick
+}
+
+function writeFile(assembly, file) {
+    console.log("Writing assembly to "+file+" ...");
+    var writer = new Writer(assembly);
+    var ws = fs.createWriteStream(file);
+    writer.on("data", function(chunk) {
+        ws.write(chunk);
+    });
+    writer.on("end", function() {
+        ws.end();
+        console.log("Complete");
+    });
+    // FIXME: Why does .pipe throw "Maximum call stack size exceeded"?
     writer.resume();
 }

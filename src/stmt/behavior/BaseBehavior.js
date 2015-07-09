@@ -52,3 +52,9 @@ BaseBehavior.prototype.validate = function(definition, stmt) {
 BaseBehavior.prototype.write = function(s, stmt) {
     throw Error("not implemented");
 };
+
+/**
+ * An optional function capable of optimizing a statement with this behavior.
+ * @type {function(!reflect.FunctionDefinition, !stmt.BaseStmt)|undefined}
+ */
+BaseBehavior.prototype.optimize;

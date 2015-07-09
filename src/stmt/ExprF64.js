@@ -9,7 +9,7 @@ var types = require("../types"),
  * @param {(!Array.<number|!stmt.BaseOperand>|number|!stmt.BaseOperand)=} operands
  * @constructor
  * @extends stmt.BaseExpr
- * @exports stmt.F64Stmt
+ * @exports stmt.ExprF64
  */
 function ExprF64(code, operands) {
     BaseExpr.call(this, code, operands);

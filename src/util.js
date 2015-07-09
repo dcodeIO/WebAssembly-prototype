@@ -214,10 +214,3 @@ util.values = function(obj) {
             values.push(obj[i]);
     return values;
 };
-
-util.nextTick = function(callback) {
-    if (typeof process === 'object' && process && typeof process.nextTick === 'function')
-        process.nextTick(callback);
-    else
-        setTimeout(callback, 0);
-};

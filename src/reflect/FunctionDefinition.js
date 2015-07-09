@@ -1,7 +1,8 @@
 var types = require("../types"),
     util = require("../util");
 
-var FunctionSignature = require("./FunctionSignature");
+var FunctionSignature = require("./FunctionSignature"),
+    BaseStmt = require("../stmt/BaseStmt");
 
 /**
  * A function definition.
@@ -101,6 +102,58 @@ FunctionDefinition.prototype.toString = function() {
 FunctionDefinition.prototype.getVariable = function(index) {
     util.assertInteger("index", index, 0, this.variables.length-1);
     return this.variables[index];
+};
+
+function replace(ast, oldStmt, newStmt) {
+    var stack = [];
+    for (var i=ast.length-1; i>=0; --i) {
+        stack.push(ast[i]);
+        if (ast[i] === oldStmt)
+            ast[i] = newStmt;
+    }
+    while (stack.length > 0) {
+        var current = stack.pop(), k;
+        for (i=0,k=current.operands.length; i<k; ++i) {
+            var operand = current.operands[i];
+            if (operand instanceof BaseStmt) {
+                if (operand === oldStmt) {
+                    console.log("replacing "+operand+" with "+newStmt+" on "+current);
+                    current.operands[i] = newStmt;
+                }
+                stack.push(operand);
+            }
+        }
+    }
+}
+
+/**
+ * Optimizes the function body.
+ * @returns {number}
+ */
+FunctionDefinition.prototype.optimize = function() {
+    var stack = [];
+    for (var i=this.ast.length-1; i>=0; --i)
+        stack.push(this.ast[i]);
+    var n = 0;
+    while (stack.length > 0) {
+        var stmt = stack.pop(),
+            behavior = stmt.behavior;
+        if (typeof behavior.optimize === 'function') {
+            var code = stmt.code,
+                optimizedStmt = behavior.optimize(this, stmt);
+            if (optimizedStmt !== stmt) {
+                replace(this.ast, stmt, optimizedStmt);
+                ++n;
+            } else if (optimizedStmt.code !== code)
+                ++n;
+        }
+        for (i=stmt.operands.length-1; i>=0; --i) {
+            var operand = stmt.operands[i];
+            if (operand instanceof BaseStmt)
+                stack.push(operand);
+        }
+    }
+    return n;
 };
 
 /**

@@ -37,6 +37,15 @@ BlockBehavior.prototype.validate = function(definition, stmt) {
         assert(stmt.operands[i] instanceof Stmt, this.name+" operand "+i+" must be a statement");
 };
 
+BlockBehavior.prototype.optimize = function(definition, stmt) {
+    var count = stmt.operands.length;
+    if (count === 1) {
+        console.log("reducing block to single statement: "+stmt);
+        return stmt.operands[0];
+    }
+    return stmt;
+};
+
 BlockBehavior.prototype.write = function(s, stmt) {
     s.code(stmt.code);
     s.varint(stmt.operands.length);

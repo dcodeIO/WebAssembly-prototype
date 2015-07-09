@@ -46,6 +46,13 @@ function BaseStmt(code, operands) {
 
 module.exports = BaseStmt;
 
+/* var ExprI32 = require("./ExprI32"),
+    ExprF32 = require("./ExprF32"),
+    ExprF64 = require("./ExprF64"),
+    ExprVoid = require("./ExprVoid"),
+    SwitchCase = require("./SwitchCase"),
+    Stmt = require("./Stmt"); */
+
 // Extends BaseOperand
 BaseStmt.prototype = Object.create(BaseOperand.prototype);
 
@@ -65,7 +72,7 @@ BaseStmt.prototype = Object.create(BaseOperand.prototype);
 /**
  * Behavior.
  * @name stmt.BaseStmt#behavior
- * @type {!stmt.behavior.Behavior}
+ * @type {!stmt.behavior.BaseBehavior}
  */
 
 /**
@@ -125,3 +132,28 @@ BaseStmt.prototype.toString = function(shortFormat) {
         }
     return sb.join("");
 };
+
+/**
+ * Clones this statement.
+ * @param {number=} newCode Optional new opcode
+ * @returns {!stmt.BaseStmt}
+ */
+/* BaseStmt.prototype.clone = function(newCode) {
+    var code = typeof newCode !== 'undefined' ? newCode : this.code;
+    switch (this.type) {
+        case types.WireType.ExprI32:
+            return new ExprI32(code, this.operands);
+        case types.WireType.ExprF32:
+            return new ExprF32(code, this.operands);
+        case types.WireType.ExprF64:
+            return new ExprF64(code, this.operands);
+        case types.WireType.ExprVoid:
+            return new ExprVoid(code, this.operands);
+        case types.WireType.SwitchCase:
+            return new SwitchCase(code, this.operands);
+        case types.WireType.Stmt:
+            return new SwitchCase(code, this.operands);
+        default:
+            throw Error("unreachable");
+    }
+}; */

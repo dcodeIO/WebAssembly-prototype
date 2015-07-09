@@ -27,6 +27,13 @@ function FunctionSignature(assembly, returnType, argumentTypes) {
      * @type {!Array.<number>}
      */
     this.argumentTypes = argumentTypes || [];
+
+    /**
+     * Index override used by {@link reflect.Assembly#optimize}.
+     * @type {number}
+     * @private
+     */
+    this._indexOverride = -1; // FIXME
 }
 
 module.exports = FunctionSignature;
@@ -38,6 +45,8 @@ module.exports = FunctionSignature;
  */
 Object.defineProperty(FunctionSignature.prototype, "index", {
     get: function() {
+        if (this._indexOverride >= 0)
+            return this._indexOverride;
         return this.assembly.functionSignatures.indexOf(this);
     }
 });

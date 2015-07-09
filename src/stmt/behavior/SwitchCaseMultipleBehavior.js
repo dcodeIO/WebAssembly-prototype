@@ -40,6 +40,29 @@ SwitchCaseMultipleBehavior.prototype.validate = function(definition, stmt) {
         assert(stmt.operands[i] instanceof Stmt, this.name+" operand "+i+" must be a statement");
 };
 
+SwitchCaseMultipleBehavior.prototype.optimize = function(definition, stmt) {
+    if (stmt.code === types.SwitchCase.CaseN) {
+        switch (stmt.operands.length - 1) {
+            case 0:
+                console.log("reducing CaseN to Case0: "+stmt);
+                stmt.code = types.SwitchCase.Case0;
+            case 1:
+                console.log("reducing CaseN to Case1: "+stmt);
+                stmt.code = types.SwitchCase.Case1;
+        }
+    } else if (stmt.code === types.SwitchCase.DefaultN) {
+        switch (stmt.operands.length - 1) {
+            case 0:
+                console.log("reducing DefaultN to Default0: "+stmt);
+                stmt.code = types.SwitchCase.Default0;
+            case 1:
+                console.log("reducing DefaultN to Default1: "+stmt);
+                stmt.code = types.SwitchCase.Default1;
+        }
+    }
+    return stmt;
+};
+
 SwitchCaseMultipleBehavior.prototype.write = function(s, stmt) {
     s.code(stmt.code);
     s.varint_s(stmt.operands[0]);
