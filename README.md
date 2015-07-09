@@ -6,6 +6,8 @@ in a collaborative afford under the umbrella of the W3C ([see](https://www.w3.or
 This package aims to provide tools for working with [WebAssembly](https://github.com/WebAssembly) binaries, providing
 interested developers with an easy way to experiment with the technology from within JavaScript itself.
 
+[![Build Status](https://travis-ci.org/dcodeIO/WebAssembly.svg)](https://travis-ci.org/dcodeIO/WebAssembly)
+
 Contents
 --------
 
