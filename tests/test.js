@@ -123,7 +123,7 @@ if (verbose) {
 reader.on("end", function() {
     if (reader.offset !== stats.size)
         throw Error("reader offset != size: "+reader.offset+" != "+stats.size);
-    console.log("Indexing complete: "+reader.assembly.toString()+"\n");
+    console.log("Complete: "+reader.assembly.toString()+"\n");
 
     if (verbose)
         console.log(reader.assembly.asmHeader(), "\n");
